@@ -1,4 +1,4 @@
-/* --- VARIABLES --- */
+/* --- SISTEMA DE DISEÑO --- */
 :root {
   --bg-deep: #020617;
   --bg-surface: #0f172a;
@@ -9,174 +9,239 @@
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --border: rgba(255, 255, 255, 0.08);
-  --ease-pro: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --header-h: 70px;
+  --radius-lg: 24px;
+  --radius-md: 16px;
 }
 
-/* --- RESET --- */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+/* --- RESET & BASE --- */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; width: 100%; overflow-x: hidden;}
 body {
   background: var(--bg-deep);
   color: var(--text-main);
   font-family: 'Inter', sans-serif;
   overflow-x: hidden;
+  line-height: 1.6;
+  width: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* --- HEADER --- */
-.main-header {
-  position: fixed;
-  top: 0; width: 100%; z-index: 1000;
-  background: rgba(2, 6, 23, 0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-}
-nav {
-  max-width: 1200px; margin: 0 auto;
-  padding: 1rem 2rem; display: flex;
-  justify-content: space-between; align-items: center;
-}
-.logo h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; }
-
-/* --- HERO --- */
-.hero {
-  padding: 12rem 1.5rem 8rem; text-align: center;
-  background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), transparent 70%);
-}
-.hero h2 {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(2.5rem, 8vw, 4.5rem); margin-bottom: 1.5rem;
-  animation: heroIn 1.2s var(--ease-pro);
-}
-.hero-accent { color: var(--primary); text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.8rem; font-weight: 700; }
-.hero p { max-width: 600px; margin: 1.5rem auto; color: var(--text-muted); font-size: 1.1rem; }
-
-/* --- SECCIONES & ANIMACIONES --- */
-.section { max-width: 1000px; margin: 0 auto; padding: 6rem 2rem; }
-.section.alt { max-width: 100%; background: var(--bg-surface); }
-.section h3 { font-family: 'Playfair Display', serif; font-size: 2.5rem; text-align: center; margin-bottom: 3rem; }
-
-.reveal {
-  opacity: 0; transform: translateY(30px);
-  transition: all 0.8s var(--ease-pro);
+/* --- LAYOUT UTILS --- */
+.container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+.narrow { max-width: 800px; }
+.section { padding: 4rem 0; }
+.section.alt {
+  width: 100%;
+  max-width: 100%; /* Evita que crezca más que el viewport */
+  padding: 4rem 1.5rem;
+  box-sizing: border-box; /* Fundamental: el padding no suma al ancho */
 }
 
-/* Animación de scroll con soporte moderno */
-@supports (animation-timeline: view()) {
-  .reveal {
-    animation: revealIn linear forwards;
-    animation-timeline: view();
-    animation-range: entry 10% cover 30%;
+/* 3. Ajuste del contenedor interno */
+.section.alt .container.narrow {
+  width: 100%;
+  max-width: 800px; /* Alineado con la sección de arriba */
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* 4. Aseguramos que las tarjetas no empujen el borde */
+.stack-layout {
+  width: 100%;
+}
+
+.card.focus-item {
+  width: 100%;
+  box-sizing: border-box;
+} 
+
+/* 5. Ajuste para tablets y desktop */
+@media (min-width: 768px) {
+  .section.alt {
+    padding: 6rem 0; /* Volvemos al espaciado amplio en pantallas grandes */
   }
 }
 
-@keyframes revealIn {
-  from { opacity: 0; transform: translateY(50px); filter: blur(10px); }
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+.text-center { text-align: center; }
+
+/* --- HEADER: FIX DE ALINEACIÓN --- */
+.main-header {
+  position: fixed;
+  top: 0; left: 0; 
+  width: 100% !important; 
+  height: 70px;
+  background: rgba(2, 6, 23, 0.95);
+  display: flex !important;
+  align-items: center !important;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-@keyframes heroIn {
-  from { opacity: 0; transform: translateY(20px); filter: blur(5px); }
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+.nav-container {
+  /* Este es el contenedor que debe expandirse */
+  width: 100% !important; 
+  max-width: 1200px !important; 
+  margin: 0 auto !important;
+  padding: 0 2rem !important;
+  
+  /* Flexbox para separar los extremos */
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important; 
+  align-items: center !important;
 }
 
-/* --- CARDS --- */
-.focus-item {
-  background: rgba(255,255,255,0.02); border: 1px solid var(--border);
-  padding: 2.5rem; border-radius: 16px; margin-bottom: 1.5rem;
-  transition: 0.3s;
+.logo-group {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
-.focus-item:hover { transform: translateX(10px); border-color: var(--primary); background: rgba(99,102,241,0.05); }
-.focus-item h4 { color: #fff; margin-bottom: 0.8rem; font-size: 1.4rem; }
 
-.detail-block { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+.nav-cta {
+  /* Empujón final: si el space-between falla, margin-left auto lo arregla */
+  margin-left: auto !important; 
+  display: flex;
+  align-items: center;
+}
+
+/* El link ahora sí parecerá un botón y estará a la derecha */
+.nav-cta a {
+  color: #fff !important;
+  text-decoration: none !important;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  white-space: nowrap;
+} 
+
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Link de contacto estilo botón */
+.nav-cta a.btn-outline {
+  display: inline-flex !important;
+  padding: 0.6rem 1.2rem !important;
+  border: 1px solid var(--primary) !important;
+  color: #fff !important;
+  text-decoration: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  white-space: nowrap; /* Evita que el texto se parta en cel */
+}
+
+/* Ajuste para tablets: un poco más de aire */
+@media (min-width: 768px) {
+  .nav-cta a.btn-outline {
+    font-size: 0.95rem !important;
+    padding: 0.7rem 1.5rem !important;
+  }
+}
+
+.logo-group { display: flex; align-items: center; gap: 0.75rem; }
+.nav-logo { width: 38px; height: 38px; filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.3)); }
+.brand-name { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; }
+
+/* --- HERO --- */
+.hero-section {
+  padding: calc(var(--header-h) + 4rem) 0 4rem;
+  background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), transparent 75%);
+  text-align: center;
+}
+.badge {
+  color: var(--primary); text-transform: uppercase; letter-spacing: 0.15em;
+  font-size: 0.75rem; font-weight: 700; margin-bottom: 1rem; display: block;
+}
+.hero-section h2 {
+  font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 8vw, 4.5rem);
+  line-height: 1.1; margin-bottom: 1.5rem;
+}
+.highlight { color: var(--text-main); }
+.hero-desc { max-width: 600px; margin: 0 auto 2rem; color: var(--text-muted); font-size: 1.1rem; }
+
+/* --- CARDS & GRIDS --- */
+.card {
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+  border-radius: var(--radius-md); transition: all 0.4s var(--ease);
+}
+.card:hover { border-color: var(--primary); background: rgba(99, 102, 241, 0.05); transform: translateY(-5px); }
+
+.pilares-grid { display: grid; gap: 1.5rem; grid-template-columns: 1fr; }
+.pilar { padding: 2.5rem 1.5rem; text-align: center; }
+.pilar i { font-size: 2.5rem; color: var(--accent); margin-bottom: 1.5rem; display: block; }
+.pilar h4 { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 1rem; }
+
+.stack-layout { display: flex; flex-direction: column; gap: 1.25rem; }
+.focus-item { padding: 2rem; }
+.focus-item h4 { font-size: 1.3rem; margin-bottom: 0.75rem; }
+.detail-block { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); font-size: 0.95rem; }
 .detail-block ul { list-style: none; margin-top: 0.5rem; }
-.detail-block li::before { content: "→ "; color: var(--primary); font-weight: bold; }
+.detail-block li::before { content: "→ "; color: var(--primary); }
 
-/* --- CEO CARD --- */
-.ceo-card {
-  background: var(--bg-elevated); padding: 3.5rem; border-radius: 24px;
-  text-align: center; border: 1px solid var(--border);
-}
-.ceo-name { font-size: 2.8rem !important; margin: 1rem 0 !important; color: #fff; }
-.ceo-content p { margin-bottom: 1rem; color: var(--text-muted); }
+/* --- CEO --- */
+.ceo-wrapper { max-width: 800px; margin: 0 auto; }
+.ceo-card { padding: 3rem 1.5rem; text-align: center; border-radius: var(--radius-lg); }
+.ceo-name { font-size: 2.5rem !important; color: #fff; margin: 0.75rem 0 !important; }
+.ceo-content p { color: var(--text-muted); margin-bottom: 1rem; }
+.ceo-social { margin-top: 2rem; }
 
-/* --- BOTONES --- */
+/* --- CONTACT --- */
+.cta-box h3 { font-family: 'Playfair Display', serif; font-size: 2.5rem; margin-bottom: 1rem; }
+.cta-box p { color: var(--text-muted); margin-bottom: 2rem; }
+.cta-btns { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
+
+/* --- BUTTONS --- */
 .btn-primary, .btn-outline, .btn-whatsapp {
-  padding: 0.8rem 1.8rem; border-radius: 10px; font-weight: 600;
-  text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
-  transition: 0.3s var(--ease-pro); cursor: pointer; border: none;
+  padding: 1rem 2rem; border-radius: 12px; font-weight: 600; cursor: pointer;
+  text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  gap: 10px; border: none; transition: 0.3s var(--ease); font-size: 1rem; min-height: 52px; width: 100%; max-width: 320px;
 }
 .btn-primary { background: var(--primary); color: #fff; }
-.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(99,102,241,0.3); }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: #fff; }
+.btn-whatsapp { background: transparent; border: 1px solid var(--whatsapp); color: var(--whatsapp); }
+.btn-small { padding: 0.6rem 1.2rem; min-height: 40px; font-size: 0.9rem; width: auto; }
 
-.btn-whatsapp { border: 1px solid var(--whatsapp); color: var(--whatsapp); background: transparent; }
-.btn-whatsapp:hover { background: var(--whatsapp); color: #fff; transform: translateY(-3px); }
-
-.btn-outline { border: 1px solid var(--border); color: #fff; background: transparent; }
-.btn-outline:hover { border-color: #fff; }
-
-.w-full { width: 100%; justify-content: center; margin-top: 1rem; }
+/* --- ANIMATIONS --- */
+.reveal { opacity: 0; transform: translateY(30px); filter: blur(10px); transition: all 1s var(--ease); }
+.reveal-left { transform: translateX(-30px); }
+.reveal-right { transform: translateX(30px); }
+.active { opacity: 1; transform: translate(0,0); filter: blur(0); }
 
 /* --- MODAL --- */
+/* --- MODAL OPTIMIZADO --- */
 .modal {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-  display: none; align-items: center; justify-content: center; z-index: 2000; padding: 1rem;
-}
-.modal-content {
-  background: var(--bg-surface); padding: 2.5rem; border-radius: 20px;
-  max-width: 450px; width: 100%; position: relative; border: 1px solid var(--border);
-}
-.close-btn { position: absolute; top: 1.5rem; right: 1.5rem; background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; }
-.form-group { margin-bottom: 1.2rem; display: flex; flex-direction: column; text-align: left; }
-.form-group label { font-size: 0.8rem; margin-bottom: 0.5rem; color: var(--text-muted); text-transform: uppercase; }
-.form-group input, .form-group select, .form-group textarea {
-  background: var(--bg-deep); border: 1px solid var(--border);
-  padding: 0.8rem; color: #fff; border-radius: 8px; font-family: inherit;
-}
-
-/* --- FOOTER --- */
-.main-footer { text-align: center; padding: 4rem; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); }
-
-/* --- CORRECCIÓN CENTRADO EMPECEMOS --- */
-.contact-footer {
-  text-align: center;
-  display: flex; /* Añadimos flexbox para asegurar el centrado total */
-  flex-direction: column;
-  align-items: center; 
-  justify-content: center;
-  padding: 10rem 2rem !important;
-}
-
-.cta-box {
-  max-width: 700px;
-  width: 100%; /* Asegura que ocupe el ancho necesario */
-  margin: 0 auto; /* Centrado horizontal clásico */
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* Centra los hijos (h3, p, botones) */
-}
-
-.cta-actions {
-  display: flex;
-  gap: 1.5rem;
-  justify-content: center; /* Centra los botones horizontalmente */
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.98); /* Fondo más oscuro para enfoque total */
+  z-index: 2000;
+  display: none;
   align-items: center;
-  flex-wrap: wrap;
-  margin-top: 1rem;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto; /* Permite scroll si el cel es muy chico */
 }
 
-/* Ajuste opcional para asegurar que el H3 de esta sección también se centre */
-#empecemos-title {
-    text-align: center;
-    width: 100%;
+.modal-content {
+  background: var(--bg-surface);
+  width: 100%;
+  max-width: 450px;
+  padding: 2.5rem 1.5rem;
+  border-radius: var(--radius-lg);
+  position: relative;
+  border: 1px solid var(--border);
+  margin: auto; /* Centrado en el scroll */
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
-
-/* --- MEJORA DE ESPACIADO EN EL MODAL --- */
 
 .modal-header {
-  margin-bottom: 2.5rem; /* Crea el espacio entre el texto y el form */
-  border-bottom: 1px solid var(--border); /* Divisor sutil */
-  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
   text-align: center;
 }
 
@@ -187,188 +252,166 @@ nav {
   color: #fff;
 }
 
-.modal-header p {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-}
-
+/* --- FORMULARIO DENTRO DEL MODAL --- */
 .contact-form {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem; /* Espacio uniforme entre cada campo del formulario */
+  gap: 1.25rem; /* Espaciado vertical entre campos */
 }
 
-/* Ajuste para que los labels no estén pegados a los inputs */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
 .form-group label {
-  margin-bottom: 0.6rem;
-  font-weight: 500;
-  color: var(--primary-light); /* Un toque de color para distinguir el label */
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--primary); /* Color para jerarquía visual */
+  letter-spacing: 0.05em;
 }
 
-.ri-spin { animation: spin 1s linear infinite; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-#success-message i {
-  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes popIn {
-  0% { transform: scale(0); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-
-#error-message i {
-  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-}
-
-@keyframes shake {
-  10%, 90% { transform: translate3d(-1px, 0, 0); }
-  20%, 80% { transform: translate3d(2px, 0, 0); }
-  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-  40%, 60% { transform: translate3d(4px, 0, 0); }
-}
-
-
-.pilares-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
-  margin-top: 2rem;
-}
-
-.pilar-card {
-  text-align: center;
-  padding: 3rem 2rem;
-  background: rgba(255, 255, 255, 0.03);
+.form-group input, 
+.form-group select, 
+.form-group textarea {
+  width: 100%;
+  background: var(--bg-deep);
   border: 1px solid var(--border);
-  border-radius: 20px;
-  transition: transform 0.3s var(--ease-pro);
+  padding: 0.85rem 1rem;
+  color: #fff;
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px; /* Evita el zoom automático en iOS */
+  transition: border-color 0.3s ease;
 }
 
-.pilar-card:hover {
-  transform: translateY(-10px);
-  background: rgba(99, 102, 241, 0.05);
+.form-group input:focus, 
+.form-group select:focus, 
+.form-group textarea:focus {
+  outline: none;
   border-color: var(--primary);
 }
 
-.pilar-card i {
-  font-size: 2.5rem;
-  color: var(--accent);
-  margin-bottom: 1.5rem;
-  display: inline-block;
-}
-
-.pilar-card h4 {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #fff;
-}
-
-.pilar-card p {
-  font-size: 0.95rem;
+.close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  background: none;
+  border: none;
   color: var(--text-muted);
-  line-height: 1.6;
+  font-size: 2rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.3s ease;
 }
 
-
-/* --- HEADER RESPONSIVE --- */
-.main-header {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  z-index: 1000;
-  background: rgba(2, 6, 23, 0.9);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-}
-
-nav {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0.8rem 1.5rem; /* Padding reducido para ganar espacio */
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem; /* Espacio mínimo entre logo y botón de contacto */
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.nav-logo {
-  width: 50px;
-  height: 50px;
-  object-fit: contain;
-  /* El filtro 'invert(1)' es mágico para fondos oscuros si el logo es negro */
-  filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.4)); 
-}
-
-.brand-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 2.2rem;
-  font-weight: 700;
-  /* Usamos un blanco puro con un toque de brillo azulado */
+.close-btn:hover {
   color: #fff;
-  text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
-  margin: 0;
 }
 
-@media (max-width: 480px) {
-  .nav-logo { width: 38px; height: 38px; }
-  .brand-name { font-size: 1.6rem; }
+/* Ajuste del botón enviar en el modal */
+.modal-content .btn-primary {
+  width: 100%;
+  margin-top: 1rem;
+  max-width: none; /* Que ocupe todo el ancho del modal */
 }
 
-/* --- INTERACCIÓN --- */
-.logo:hover .nav-logo {
-  transform: scale(1.05) rotate(5deg);
+/* Mensajes de estado (Éxito/Error) */
+.state-msg {
+  text-align: center;
+  padding: 2rem 0;
 }
 
-/* --- AJUSTES PARA MÓVILES (Breakpoints) --- */
-@media (max-width: 480px) {
-  nav {
-    padding: 0.6rem 1rem;
-  }
-  
-  /* Reducimos el botón de contacto en móviles para que no empuje al logo */
-  .btn-outline {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-  }
+.state-msg i {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 1.5rem;
 }
 
-/* --- NUEVAS ANIMACIONES DE ENTRADA --- */
+.success-icon { color: var(--whatsapp); }
+.error-icon { color: #ef4444; }
 
-/* Clase base para los elementos que van a animar */
-.reveal {
-  opacity: 0;
-  transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
-  filter: blur(5px);
-  will-change: transform, opacity;
+.close-btn { position: absolute; top: 1rem; right: 1.25rem; background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; }
+
+.main-footer { text-align: center; padding: 4rem 1.5rem; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem; }
+
+/* --- RESPONSIVE TABLETS & DESKTOP --- */
+@media (min-width: 768px) {
+  .section { padding: 6rem 0; }
+  .pilares-grid { grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+  .cta-btns { flex-direction: row; justify-content: center; }
+  .btn-primary, .btn-outline, .btn-whatsapp { width: auto; }
+  .brand-name { font-size: 1.8rem; }
+  .nav-logo { width: 48px; height: 48px; }
+  .reveal-left { transform: translateX(-80px); }
+  .reveal-right { transform: translateX(80px); }
 }
 
-/* Entrada desde la IZQUIERDA */
-.reveal-left {
-  transform: translateX(-80px);
+nav,
+.hero,
+.section {
+  display: flex;
+  justify-content: center;
 }
 
-/* Entrada desde la DERECHA */
-.reveal-right {
-  transform: translateX(80px);
+nav > *,
+.hero > *,
+.section > * {
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
 }
 
-/* Clase que se añade con JS cuando el elemento es visible */
-.reveal.active {
-  opacity: 1;
-  transform: translateX(0);
-  filter: blur(0);
+/* Mantener columnas angostas centradas */
+.single-column,
+.ceo {
+  margin-inline: auto;
 }
 
-/* Delay para que los elementos dentro de una sección no aparezcan todos a la vez */
-.reveal:nth-child(2) { transition-delay: 0.2s; }
-.reveal:nth-child(3) { transition-delay: 0.4s; }
+/* ==============================
+   FIX DE ALINEACIÓN CORRECTO
+   ============================== */
 
+/* Limitar y centrar el contenido real */
+.section > *,
+.hero > * {
+  max-width: 1100px;
+  margin-inline: auto;
+}
+
+/* Mantener columnas angostas centradas */
+.single-column,
+.ceo {
+  margin-inline: auto;
+}
+
+
+/* --- CUSTOM SCROLLBAR (Chrome, Safari, Edge) --- */
+::-webkit-scrollbar {
+  width: 10px;               /* Ancho de la barra vertical */
+  height: 10px;              /* Altura de la barra horizontal */
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-deep); /* Color de fondo de la barra (el mismo que el body) */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;       /* Color del "mueble" (un azul grisáceo oscuro) */
+  border-radius: 10px;       /* Bordes redondeados */
+  border: 2px solid var(--bg-deep); /* Crea un efecto de margen para que se vea más fina */
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary); /* Al pasar el mouse, cambia al color violeta principal */
+}
+
+/* --- COMPATIBILIDAD CON FIREFOX --- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b var(--bg-deep);
+}
