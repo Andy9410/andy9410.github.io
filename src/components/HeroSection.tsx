@@ -27,7 +27,7 @@ const services = [
 ];
 
 const HeroSection = () => (
-  <section className="section-padding bg-background">
+  <section className="section-padding bg-background" aria-labelledby="hero-heading">
     <div className="container-narrow text-center">
       <ScrollReveal>
         <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-2">

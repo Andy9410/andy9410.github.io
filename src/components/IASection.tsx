@@ -21,17 +21,17 @@ const learnItems = [
 ];
 
 const IASection = () => (
-  <section id="ia" className="section-padding bg-section-alt">
+  <section id="ia" className="section-padding bg-section-alt" aria-labelledby="ia-heading">
     <div className="container-narrow">
       <div className="grid items-start gap-12 lg:grid-cols-2">
         <ScrollReveal>
           <div>
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-accent-border bg-accent-soft px-4 py-1.5">
               <Sparkles className="h-4 w-4 text-accent" />
-              <span className="text-sm font-semibold text-accent">IA al alcance</span>
+              <span className="text-sm font-semibold text-accent">Nueva vertical</span>
             </div>
 
-            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 id="ia-heading" className="text-3xl font-extrabold leading-tight sm:text-4xl">
               Alfabetización en IA para adultos que no quieren quedarse atrás
             </h2>
 

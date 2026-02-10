@@ -35,7 +35,7 @@ const IAPage = () => (
             <div className="mx-auto max-w-3xl text-center">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-accent-border bg-accent-soft px-4 py-1.5">
                 <Sparkles className="h-4 w-4 text-accent" />
-                <span className="text-sm font-semibold text-accent">Nueva vertical</span>
+                <span className="text-sm font-semibold text-accent">IA al alcance</span>
               </div>
               <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl md:text-6xl">
                 Alfabetización en IA para adultos <span className="text-accent">que no quieren quedarse atrás</span>

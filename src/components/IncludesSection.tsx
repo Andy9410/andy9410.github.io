@@ -15,11 +15,11 @@ const plans = [
 ];
 
 const IncludesSection = () => (
-  <section id="incluye" className="section-padding bg-background">
+  <section id="incluye" className="section-padding bg-background" aria-labelledby="incluye-heading">
     <div className="container-narrow">
       <ScrollReveal>
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold sm:text-4xl">¿Qué incluye exactamente?</h2>
+          <h2 id="incluye-heading" className="text-3xl font-extrabold sm:text-4xl">¿Qué incluye exactamente?</h2>
           <p className="mt-4 text-muted-foreground">Transparencia total. Esto es lo que obtienes al tomar clases conmigo.</p>
         </div>
       </ScrollReveal>

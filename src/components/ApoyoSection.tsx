@@ -1,4 +1,4 @@
-import { Lightbulb, BookOpen, Clock, CheckCircle2, GraduationCap } from "lucide-react";
+import { Lightbulb, BookOpen, Clock, CheckCircle2, GraduationCap, CalendarDays, FileSearch } from "lucide-react";
 import { Link } from "react-router-dom";
 import ScrollReveal from "@/components/ScrollReveal";
 
@@ -12,7 +12,7 @@ const features = [
 ];
 
 const ApoyoSection = () => (
-  <section id="apoyo" className="section-padding bg-section-alt">
+  <section id="apoyo" className="section-padding bg-section-alt" aria-labelledby="apoyo-heading">
     <div className="container-narrow">
       <div className="grid items-start gap-12 lg:grid-cols-2">
         <ScrollReveal>
@@ -22,13 +22,42 @@ const ApoyoSection = () => (
               <span className="text-sm font-semibold text-warning">Para estudiantes universitarios</span>
             </div>
 
-            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 id="apoyo-heading" className="text-3xl font-extrabold leading-tight sm:text-4xl">
               Apoyo académico para aprobar tus materias de programación
             </h2>
 
             <p className="mt-4 text-muted-foreground">
               Tutorías individuales diseñadas para ayudarte a comprender los conceptos más complejos y llegar preparado a tus exámenes.
             </p>
+
+            {/* Subservicios */}
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <article className="rounded-xl border border-border bg-card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5 text-warning" />
+                  <h3 className="text-sm font-bold text-primary">Curso con seguimiento</h3>
+                </div>
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-warning" />Acompañamiento durante la cursada</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-warning" />Clases regulares semanales</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-warning" />Resolución de dudas en tiempo real</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-warning" />Seguimiento del progreso</li>
+                </ul>
+              </article>
+
+              <article className="rounded-xl border border-accent-border bg-card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <FileSearch className="h-5 w-5 text-accent" />
+                  <h3 className="text-sm font-bold text-primary">Preparación de exámenes</h3>
+                </div>
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />Enfoque intensivo pre-examen</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />Resolución de parciales reales</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />Estrategias de estudio efectivas</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />Refuerzo de conceptos clave</li>
+                </ul>
+              </article>
+            </div>
 
             <div className="mt-8 space-y-6">
               {features.map((f) => (

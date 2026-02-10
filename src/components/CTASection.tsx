@@ -1,10 +1,10 @@
 import ScrollReveal from "@/components/ScrollReveal";
 
 const CTASection = () => (
-  <section id="contacto" className="section-padding bg-primary">
+  <section id="contacto" className="section-padding bg-primary" aria-labelledby="cta-heading">
     <div className="container-narrow text-center">
       <ScrollReveal>
-        <h2 className="text-3xl font-extrabold text-primary-foreground sm:text-4xl">
+        <h2 id="cta-heading" className="text-3xl font-extrabold text-primary-foreground sm:text-4xl">
           ¿Listo para dar el primer paso?
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">

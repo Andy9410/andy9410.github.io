@@ -16,7 +16,7 @@ const highlights = [
 ];
 
 const CarreraSection = () => (
-  <section id="carrera" className="section-padding bg-background">
+  <section id="carrera" className="section-padding bg-background" aria-labelledby="carrera-heading">
     <div className="container-narrow">
       <div className="grid items-start gap-12 lg:grid-cols-2">
         <ScrollReveal>
@@ -57,7 +57,7 @@ const CarreraSection = () => (
               <span className="text-sm font-semibold text-accent">Para reconversión laboral</span>
             </div>
 
-            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 id="carrera-heading" className="text-3xl font-extrabold leading-tight sm:text-4xl">
               Inicia tu carrera en tecnología con un plan claro
             </h2>
 
