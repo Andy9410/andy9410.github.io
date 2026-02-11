@@ -1,19 +1,47 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Code2, Menu, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import CalendlyModal from "@/components/CalendlyModal";
 
 const navLinks = [
   { label: "Apoyo Universitario", href: "/apoyo-universitario", isRoute: true },
   { label: "Carrera IT", href: "/carrera-it", isRoute: true },
   { label: "IA para Adultos", href: "/ia-para-adultos", isRoute: true },
-  { label: "¿Qué incluye?", href: "#incluye", isRoute: false },
-  { label: "Tu Mentor", href: "#mentor", isRoute: false },
+  { label: "¿Qué incluye?", href: "incluye", isRoute: false },
+  { label: "Tu Mentor", href: "mentor", isRoute: false },
 ];
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [calendlyOpen, setCalendlyOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const scrollToSection = useCallback(
+    (sectionId: string) => {
+      const doScroll = () => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      };
+
+      if (location.pathname !== "/") {
+        navigate("/");
+        // Wait for homepage to render, then scroll
+        setTimeout(doScroll, 100);
+      } else {
+        doScroll();
+      }
+    },
+    [location.pathname, navigate]
+  );
+
+  const handleAnchorClick = (e: React.MouseEvent, sectionId: string) => {
+    e.preventDefault();
+    setOpen(false);
+    scrollToSection(sectionId);
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -33,7 +61,12 @@ const Navbar = () => {
                 {l.label}
               </Link>
             ) : (
-              <a key={l.href} href={l.href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+              <a
+                key={l.href}
+                href={`/#${l.href}`}
+                onClick={(e) => handleAnchorClick(e, l.href)}
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary cursor-pointer"
+              >
                 {l.label}
               </a>
             )
@@ -59,7 +92,12 @@ const Navbar = () => {
                 {l.label}
               </Link>
             ) : (
-              <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="block py-3 text-sm font-medium text-muted-foreground">
+              <a
+                key={l.href}
+                href={`/#${l.href}`}
+                onClick={(e) => handleAnchorClick(e, l.href)}
+                className="block py-3 text-sm font-medium text-muted-foreground cursor-pointer"
+              >
                 {l.label}
               </a>
             )
