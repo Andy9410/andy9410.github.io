@@ -2,10 +2,14 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
 const NotFound = () => {
+
   const location = useLocation();
 
   useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+    // Solo loguear si no estamos en la raíz del repo
+    if (location.pathname !== "/" && location.pathname !== "/learnsoft/") {
+      console.error("404 Error en:", location.pathname);
+    }
   }, [location.pathname]);
 
   return (
