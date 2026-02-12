@@ -11,7 +11,7 @@ export default defineConfig(() => ({
       overlay: false,
     },
   },
-  base: './',
+  base: '/learnsoft/',
   plugins: [react()],
   resolve: {
     alias: {
