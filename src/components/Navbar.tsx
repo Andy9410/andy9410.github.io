@@ -7,7 +7,7 @@ const navLinks = [
   { label: "Apoyo Universitario", href: "/apoyo-universitario", isRoute: true },
   { label: "Carrera IT", href: "/carrera-it", isRoute: true },
   { label: "IA para Adultos", href: "/ia-para-adultos", isRoute: true },
-  { label: "¿Qué incluye?", href: "incluye", isRoute: false },
+  { label: "Planes y Pecios", href: "incluye", isRoute: false },
   { label: "Tu Mentor", href: "mentor", isRoute: false },
 ];
 
