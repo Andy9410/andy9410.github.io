@@ -1,6 +1,6 @@
-import { Award, Briefcase, GraduationCap, Heart } from "lucide-react";
+import { Award, Briefcase, GraduationCap, Heart, Linkedin } from "lucide-react";
 import ScrollReveal from "@/components/ScrollReveal";
-import mentorPhoto from "@/assets/mentor-photo.png";
+import mentorPhoto from "@/assets/mentor-photo.jpeg";
 
 const milestones = [
   { icon: GraduationCap, label: "Formación universitaria en Ingeniería en Sistemas" },
@@ -63,6 +63,18 @@ const MentorSection = () => (
               </li>
             ))}
           </ul>
+
+              <a
+            href="https://www.linkedin.com/in/andybarreiro"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-primary shadow-sm transition-all hover:shadow-md hover:border-accent hover:text-accent"
+          >
+            <Linkedin className="h-4 w-4" />
+            Conectar en LinkedIn
+          </a>  
+
+
         </ScrollReveal>
       </div>
     </div>
