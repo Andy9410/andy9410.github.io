@@ -51,13 +51,13 @@ const MentorSection = () => (
           </p>
 
           {/* Milestones */}
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+          <ul className="mt-8 grid gap-3 grid-cols-1 md:grid-cols-2">
             {milestones.map((m, i) => (
-              <li key={i} className="flex items-start gap-3">
+              <li key={i} className="flex items-center gap-3 text-left">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft">
                   <m.icon className="h-5 w-5 text-accent" />
                 </div>
-                <span className="text-sm font-medium text-muted-foreground leading-snug self-center">
+                <span className="text-sm font-medium text-muted-foreground leading-snug">
                   {m.label}
                 </span>
               </li>
