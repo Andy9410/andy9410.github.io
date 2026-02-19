@@ -1,4 +1,4 @@
-import { GraduationCap, Briefcase, Sparkles, Check } from "lucide-react";
+import { GraduationCap, Sparkles, Check, Monitor } from "lucide-react";
 import { motion } from "framer-motion";
 import ScrollReveal from "@/components/ScrollReveal";
 import { useState } from "react";
@@ -20,16 +20,16 @@ const verticals = [
     btnClass: "bg-accent text-accent-foreground hover:bg-accent/90",
   },
   {
-    icon: Briefcase,
-    title: "Reconversión Profesional",
+    icon: Monitor,
+    title: "Carrera IT",
     description:
-      "Programa personalizado 1 a 1 para adultos que desean cambiar de carrera y construir bases sólidas en desarrollo de software.",
+      "Formación completa en desarrollo web desde cero hasta nivel profesional, con foco en proyectos reales y empleabilidad. Precio especial de lanzamiento.",
     prices: [
-      { label: "Hora individual", price: "650 UYU" },
-      { label: "Programa 8 semanas", price: "4.800 UYU", note: "1 sesión/semana" },
-      { label: "Programa 12 semanas", price: "7.800 UYU", note: "1 sesión/semana" },
+      { label: "Nivel 1 (lanzamiento)", price: "11.900 UYU", save: "Precio especial" },
+      { label: "Nivel 2 (lanzamiento)", price: "15.900 UYU", save: "Precio especial" },
+      { label: "Pack 1+2 (lanzamiento)", price: "23.900 UYU", save: "Mejor valor" },
     ],
-    cta: "Solicitar diagnóstico",
+    cta: "Quiero anotarme",
     accent: "border-primary hover:shadow-primary/10",
     btnClass: "bg-primary text-primary-foreground hover:bg-primary/90",
   },
@@ -37,11 +37,9 @@ const verticals = [
     icon: Sparkles,
     title: "Alfabetización en IA",
     description:
-      "Entrenamiento 1 a 1 para profesionales y desarrolladores que quieren integrar Inteligencia Artificial de manera estratégica en su trabajo.",
+      "Entrenamiento práctico de alfabetización en Inteligencia Artificial para estudiantes y profesionales que quieren aprender a usar la IA de forma efectiva y aplicada en su estudio y trabajo diario.",
     prices: [
-      { label: "Hora individual", price: "800 UYU" },
-      { label: "Programa 6 semanas", price: "5.000 UYU" },
-      { label: "Programa 10 semanas", price: "8.500 UYU" },
+      { label: "Programa completo", price: "7900 UYU" },
     ],
     cta: "Comenzar ahora",
     accent: "border-accent hover:shadow-accent/10",
@@ -89,9 +87,9 @@ const IncludesSection = () => {
                     >
                       <div>
                         <span className="text-sm font-medium text-foreground">{p.label}</span>
-                        {(p.note || p.save) && (
+                        {p.save && (
                           <span className="ml-2 text-xs text-accent font-medium">
-                            {p.save || p.note}
+                            {p.save}
                           </span>
                         )}
                       </div>
