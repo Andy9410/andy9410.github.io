@@ -120,6 +120,8 @@ export const useChat = () => {
     setActiveId((prev) => (prev === id ? null : prev));
   }, []);
 
+  const clearError = useCallback(() => setStatus("idle"), []);
+
   return {
     conversations,
     activeConversation,
@@ -131,5 +133,6 @@ export const useChat = () => {
     sendMessage,
     selectConversation,
     deleteConversation,
+    clearError,
   };
 };
