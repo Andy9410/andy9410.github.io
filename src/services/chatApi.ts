@@ -8,7 +8,7 @@ interface ChatApiRequest {
 interface ChatApiResponse {
   response: string;
   conversationId: number;
-se}
+}
 
 export async function sendChatMessage(
   message: string,
