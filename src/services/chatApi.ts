@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "http://localhost:8080";
+const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "https://chat-service-academy.fly.dev";
 
 interface ChatApiRequest {
   message: string;
