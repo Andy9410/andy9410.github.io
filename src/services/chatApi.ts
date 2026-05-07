@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "https://chat-service-academy.fly.dev";
+const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "http://localhost:8080";
 
 interface ChatApiRequest {
   message: string;
@@ -8,7 +8,7 @@ interface ChatApiRequest {
 interface ChatApiResponse {
   response: string;
   conversationId: number;
-}
+se}
 
 export async function sendChatMessage(
   message: string,
