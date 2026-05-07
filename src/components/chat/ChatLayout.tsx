@@ -3,7 +3,6 @@ import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
-import ErrorBanner from "./ErrorBanner";
 import { useChat } from "@/hooks/useChat";
 
 const ChatLayout = () => {
@@ -19,7 +18,6 @@ const ChatLayout = () => {
     sendMessage,
     selectConversation,
     deleteConversation,
-    clearError,
   } = useChat();
 
   const messages = activeConversation?.messages ?? [];
@@ -44,15 +42,13 @@ const ChatLayout = () => {
           isMobile={isMobile}
         />
 
-        {status === "error" && <ErrorBanner onRetry={clearError} />}
-
         <MessageList
           messages={messages}
           isTyping={status === "loading"}
           onSuggestion={sendMessage}
         />
 
-        <ChatInput onSend={sendMessage} disabled={status === "loading" || status === "error"} />
+        <ChatInput onSend={sendMessage} disabled={status === "loading"} />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ export interface Message {
   role: MessageRole;
   content: string;
   timestamp: Date;
+  isError?: boolean;
 }
 
 export interface Conversation {

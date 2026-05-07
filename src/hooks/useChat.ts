@@ -104,7 +104,21 @@ export const useChat = () => {
 
         setStatus("idle");
       } catch {
-        setStatus("error");
+        const errorMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo.",
+          timestamp: new Date(),
+          isError: true,
+        };
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === capturedId
+              ? { ...c, messages: [...c.messages, errorMsg] }
+              : c
+          )
+        );
+        setStatus("idle");
       }
     },
     [activeId, status, conversations]
@@ -120,8 +134,6 @@ export const useChat = () => {
     setActiveId((prev) => (prev === id ? null : prev));
   }, []);
 
-  const clearError = useCallback(() => setStatus("idle"), []);
-
   return {
     conversations,
     activeConversation,
@@ -133,6 +145,5 @@ export const useChat = () => {
     sendMessage,
     selectConversation,
     deleteConversation,
-    clearError,
   };
 };
