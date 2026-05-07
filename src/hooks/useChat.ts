@@ -1,12 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
-import { mockConversations, generateMockResponse } from "@/mocks/chatMocks";
+import { sendChatMessage } from "@/services/chatApi";
+import { useHealthCheck } from "./useHealthCheck";
 
 export const useChat = () => {
-  const [conversations, setConversations] = useState<Conversation[]>(mockConversations);
-  const [activeId, setActiveId] = useState<string | null>(mockConversations[0]?.id ?? null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [status, setStatus] = useState<ChatStatus>("idle");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [hasConnectionError, setHasConnectionError] = useState(false);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
 
@@ -29,6 +33,7 @@ export const useChat = () => {
       if (!content.trim() || status === "loading") return;
 
       let targetId = activeId;
+      let targetBackendId: number | undefined;
 
       if (!targetId) {
         targetId = crypto.randomUUID();
@@ -42,6 +47,8 @@ export const useChat = () => {
         };
         setConversations((prev) => [newConv, ...prev]);
         setActiveId(targetId);
+      } else {
+        targetBackendId = conversations.find((c) => c.id === targetId)?.backendId;
       }
 
       const capturedId = targetId;
@@ -73,28 +80,78 @@ export const useChat = () => {
 
       setStatus("loading");
 
-      const delay = 1400 + Math.random() * 900;
-      await new Promise((r) => setTimeout(r, delay));
+      try {
+        const { response, conversationId } = await sendChatMessage(
+          content.trim(),
+          targetBackendId
+        );
 
-      const aiMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: generateMockResponse(content),
-        timestamp: new Date(),
-      };
+        const aiMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: response,
+          timestamp: new Date(),
+        };
 
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === capturedId
+              ? {
+                  ...c,
+                  backendId: conversationId,
+                  messages: [...c.messages, aiMsg],
+                  updatedAt: new Date(),
+                }
+              : c
+          )
+        );
+
+        setStatus("idle");
+      } catch (err) {
+        const isNetworkDown = err instanceof TypeError;
+        const errorMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: isNetworkDown
+            ? "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo."
+            : "El servicio encontró un error. Intentá de nuevo más tarde.",
+          timestamp: new Date(),
+          isError: true,
+        };
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === capturedId
+              ? { ...c, messages: [...c.messages, errorMsg] }
+              : c
+          )
+        );
+        if (isNetworkDown) setHasConnectionError(true);
+        setStatus("idle");
+      }
+    },
+    [activeId, status, conversations]
+  );
+
+  const handleRestored = useCallback(() => {
+    const targetId = activeIdRef.current;
+    const restoredMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "Conexión reestablecida. Podés continuar la conversación.",
+      timestamp: new Date(),
+      isRestored: true,
+    };
+    if (targetId) {
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === capturedId
-            ? { ...c, messages: [...c.messages, aiMsg], updatedAt: new Date() }
-            : c
+          c.id === targetId ? { ...c, messages: [...c.messages, restoredMsg] } : c
         )
       );
+    }
+    setHasConnectionError(false);
+  }, []);
 
-      setStatus("idle");
-    },
-    [activeId, status]
-  );
+  useHealthCheck(hasConnectionError, handleRestored);
 
   const selectConversation = useCallback((id: string) => {
     setActiveId(id);

@@ -5,10 +5,13 @@ export interface Message {
   role: MessageRole;
   content: string;
   timestamp: Date;
+  isError?: boolean;
+  isRestored?: boolean;
 }
 
 export interface Conversation {
   id: string;
+  backendId?: number;
   title: string;
   messages: Message[];
   createdAt: Date;
