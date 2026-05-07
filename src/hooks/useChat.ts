@@ -107,11 +107,14 @@ export const useChat = () => {
         );
 
         setStatus("idle");
-      } catch {
+      } catch (err) {
+        const isNetworkDown = err instanceof TypeError;
         const errorMsg: Message = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo.",
+          content: isNetworkDown
+            ? "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo."
+            : "El servicio encontró un error. Intentá de nuevo más tarde.",
           timestamp: new Date(),
           isError: true,
         };
@@ -122,7 +125,7 @@ export const useChat = () => {
               : c
           )
         );
-        setHasConnectionError(true);
+        if (isNetworkDown) setHasConnectionError(true);
         setStatus("idle");
       }
     },
