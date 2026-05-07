@@ -9,6 +9,7 @@ const navLinks = [
   { label: "IA para Adultos", href: "/ia-para-adultos", isRoute: true },
   { label: "Planes y Pecios", href: "incluye", isRoute: false },
   { label: "Tu Mentor", href: "mentor", isRoute: false },
+  { label: "Probar Chat IA", href: "/chat", isRoute: true },
 ];
 
 const Navbar = () => {

@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import ApoyoPage from "./pages/ApoyoPage";
 import CarreraPage from "./pages/CarreraPage";
 import IAPage from "./pages/IAPage";
+import ChatPage from "./pages/ChatPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/apoyo-universitario" element={<ApoyoPage />} />
           <Route path="/carrera-it" element={<CarreraPage />} />
           <Route path="/ia-para-adultos" element={<IAPage />} />
+          <Route path="/chat" element={<ChatPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
