@@ -23,9 +23,19 @@ export async function sendChatMessage(
     body: JSON.stringify(body),
   });
 
+
   if (!res.ok) {
     throw new Error(`Chat API error: ${res.status}`);
   }
 
   return res.json() as Promise<ChatApiResponse>;
+}
+
+export async function checkHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/health`);
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

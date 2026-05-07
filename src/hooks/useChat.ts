@@ -1,12 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
 import { sendChatMessage } from "@/services/chatApi";
+import { useHealthCheck } from "./useHealthCheck";
 
 export const useChat = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [status, setStatus] = useState<ChatStatus>("idle");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [hasConnectionError, setHasConnectionError] = useState(false);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
 
@@ -103,12 +107,51 @@ export const useChat = () => {
         );
 
         setStatus("idle");
-      } catch {
-        setStatus("error");
+      } catch (err) {
+        const isNetworkDown = err instanceof TypeError;
+        const errorMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: isNetworkDown
+            ? "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo."
+            : "El servicio encontró un error. Intentá de nuevo más tarde.",
+          timestamp: new Date(),
+          isError: true,
+        };
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === capturedId
+              ? { ...c, messages: [...c.messages, errorMsg] }
+              : c
+          )
+        );
+        if (isNetworkDown) setHasConnectionError(true);
+        setStatus("idle");
       }
     },
     [activeId, status, conversations]
   );
+
+  const handleRestored = useCallback(() => {
+    const targetId = activeIdRef.current;
+    const restoredMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "Conexión reestablecida. Podés continuar la conversación.",
+      timestamp: new Date(),
+      isRestored: true,
+    };
+    if (targetId) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === targetId ? { ...c, messages: [...c.messages, restoredMsg] } : c
+        )
+      );
+    }
+    setHasConnectionError(false);
+  }, []);
+
+  useHealthCheck(hasConnectionError, handleRestored);
 
   const selectConversation = useCallback((id: string) => {
     setActiveId(id);
