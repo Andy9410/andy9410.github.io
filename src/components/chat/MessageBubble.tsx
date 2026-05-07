@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Bot, User, Copy, Check, WifiOff } from "lucide-react";
+import { Bot, User, Copy, Check, WifiOff, Wifi } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MessageContent from "./MessageContent";
 import type { Message } from "@/types/chat";
@@ -13,6 +13,7 @@ const MessageBubble = ({ message }: Props) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const isError = message.isError === true;
+  const isRestored = message.isRestored === true;
 
   const copyToClipboard = async () => {
     await navigator.clipboard.writeText(message.content);
@@ -40,13 +41,17 @@ const MessageBubble = ({ message }: Props) => {
             ? "bg-primary ring-2 ring-primary/20"
             : isError
               ? "bg-destructive/15 ring-1 ring-destructive/30"
-              : "bg-accent/15 ring-1 ring-accent/20"
+              : isRestored
+                ? "bg-emerald-500/15 ring-1 ring-emerald-500/30"
+                : "bg-accent/15 ring-1 ring-accent/20"
         )}
       >
         {isUser ? (
           <User className="h-4 w-4 text-primary-foreground" />
         ) : isError ? (
           <WifiOff className="h-4 w-4 text-destructive" />
+        ) : isRestored ? (
+          <Wifi className="h-4 w-4 text-emerald-500" />
         ) : (
           <Bot className="h-4 w-4 text-accent" />
         )}
@@ -61,12 +66,14 @@ const MessageBubble = ({ message }: Props) => {
               ? "rounded-br-sm bg-primary text-primary-foreground"
               : isError
                 ? "rounded-bl-sm border border-destructive/30 bg-destructive/10 text-destructive"
-                : "rounded-bl-sm border border-border bg-section-alt text-foreground"
+                : isRestored
+                  ? "rounded-bl-sm border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "rounded-bl-sm border border-border bg-section-alt text-foreground"
           )}
         >
           <MessageContent content={message.content} isUser={isUser} />
 
-          {!isError && (
+          {!isError && !isRestored && (
             <button
               onClick={copyToClipboard}
               aria-label="Copiar mensaje"

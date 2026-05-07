@@ -6,6 +6,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   isError?: boolean;
+  isRestored?: boolean;
 }
 
 export interface Conversation {
