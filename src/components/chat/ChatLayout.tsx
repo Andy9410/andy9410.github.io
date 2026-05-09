@@ -12,6 +12,7 @@ const ChatLayout = () => {
     activeConversation,
     activeId,
     status,
+    isLoadingHistory,
     sidebarOpen,
     setSidebarOpen,
     newConversation,
@@ -30,6 +31,7 @@ const ChatLayout = () => {
         onSelect={selectConversation}
         onNew={newConversation}
         onDelete={deleteConversation}
+        isLoadingHistory={isLoadingHistory}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         isMobile={isMobile}
