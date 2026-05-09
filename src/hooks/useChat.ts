@@ -1,18 +1,69 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
-import { sendChatMessage } from "@/services/chatApi";
+import {
+  sendChatMessage,
+  fetchMyConversations,
+  fetchConversationMessages,
+  deleteConversationApi,
+} from "@/services/chatApi";
 import { useHealthCheck } from "./useHealthCheck";
+import { useAuth } from "@/auth/useAuth";
 
 export const useChat = () => {
+  const { accessToken, refreshAccessToken } = useAuth();
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [status, setStatus] = useState<ChatStatus>("idle");
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
+
+  // Refs para acceder al estado actual en callbacks sin causar re-renders
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
+
+  // Cargar historial al iniciar sesión, limpiar al cerrar sesión
+  useEffect(() => {
+    if (!accessToken) {
+      setConversations([]);
+      setActiveId(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingHistory(true);
+
+    fetchMyConversations(accessToken)
+      .then((summaries) => {
+        if (cancelled) return;
+        setConversations(
+          summaries.map((s) => ({
+            id: `backend-${s.id}`,
+            backendId: s.id,
+            title: s.title,
+            messages: [],
+            messagesLoaded: false,
+            createdAt: new Date(s.createdAt),
+            updatedAt: new Date(s.createdAt),
+          }))
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setConversations([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingHistory(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
 
   const newConversation = useCallback(() => {
     const id = crypto.randomUUID();
@@ -20,6 +71,7 @@ export const useChat = () => {
       id,
       title: "Nueva conversación",
       messages: [],
+      messagesLoaded: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -28,11 +80,51 @@ export const useChat = () => {
     setSidebarOpen(false);
   }, []);
 
+  const selectConversation = useCallback(
+    async (id: string) => {
+      setActiveId(id);
+      setSidebarOpen(false);
+
+      const conv = conversationsRef.current.find((c) => c.id === id);
+      if (!conv || conv.messagesLoaded || !conv.backendId || !accessToken) return;
+
+      try {
+        const backendMessages = await fetchConversationMessages(conv.backendId, accessToken);
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  messagesLoaded: true,
+                  messages: backendMessages.map((m) => ({
+                    id: String(m.id),
+                    role: m.role,
+                    content: m.content,
+                    timestamp: new Date(m.createdAt),
+                  })),
+                  updatedAt:
+                    backendMessages.length > 0
+                      ? new Date(backendMessages[backendMessages.length - 1].createdAt)
+                      : c.updatedAt,
+                }
+              : c
+          )
+        );
+      } catch {
+        // Marcar como cargada aunque haya fallado para no reintentar infinitamente
+        setConversations((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, messagesLoaded: true } : c))
+        );
+      }
+    },
+    [accessToken]
+  );
+
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!content.trim() || status === "loading") return;
+      if (!content.trim() || status === "loading" || !accessToken) return;
 
-      let targetId = activeId;
+      let targetId = activeIdRef.current;
       let targetBackendId: number | undefined;
 
       if (!targetId) {
@@ -42,13 +134,14 @@ export const useChat = () => {
           id: targetId,
           title,
           messages: [],
+          messagesLoaded: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
         setConversations((prev) => [newConv, ...prev]);
         setActiveId(targetId);
       } else {
-        targetBackendId = conversations.find((c) => c.id === targetId)?.backendId;
+        targetBackendId = conversationsRef.current.find((c) => c.id === targetId)?.backendId;
       }
 
       const capturedId = targetId;
@@ -80,16 +173,23 @@ export const useChat = () => {
 
       setStatus("loading");
 
+      const tryRequest = async (token: string) =>
+        sendChatMessage(content.trim(), token, targetBackendId);
+
       try {
-        const { response, conversationId } = await sendChatMessage(
-          content.trim(),
-          targetBackendId
-        );
+        let result = await tryRequest(accessToken).catch(async (err: Error) => {
+          if (err.message === "401") {
+            const fresh = await refreshAccessToken();
+            if (!fresh) throw err;
+            return tryRequest(fresh);
+          }
+          throw err;
+        });
 
         const aiMsg: Message = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: response,
+          content: result.response,
           timestamp: new Date(),
         };
 
@@ -98,14 +198,14 @@ export const useChat = () => {
             c.id === capturedId
               ? {
                   ...c,
-                  backendId: conversationId,
+                  backendId: result.conversationId,
+                  messagesLoaded: true,
                   messages: [...c.messages, aiMsg],
                   updatedAt: new Date(),
                 }
               : c
           )
         );
-
         setStatus("idle");
       } catch (err) {
         const isNetworkDown = err instanceof TypeError;
@@ -120,16 +220,14 @@ export const useChat = () => {
         };
         setConversations((prev) =>
           prev.map((c) =>
-            c.id === capturedId
-              ? { ...c, messages: [...c.messages, errorMsg] }
-              : c
+            c.id === capturedId ? { ...c, messages: [...c.messages, errorMsg] } : c
           )
         );
         if (isNetworkDown) setHasConnectionError(true);
         setStatus("idle");
       }
     },
-    [activeId, status, conversations]
+    [accessToken, status, refreshAccessToken]
   );
 
   const handleRestored = useCallback(() => {
@@ -153,21 +251,27 @@ export const useChat = () => {
 
   useHealthCheck(hasConnectionError, handleRestored);
 
-  const selectConversation = useCallback((id: string) => {
-    setActiveId(id);
-    setSidebarOpen(false);
-  }, []);
+  const deleteConversation = useCallback(
+    async (id: string) => {
+      const conv = conversationsRef.current.find((c) => c.id === id);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      setActiveId((prev) => (prev === id ? null : prev));
 
-  const deleteConversation = useCallback((id: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    setActiveId((prev) => (prev === id ? null : prev));
-  }, []);
+      if (conv?.backendId && accessToken) {
+        deleteConversationApi(conv.backendId, accessToken).catch(() => {
+          // Best-effort: ya se eliminó del UI
+        });
+      }
+    },
+    [accessToken]
+  );
 
   return {
     conversations,
     activeConversation,
     activeId,
     status,
+    isLoadingHistory,
     sidebarOpen,
     setSidebarOpen,
     newConversation,

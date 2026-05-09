@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, Trash2, Code2, X } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Code2, X, LogOut, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/auth/useAuth";
+import { useNavigate } from "react-router-dom";
 import type { Conversation } from "@/types/chat";
 
 interface Props {
@@ -9,6 +11,7 @@ interface Props {
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
+  isLoadingHistory: boolean;
   open: boolean;
   onClose: () => void;
   isMobile: boolean;
@@ -22,12 +25,29 @@ function relativeTime(date: Date): string {
   return `${Math.floor(diff / 86400)}d`;
 }
 
+function ConversationSkeleton() {
+  return (
+    <div className="space-y-1 px-2">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5">
+          <div className="h-3.5 w-3.5 shrink-0 rounded bg-muted-foreground/10 animate-pulse" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-2.5 w-3/4 rounded bg-muted-foreground/10 animate-pulse" />
+            <div className="h-2 w-1/2 rounded bg-muted-foreground/10 animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const SidebarContent = ({
   conversations,
   activeId,
   onSelect,
   onNew,
   onDelete,
+  isLoadingHistory,
   onClose,
   isMobile,
 }: Omit<Props, "open">) => (
@@ -64,7 +84,15 @@ const SidebarContent = ({
 
     {/* Conversations */}
     <div className="mt-3 flex-1 overflow-y-auto px-2 pb-4">
-      {conversations.length === 0 ? (
+      {isLoadingHistory ? (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 px-3 pb-1">
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/50" />
+            <p className="text-[11px] text-muted-foreground/50">Cargando historial…</p>
+          </div>
+          <ConversationSkeleton />
+        </div>
+      ) : conversations.length === 0 ? (
         <div className="px-3 py-8 text-center text-xs text-muted-foreground">
           <MessageSquare className="mx-auto mb-2 h-6 w-6 opacity-30" />
           Sin conversaciones
@@ -104,7 +132,7 @@ const SidebarContent = ({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">{conv.title}</p>
                       <p className="text-[10px] text-muted-foreground/70">
-                        {relativeTime(conv.updatedAt)} · {conv.messages.length} msgs
+                        {relativeTime(conv.updatedAt)} · {conv.messages.length > 0 ? `${conv.messages.length} msgs` : "sin cargar"}
                       </p>
                     </div>
 
@@ -132,14 +160,41 @@ const SidebarContent = ({
       )}
     </div>
 
-    {/* Footer */}
-    <div className="shrink-0 border-t border-sidebar-border px-4 py-3">
-      <p className="text-[10px] text-muted-foreground/50">
-        Chat en modo demo · sin conexión a backend
-      </p>
-    </div>
+    {/* Footer — user profile + logout */}
+    <UserFooter />
   </div>
 );
+
+function UserFooter() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
+
+  return (
+    <div className="shrink-0 border-t border-sidebar-border px-3 py-3">
+      <div className="flex items-center gap-2 rounded-lg px-2 py-2">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+          <User className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.name ?? "User"}</p>
+          <p className="truncate text-[10px] text-muted-foreground/60">{user?.email}</p>
+        </div>
+        <button
+          onClick={handleLogout}
+          aria-label="Sign out"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const ChatSidebar = (props: Props) => {
   const { open, onClose, isMobile, ...rest } = props;

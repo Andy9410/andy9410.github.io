@@ -14,8 +14,23 @@ export interface Conversation {
   backendId?: number;
   title: string;
   messages: Message[];
+  messagesLoaded: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ConversationSummary {
+  id: number;
+  title: string;
+  createdAt: string;
+  messageCount: number;
+}
+
+export interface BackendMessage {
+  id: number;
+  role: MessageRole;
+  content: string;
+  createdAt: string;
 }
 
 export type ChatStatus = "idle" | "loading" | "error";
