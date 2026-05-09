@@ -7,6 +7,7 @@ export const mockConversations: Conversation[] = [
   {
     id: "mock-1",
     title: "Dudas sobre álgebra lineal",
+    messagesLoaded: true,
     createdAt: mins(120),
     updatedAt: mins(5),
     messages: [
@@ -64,6 +65,7 @@ La **dimensión** del espacio es justamente el número de vectores en cualquier 
   {
     id: "mock-2",
     title: "Preparación examen de cálculo",
+    messagesLoaded: true,
     createdAt: mins(300),
     updatedAt: mins(60),
     messages: [
@@ -101,6 +103,7 @@ Despejando: \`dy/dx = -x/y\`
   {
     id: "mock-3",
     title: "OOP en Python para la carrera",
+    messagesLoaded: true,
     createdAt: mins(1440),
     updatedAt: mins(480),
     messages: [
