@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, MessageSquare, Trash2, Code2, X, LogOut, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { useNavigate } from "react-router-dom";
 import type { Conversation } from "@/types/chat";
@@ -168,9 +169,16 @@ const SidebarContent = ({
 function UserFooter() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      // navigate to login even if the API call fails
+    }
     navigate("/login", { replace: true });
   };
 
@@ -186,10 +194,11 @@ function UserFooter() {
         </div>
         <button
           onClick={handleLogout}
+          disabled={loggingOut}
           aria-label="Sign out"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <LogOut className="h-3.5 w-3.5" />
+          {loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
         </button>
       </div>
     </div>
