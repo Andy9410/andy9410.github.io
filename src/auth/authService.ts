@@ -51,6 +51,7 @@ async function post<T>(path: string, body: unknown, token?: string): Promise<T> 
     throw new Error(err.message ?? 'Request failed')
   }
 
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
 
