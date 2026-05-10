@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, Trash2, Code2, X, LogOut, User, Loader2 } from "lucide-react";
+import { Plus, MessageSquare, Code2, X, LogOut, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
@@ -149,9 +149,9 @@ const SidebarContent = ({
                       onDelete(conv.id);
                     }}
                     aria-label="Eliminar conversación"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 hidden h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:flex"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded opacity-0 text-muted-foreground/50 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </motion.div>
               );
