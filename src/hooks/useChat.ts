@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
 import {
-  sendChatMessage,
+  streamChatMessage,
   fetchMyConversations,
   fetchConversationMessages,
   deleteConversationApi,
@@ -19,7 +19,6 @@ export const useChat = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
 
-  // Refs para acceder al estado actual en callbacks sin causar re-renders
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
   const activeIdRef = useRef(activeId);
@@ -27,7 +26,6 @@ export const useChat = () => {
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
 
-  // Cargar historial al iniciar sesión, limpiar al cerrar sesión
   useEffect(() => {
     if (!accessToken) {
       setConversations([]);
@@ -120,7 +118,6 @@ export const useChat = () => {
           )
         );
       } catch {
-        // Marcar como cargada aunque haya fallado para no reintentar infinitamente
         setConversations((prev) =>
           prev.map((c) => (c.id === id ? { ...c, messagesLoaded: true } : c))
         );
@@ -162,12 +159,20 @@ export const useChat = () => {
         timestamp: new Date(),
       };
 
+      const aiMsgId = crypto.randomUUID();
+      const aiMsg: Message = {
+        id: aiMsgId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+      };
+
       setConversations((prev) =>
         prev.map((c) =>
           c.id === capturedId
             ? {
                 ...c,
-                messages: [...c.messages, userMsg],
+                messages: [...c.messages, userMsg, aiMsg],
                 updatedAt: new Date(),
                 title:
                   c.messages.length === 0
@@ -182,57 +187,69 @@ export const useChat = () => {
 
       setStatus("loading");
 
-      const tryRequest = async (token: string) =>
-        sendChatMessage(content.trim(), token, targetBackendId);
+      let receivedContent = false;
+
+      const doStream = (token: string) =>
+        streamChatMessage(content.trim(), token, targetBackendId, async (event) => {
+          if (event.type === "meta") {
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId ? { ...c, backendId: event.conversationId } : c
+              )
+            );
+          } else if (event.type === "chunk") {
+            receivedContent = true;
+            await new Promise((r) => setTimeout(r, 40));
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === aiMsgId ? { ...m, content: m.content + event.text } : m
+                      ),
+                    }
+                  : c
+              )
+            );
+          }
+        });
 
       try {
-        let result = await tryRequest(accessToken).catch(async (err: Error) => {
+        await doStream(accessToken).catch(async (err: Error) => {
           if (err.message === "401") {
             const fresh = await refreshAccessToken();
             if (!fresh) throw err;
-            return tryRequest(fresh);
+            return doStream(fresh);
           }
           throw err;
         });
-
-        const aiMsg: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: result.response,
-          timestamp: new Date(),
-        };
-
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === capturedId
-              ? {
-                  ...c,
-                  backendId: result.conversationId,
-                  messagesLoaded: true,
-                  messages: [...c.messages, aiMsg],
-                  updatedAt: new Date(),
-                }
-              : c
-          )
-        );
         setStatus("idle");
       } catch (err) {
         const isNetworkDown = err instanceof TypeError;
-        const errorMsg: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: isNetworkDown
-            ? "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo."
-            : "El servicio encontró un error. Intentá de nuevo más tarde.",
-          timestamp: new Date(),
-          isError: true,
-        };
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === capturedId ? { ...c, messages: [...c.messages, errorMsg] } : c
-          )
-        );
-        if (isNetworkDown) setHasConnectionError(true);
+        if (!receivedContent) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === aiMsgId
+                        ? {
+                            ...m,
+                            content: isNetworkDown
+                              ? "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo."
+                              : "El servicio encontró un error. Intentá de nuevo más tarde.",
+                            isError: true,
+                          }
+                        : m
+                    ),
+                  }
+                : c
+            )
+          );
+          if (isNetworkDown) setHasConnectionError(true);
+        }
         setStatus("idle");
       }
     },
@@ -267,9 +284,7 @@ export const useChat = () => {
       setActiveId((prev) => (prev === id ? null : prev));
 
       if (conv?.backendId && accessToken) {
-        deleteConversationApi(conv.backendId, accessToken).catch(() => {
-          // Best-effort: ya se eliminó del UI
-        });
+        deleteConversationApi(conv.backendId, accessToken).catch(() => {});
       }
     },
     [accessToken]
