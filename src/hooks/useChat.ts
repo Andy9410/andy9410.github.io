@@ -66,6 +66,15 @@ export const useChat = () => {
   }, [accessToken]);
 
   const newConversation = useCallback(() => {
+    const existing = conversationsRef.current.find(
+      (c) => !c.backendId && c.messages.length === 0
+    );
+    if (existing) {
+      setActiveId(existing.id);
+      setSidebarOpen(false);
+      return;
+    }
+
     const id = crypto.randomUUID();
     const conv: Conversation = {
       id,
