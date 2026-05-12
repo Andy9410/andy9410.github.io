@@ -187,6 +187,8 @@ export const useChat = () => {
 
       setStatus("loading");
 
+      let receivedContent = false;
+
       const doStream = (token: string) =>
         streamChatMessage(content.trim(), token, targetBackendId, (event) => {
           if (event.type === "meta") {
@@ -196,6 +198,7 @@ export const useChat = () => {
               )
             );
           } else if (event.type === "chunk") {
+            receivedContent = true;
             setConversations((prev) =>
               prev.map((c) =>
                 c.id === capturedId
@@ -223,27 +226,29 @@ export const useChat = () => {
         setStatus("idle");
       } catch (err) {
         const isNetworkDown = err instanceof TypeError;
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === capturedId
-              ? {
-                  ...c,
-                  messages: c.messages.map((m) =>
-                    m.id === aiMsgId
-                      ? {
-                          ...m,
-                          content: isNetworkDown
-                            ? "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo."
-                            : "El servicio encontró un error. Intentá de nuevo más tarde.",
-                          isError: true,
-                        }
-                      : m
-                  ),
-                }
-              : c
-          )
-        );
-        if (isNetworkDown) setHasConnectionError(true);
+        if (!receivedContent) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === aiMsgId
+                        ? {
+                            ...m,
+                            content: isNetworkDown
+                              ? "No se pudo conectar con el servicio. Verificá tu conexión e intentá de nuevo."
+                              : "El servicio encontró un error. Intentá de nuevo más tarde.",
+                            isError: true,
+                          }
+                        : m
+                    ),
+                  }
+                : c
+            )
+          );
+          if (isNetworkDown) setHasConnectionError(true);
+        }
         setStatus("idle");
       }
     },
