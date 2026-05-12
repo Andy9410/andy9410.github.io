@@ -1,5 +1,8 @@
 import { useMemo } from "react";
 import MarkdownIt from "markdown-it";
+import texmath from "markdown-it-texmath";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 
 const md = new MarkdownIt({
@@ -7,6 +10,10 @@ const md = new MarkdownIt({
   linkify: true,
   typographer: true,
   breaks: true,
+}).use(texmath, {
+  engine: katex,
+  delimiters: "dollars",
+  katexOptions: { throwOnError: false },
 });
 
 interface Props {
