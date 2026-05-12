@@ -7,10 +7,11 @@ interface ChatApiRequest {
   conversationId?: number;
 }
 
-interface ChatApiResponse {
-  response: string;
-  conversationId: number;
-}
+type SseEvent =
+  | { type: "meta"; conversationId: number }
+  | { type: "chunk"; text: string }
+  | { type: "done" }
+  | { type: "error" };
 
 async function chatFetch(path: string, token: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers);
@@ -26,20 +27,49 @@ async function chatFetch(path: string, token: string, options: RequestInit = {})
   return res;
 }
 
-export async function sendChatMessage(
+export async function streamChatMessage(
   message: string,
   token: string,
-  conversationId?: number
-): Promise<ChatApiResponse> {
+  conversationId: number | undefined,
+  onEvent: (event: SseEvent) => void | Promise<void>,
+  signal?: AbortSignal
+): Promise<void> {
   const body: ChatApiRequest = { message };
   if (conversationId !== undefined) body.conversationId = conversationId;
 
-  const res = await chatFetch("/chat", token, {
+  const res = await chatFetch("/chat/stream", token, {
     method: "POST",
     body: JSON.stringify(body),
+    signal,
   });
 
-  return res.json() as Promise<ChatApiResponse>;
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop()!;
+
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (!data) continue;
+        try {
+          await onEvent(JSON.parse(data) as SseEvent);
+        } catch {
+          // skip malformed line
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 export async function fetchMyConversations(token: string): Promise<ConversationSummary[]> {
