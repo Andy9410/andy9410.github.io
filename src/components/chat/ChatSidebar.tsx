@@ -5,6 +5,16 @@ import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { useNavigate } from "react-router-dom";
 import type { Conversation } from "@/types/chat";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   conversations: Conversation[];
@@ -51,7 +61,11 @@ const SidebarContent = ({
   isLoadingHistory,
   onClose,
   isMobile,
-}: Omit<Props, "open">) => (
+}: Omit<Props, "open">) => {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  return (
+  <>
   <div className="flex h-full flex-col bg-sidebar">
     {/* Brand + close */}
     <div className="flex h-14 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
@@ -146,7 +160,7 @@ const SidebarContent = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(conv.id);
+                      setPendingDeleteId(conv.id);
                     }}
                     aria-label="Eliminar conversación"
                     className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded opacity-0 text-muted-foreground/50 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
@@ -164,7 +178,32 @@ const SidebarContent = ({
     {/* Footer — user profile + logout */}
     <UserFooter />
   </div>
-);
+
+  <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+        <AlertDialogDescription>
+          Esta acción no se puede deshacer. La conversación será eliminada del historial.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+        <AlertDialogAction
+          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          onClick={() => {
+            if (pendingDeleteId) onDelete(pendingDeleteId);
+            setPendingDeleteId(null);
+          }}
+        >
+          Eliminar
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+  </>
+  );
+};
 
 function UserFooter() {
   const { user, logout } = useAuth();
