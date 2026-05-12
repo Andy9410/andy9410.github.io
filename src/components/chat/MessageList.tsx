@@ -33,7 +33,7 @@ const MessageList = ({ messages, isTyping, onSuggestion }: Props) => {
           {isTyping && <TypingIndicator />}
         </div>
       )}
-      <div ref={bottomRef} className="h-4 shrink-0" />
+      <div ref={bottomRef} />
     </div>
   );
 };
