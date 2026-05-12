@@ -67,6 +67,15 @@ export async function streamChatMessage(
         }
       }
     }
+
+    if (buffer.trim().startsWith("data:")) {
+      const data = buffer.trim().slice(5).trim();
+      if (data) {
+        try {
+          await onEvent(JSON.parse(data) as SseEvent);
+        } catch {}
+      }
+    }
   } finally {
     reader.releaseLock();
   }
