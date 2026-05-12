@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState } from "react";
 import { Send, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   onSend: (message: string) => void;
@@ -75,25 +76,28 @@ const ChatInput = ({ onSend, disabled = false }: Props) => {
           style={{ minHeight: "36px", maxHeight: "200px" }}
         />
 
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!canSend}
-          aria-label="Enviar mensaje"
-          className={cn(
-            "mb-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
-            canSend
-              ? "bg-accent text-accent-foreground shadow-sm hover:bg-accent/90 active:scale-95"
-              : "bg-muted text-muted-foreground/40"
-          )}
-        >
-          <Send className="h-4 w-4" />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!canSend}
+              aria-label="Enviar mensaje"
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
+                canSend
+                  ? "bg-accent text-accent-foreground shadow-sm hover:bg-accent/90 active:scale-95"
+                  : "bg-muted text-muted-foreground/40"
+              )}
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            Enter para enviar · Shift+Enter para nueva línea
+          </TooltipContent>
+        </Tooltip>
       </div>
-
-      <p className="mt-1.5 text-center text-[11px] text-muted-foreground/50">
-        Enter para enviar · Shift+Enter para nueva línea
-      </p>
     </div>
   );
 };

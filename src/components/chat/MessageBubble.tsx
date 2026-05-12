@@ -63,7 +63,7 @@ const MessageBubble = ({ message }: Props) => {
           className={cn(
             "relative rounded-2xl px-4 py-3",
             isUser
-              ? "rounded-br-sm bg-primary text-primary-foreground"
+              ? "rounded-none bg-primary text-primary-foreground"
               : isError
                 ? "rounded-bl-sm border border-destructive/30 bg-destructive/10 text-destructive"
                 : isRestored
