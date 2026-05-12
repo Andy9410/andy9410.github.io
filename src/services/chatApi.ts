@@ -31,7 +31,7 @@ export async function streamChatMessage(
   message: string,
   token: string,
   conversationId: number | undefined,
-  onEvent: (event: SseEvent) => void,
+  onEvent: (event: SseEvent) => void | Promise<void>,
   signal?: AbortSignal
 ): Promise<void> {
   const body: ChatApiRequest = { message };
@@ -61,7 +61,7 @@ export async function streamChatMessage(
         const data = line.slice(5).trim();
         if (!data) continue;
         try {
-          onEvent(JSON.parse(data) as SseEvent);
+          await onEvent(JSON.parse(data) as SseEvent);
         } catch {
           // skip malformed line
         }

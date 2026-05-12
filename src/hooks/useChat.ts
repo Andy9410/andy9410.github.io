@@ -190,7 +190,7 @@ export const useChat = () => {
       let receivedContent = false;
 
       const doStream = (token: string) =>
-        streamChatMessage(content.trim(), token, targetBackendId, (event) => {
+        streamChatMessage(content.trim(), token, targetBackendId, async (event) => {
           if (event.type === "meta") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -199,6 +199,7 @@ export const useChat = () => {
             );
           } else if (event.type === "chunk") {
             receivedContent = true;
+            await new Promise((r) => setTimeout(r, 18));
             setConversations((prev) =>
               prev.map((c) =>
                 c.id === capturedId
