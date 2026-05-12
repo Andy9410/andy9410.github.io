@@ -199,7 +199,7 @@ export const useChat = () => {
             );
           } else if (event.type === "chunk") {
             receivedContent = true;
-            await new Promise((r) => setTimeout(r, 18));
+            await new Promise((r) => setTimeout(r, 35));
             setConversations((prev) =>
               prev.map((c) =>
                 c.id === capturedId
