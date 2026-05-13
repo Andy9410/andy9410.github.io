@@ -158,7 +158,7 @@ const SidebarContent = ({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">{conv.title}</p>
                       <p className="text-[10px] text-muted-foreground/70">
-                        {relativeTime(conv.updatedAt)} · {conv.messages.length > 0 ? `${conv.messages.length} msgs` : "sin cargar"}
+                        {relativeTime(conv.updatedAt)} · {conv.messages.length > 0 ? `${conv.messages.length} mensajes` : "sin cargar"}
                       </p>
                     </div>
 
