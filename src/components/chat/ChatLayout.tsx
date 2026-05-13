@@ -25,6 +25,7 @@ const ChatLayout = () => {
     sendMessage,
     selectConversation,
     deleteConversation,
+    regenerateLastMessage,
   } = useChat();
 
   if (!connectionReady && isOffline) {
@@ -99,6 +100,7 @@ const ChatLayout = () => {
           messages={messages}
           isTyping={status === "loading"}
           onSuggestion={sendMessage}
+          onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
         />
 
         <ChatInput onSend={sendMessage} disabled={status === "loading" || isOffline} />

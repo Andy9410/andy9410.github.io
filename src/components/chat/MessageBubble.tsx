@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Bot, User, Copy, Check, WifiOff, Wifi } from "lucide-react";
+import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MessageContent from "./MessageContent";
 import type { Message } from "@/types/chat";
@@ -8,9 +8,11 @@ import type { Message } from "@/types/chat";
 interface Props {
   message: Message;
   isFirstInGroup?: boolean;
+  isLastAssistant?: boolean;
+  onRegenerate?: () => void;
 }
 
-const MessageBubble = ({ message, isFirstInGroup = true }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, onRegenerate }: Props) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const isError = message.isError === true;
@@ -98,6 +100,17 @@ const MessageBubble = ({ message, isFirstInGroup = true }: Props) => {
         </div>
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
+
+        {isLastAssistant && onRegenerate && (
+          <button
+            onClick={onRegenerate}
+            aria-label="Regenerar respuesta"
+            className="flex items-center gap-1 px-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Regenerar
+          </button>
+        )}
       </div>
     </motion.div>
   );

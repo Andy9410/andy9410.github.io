@@ -289,6 +289,112 @@ export const useChat = () => {
     [accessToken, status, refreshAccessToken]
   );
 
+  const regenerateLastMessage = useCallback(async () => {
+    if (status === "loading" || !accessToken) return;
+
+    const conv = conversationsRef.current.find((c) => c.id === activeIdRef.current);
+    if (!conv) return;
+
+    const msgs = conv.messages;
+    const lastAiEntry = [...msgs].reverse().find((m) => m.role === "assistant");
+    if (!lastAiEntry) return;
+
+    const lastUserMsg = [...msgs]
+      .slice(0, msgs.indexOf(lastAiEntry))
+      .reverse()
+      .find((m) => m.role === "user");
+    if (!lastUserMsg) return;
+
+    const capturedId = activeIdRef.current!;
+    const aiMsgId = lastAiEntry.id;
+    const targetBackendId = conv.backendId;
+    const isFirstExchange = msgs.filter((m) => m.role === "user").length === 1;
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === capturedId
+          ? { ...c, messages: c.messages.map((m) =>
+              m.id === aiMsgId ? { ...m, content: "", isError: false, timestamp: new Date() } : m
+            )}
+          : c
+      )
+    );
+    setStatus("loading");
+
+    let receivedContent = false;
+
+    const doStream = (token: string) =>
+      streamChatMessage(lastUserMsg.content, token, targetBackendId, async (event) => {
+        if (event.type === "meta") {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId ? { ...c, backendId: event.conversationId } : c
+            )
+          );
+          if (isFirstExchange) {
+            generateConversationTitle(event.conversationId, token)
+              .then((title) => {
+                setConversations((prev) =>
+                  prev.map((c) => (c.id === capturedId ? { ...c, title } : c))
+                );
+              })
+              .catch(() => {});
+          }
+        } else if (event.type === "chunk") {
+          receivedContent = true;
+          await new Promise((r) => setTimeout(r, 40));
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? { ...c, messages: c.messages.map((m) =>
+                    m.id === aiMsgId ? { ...m, content: m.content + event.text } : m
+                  )}
+                : c
+            )
+          );
+        } else if (event.type === "error") {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? { ...c, messages: c.messages.map((m) =>
+                    m.id === aiMsgId
+                      ? { ...m, content: m.content || "Error al regenerar. Intentá de nuevo.", isError: true }
+                      : m
+                  )}
+                : c
+            )
+          );
+        }
+      });
+
+    try {
+      await doStream(accessToken).catch(async (err: Error) => {
+        if (err.message === "401") {
+          const fresh = await refreshAccessToken();
+          if (!fresh) throw err;
+          return doStream(fresh);
+        }
+        throw err;
+      });
+      setStatus("idle");
+    } catch {
+      if (!receivedContent) {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === capturedId
+              ? { ...c, messages: c.messages.map((m) =>
+                  m.id === aiMsgId
+                    ? { ...m, content: "Error al regenerar. Intentá de nuevo.", isError: true }
+                    : m
+                )}
+              : c
+          )
+        );
+      }
+      setStatus("idle");
+    }
+  }, [accessToken, status, refreshAccessToken]);
+
   const reloadData = useCallback(async (token: string) => {
     try {
       const summaries = await fetchMyConversations(token);
@@ -378,5 +484,6 @@ export const useChat = () => {
     sendMessage,
     selectConversation,
     deleteConversation,
+    regenerateLastMessage,
   };
 };
