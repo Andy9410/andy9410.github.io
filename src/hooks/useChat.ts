@@ -212,6 +212,25 @@ export const useChat = () => {
                   : c
               )
             );
+          } else if (event.type === "error") {
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === aiMsgId
+                          ? {
+                              ...m,
+                              content: m.content || "El servicio encontró un error. Intentá de nuevo más tarde.",
+                              isError: true,
+                            }
+                          : m
+                      ),
+                    }
+                  : c
+              )
+            );
           }
         });
 
