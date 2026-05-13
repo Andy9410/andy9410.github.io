@@ -7,25 +7,10 @@ interface ChatApiRequest {
   conversationId?: number;
 }
 
-type SseEvent =
-  | { type: "meta"; conversationId: number }
-  | { type: "chunk"; text: string }
-  | { type: "done" }
-  | { type: "error" };
-
-async function chatFetch(path: string, token: string, options: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(options.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  headers.set("Content-Type", "application/json");
-
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-
-  if (!res.ok) {
-    throw new Error(`${res.status}`);
-  }
-
-  return res;
-}
+interface ChatApiResponse {
+  response: string;
+  conversationId: number;
+se}
 
 export async function streamChatMessage(
   message: string,
