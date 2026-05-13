@@ -49,6 +49,7 @@ export const useChat = () => {
             title: s.title,
             messages: [],
             messagesLoaded: false,
+            messageCount: s.messageCount,
             createdAt: new Date(s.createdAt),
             updatedAt: new Date(s.createdAt),
           }))
@@ -112,6 +113,7 @@ export const useChat = () => {
                     content: m.content,
                     timestamp: new Date(m.createdAt),
                   })),
+                  messageCount: backendMessages.length,
                   updatedAt:
                     backendMessages.length > 0
                       ? new Date(backendMessages[backendMessages.length - 1].createdAt)
@@ -404,6 +406,7 @@ export const useChat = () => {
         title: s.title,
         messages: [],
         messagesLoaded: false,
+        messageCount: s.messageCount,
         createdAt: new Date(s.createdAt),
         updatedAt: new Date(s.createdAt),
       })));

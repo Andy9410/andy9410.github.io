@@ -158,13 +158,9 @@ const SidebarContent = ({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">{conv.title}</p>
                       <p className="text-[10px] text-muted-foreground/70">
-                        {relativeTime(conv.updatedAt)} · {conv.messages.length > 0 ? `${conv.messages.length} mensajes` : "sin cargar"}
+                        {relativeTime(conv.updatedAt)} · {(conv.messageCount ?? conv.messages.length)} mensajes
                       </p>
                     </div>
-
-                    {isActive && (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                    )}
                   </button>
 
                   {/* Delete button */}
