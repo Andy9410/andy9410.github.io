@@ -100,6 +100,12 @@ export async function deleteConversationApi(id: number, token: string): Promise<
   await chatFetch(`/api/conversations/${id}`, token, { method: "DELETE" });
 }
 
+export async function generateConversationTitle(id: number, token: string): Promise<string> {
+  const res = await chatFetch(`/api/conversations/${id}/title`, token, { method: "POST" });
+  const data = await res.json() as { title: string };
+  return data.title;
+}
+
 export async function checkHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/health`);
