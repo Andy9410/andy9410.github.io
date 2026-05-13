@@ -155,7 +155,7 @@ const SidebarContent = ({
                         isActive ? "text-accent" : "text-muted-foreground/60"
                       )}
                     />
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 pr-5">
                       <p className="truncate text-xs font-medium">{conv.title}</p>
                       <p className="text-[10px] text-muted-foreground/70">
                         {relativeTime(conv.updatedAt)} · {(conv.messageCount ?? conv.messages.length)} mensajes
