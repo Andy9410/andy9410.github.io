@@ -72,7 +72,7 @@ const ChatLayout = () => {
           onSuggestion={sendMessage}
         />
 
-        <ChatInput onSend={sendMessage} disabled={status === "loading"} />
+        <ChatInput onSend={sendMessage} disabled={status === "loading" || isOffline} />
       </div>
     </div>
   );
