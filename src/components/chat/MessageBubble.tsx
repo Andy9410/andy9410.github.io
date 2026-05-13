@@ -63,12 +63,12 @@ const MessageBubble = ({ message }: Props) => {
           className={cn(
             "relative rounded-2xl px-4 py-3",
             isUser
-              ? "rounded-none bg-primary text-primary-foreground"
+              ? "rounded-br-none bg-primary text-primary-foreground"
               : isError
-                ? "rounded-bl-sm border border-destructive/30 bg-destructive/10 text-destructive"
+                ? "rounded-bl-none border border-destructive/30 bg-destructive/10 text-destructive"
                 : isRestored
-                  ? "rounded-bl-sm border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : "rounded-bl-sm bg-section-alt text-foreground"
+                  ? "rounded-bl-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "rounded-bl-none bg-section-alt text-foreground"
           )}
         >
           <MessageContent content={message.content} isUser={isUser} />
