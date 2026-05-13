@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useCallback } from 'react'
 import { useAuth } from './useAuth'
 import { useInactivityTimeout } from '@/hooks/useInactivityTimeout'
@@ -6,12 +6,11 @@ import { useInactivityTimeout } from '@/hooks/useInactivityTimeout'
 export default function PrivateRoute() {
   const { isAuthenticated, isLoading, logout } = useAuth()
   const location = useLocation()
-  const navigate = useNavigate()
 
   const handleInactivity = useCallback(async () => {
+    sessionStorage.setItem('sessionExpired', 'true')
     await logout()
-    navigate('/login', { replace: true, state: { sessionExpired: true } })
-  }, [logout, navigate])
+  }, [logout])
 
   useInactivityTimeout(handleInactivity)
 

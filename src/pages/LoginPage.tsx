@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -28,7 +28,12 @@ export default function LoginPage() {
   const navigate     = useNavigate()
   const location     = useLocation()
   const from           = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/chat'
-  const sessionExpired = (location.state as { sessionExpired?: boolean })?.sessionExpired ?? false
+  const sessionExpired = sessionStorage.getItem('sessionExpired') === 'true'
+
+  useEffect(() => {
+    if (sessionExpired) sessionStorage.removeItem('sessionExpired')
+  }, [sessionExpired])
+
   const [show, setShow]         = useState(false)
   const [serverErr, setServerErr] = useState<string | null>(null)
 
