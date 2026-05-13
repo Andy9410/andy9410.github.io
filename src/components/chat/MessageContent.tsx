@@ -103,7 +103,7 @@ const MessageContent = ({ content, isUser = false }: Props) => {
               "text-foreground",
               "prose-headings:text-primary prose-headings:font-bold",
               "prose-code:rounded prose-code:bg-black/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-[0.8em]",
-              "prose-pre:rounded-lg prose-pre:bg-[#38383e] prose-pre:text-zinc-100 prose-pre:p-4 prose-pre:font-mono prose-pre:text-sm prose-pre:leading-relaxed",
+              "prose-pre:rounded-lg prose-pre:bg-[#323238] prose-pre:text-zinc-100 prose-pre:p-4 prose-pre:font-mono prose-pre:text-sm prose-pre:leading-relaxed",
               "prose-code:bg-zinc-900/10 dark:prose-code:bg-zinc-100/10",
               "prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground",
               "prose-a:text-accent prose-a:underline-offset-2",
