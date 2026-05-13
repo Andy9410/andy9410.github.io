@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import MessageContent from "./MessageContent";
 import type { Message } from "@/types/chat";
+
+const MessageContent = lazy(() => import("./MessageContent"));
 
 interface Props {
   message: Message;
@@ -78,7 +79,9 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                   : "rounded-bl-none bg-section-alt text-foreground"
           )}
         >
-          <MessageContent content={message.content} isUser={isUser} />
+          <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
+            <MessageContent content={message.content} isUser={isUser} />
+          </Suspense>
 
           {!isError && !isRestored && (
             <button
