@@ -170,7 +170,7 @@ const SidebarContent = ({
                       setPendingDeleteId(conv.id);
                     }}
                     aria-label="Eliminar conversación"
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded p-1 opacity-0 text-muted-foreground/50 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                    className="absolute right-1.5 top-2 flex h-6 w-6 items-center justify-center rounded p-1 opacity-0 text-muted-foreground/50 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
