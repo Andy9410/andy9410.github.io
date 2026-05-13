@@ -46,7 +46,7 @@ const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
   const canSend = value.trim().length > 0 && !disabled;
 
   return (
-    <div className="bg-background pb-4 pt-3">
+    <div className="bg-background py-3">
       <div className="mx-auto w-full max-w-3xl px-4">
         <div
           className={cn(
