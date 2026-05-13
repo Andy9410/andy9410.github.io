@@ -20,6 +20,7 @@ export const useChat = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
+  const [connectionReady, setConnectionReady] = useState(false);
 
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
@@ -331,12 +332,17 @@ export const useChat = () => {
     if (accessToken) reloadData(accessToken);
   }, [accessToken, reloadData]);
 
-  // Heartbeat: check immediately on login, then every 30s
+  // Heartbeat: check immediately on login, then every 20s
   useEffect(() => {
     if (!accessToken) return;
     const check = async () => {
       const ok = await checkHealth();
-      if (!ok) setHasConnectionError(true);
+      if (ok) {
+        setConnectionReady(true);
+        setHasConnectionError(false);
+      } else {
+        setHasConnectionError(true);
+      }
     };
     check();
     const id = setInterval(check, 20_000);
@@ -364,6 +370,7 @@ export const useChat = () => {
     activeId,
     status,
     isOffline: hasConnectionError,
+    connectionReady,
     isLoadingHistory,
     sidebarOpen,
     setSidebarOpen,
