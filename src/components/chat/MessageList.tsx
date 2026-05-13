@@ -9,14 +9,20 @@ interface Props {
   messages: Message[];
   isTyping: boolean;
   onSuggestion: (text: string) => void;
+  onRegenerate?: () => void;
 }
 
-const MessageList = ({ messages, isTyping, onSuggestion }: Props) => {
+const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, isTyping]);
+
+  const lastAssistantIndex = messages.reduceRight(
+    (found, msg, i) => (found === -1 && msg.role === "assistant" ? i : found),
+    -1
+  );
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
@@ -30,6 +36,8 @@ const MessageList = ({ messages, isTyping, onSuggestion }: Props) => {
                 key={msg.id}
                 message={msg}
                 isFirstInGroup={i === 0 || messages[i - 1].role !== msg.role}
+                isLastAssistant={!isTyping && i === lastAssistantIndex}
+                onRegenerate={onRegenerate}
               />
             ))}
           </AnimatePresence>
