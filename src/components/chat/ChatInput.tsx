@@ -50,7 +50,7 @@ const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
       <div className="mx-auto w-full max-w-3xl px-4">
         <div
           className={cn(
-          "flex items-stretch overflow-hidden rounded-xl border bg-card pl-3 shadow-sm transition-shadow",
+          "flex items-stretch overflow-hidden rounded-xl border bg-transparent pl-3 shadow-sm transition-shadow",
           disabled ? "border-border" : "border-border focus-within:border-cyan-400/60 focus-within:shadow-md focus-within:shadow-cyan-400/10"
           )}
         >
