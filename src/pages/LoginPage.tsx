@@ -51,7 +51,7 @@ export default function LoginPage() {
     <AuthLayout mode="login">
 
       {/* Header */}
-      <div className="mb-7">
+      <div className="mb-7 text-center">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(170,80%,50%)' }}>
           Bienvenido de vuelta
         </p>
