@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import MessageBubble from "./MessageBubble";
-import TypingIndicator from "./TypingIndicator";
 import EmptyState from "./EmptyState";
 import type { Message } from "@/types/chat";
 
@@ -37,12 +36,11 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) 
                 message={msg}
                 isFirstInGroup={i === 0 || messages[i - 1].role !== msg.role}
                 isLastAssistant={!isTyping && i === lastAssistantIndex}
+                isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
                 onRegenerate={onRegenerate}
               />
             ))}
           </AnimatePresence>
-
-          {isTyping && <TypingIndicator />}
         </div>
       )}
       <div ref={bottomRef} />
