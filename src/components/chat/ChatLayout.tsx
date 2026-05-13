@@ -103,7 +103,11 @@ const ChatLayout = () => {
           onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
         />
 
-        <ChatInput onSend={sendMessage} disabled={status === "loading" || isOffline} />
+        <ChatInput
+          onSend={sendMessage}
+          disabled={status === "loading" || isOffline || isLoadingHistory}
+          placeholder={isLoadingHistory ? "Cargando historial…" : undefined}
+        />
       </div>
     </div>
   );
