@@ -49,7 +49,8 @@ export default function LoginPage() {
       await login({ email: v.email, password: v.password })
       navigate(from, { replace: true })
     } catch (e) {
-      setServerErr(e instanceof Error ? e.message : 'Error inesperado')
+      const msg = e instanceof Error ? e.message : 'Error inesperado'
+      setServerErr(msg === 'Invalid email or password' ? 'Email o contraseña incorrectos' : msg)
     }
   }
 
