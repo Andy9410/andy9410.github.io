@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
@@ -7,6 +8,8 @@ import { useChat } from "@/hooks/useChat";
 
 const ChatLayout = () => {
   const isMobile = useIsMobile();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   const {
     conversations,
     activeConversation,
@@ -23,6 +26,14 @@ const ChatLayout = () => {
 
   const messages = activeConversation?.messages ?? [];
 
+  const toggleSidebar = () => {
+    if (isMobile) {
+      setSidebarOpen(true);
+    } else {
+      setSidebarCollapsed((v) => !v);
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <ChatSidebar
@@ -35,12 +46,14 @@ const ChatLayout = () => {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         isMobile={isMobile}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <ChatHeader
           conversation={activeConversation}
-          onToggleSidebar={() => setSidebarOpen(true)}
+          onToggleSidebar={toggleSidebar}
           isMobile={isMobile}
         />
 
