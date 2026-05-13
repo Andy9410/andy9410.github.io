@@ -6,9 +6,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 interface Props {
   onSend: (message: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }
 
-const ChatInput = ({ onSend, disabled = false }: Props) => {
+const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -71,7 +72,7 @@ const ChatInput = ({ onSend, disabled = false }: Props) => {
             onKeyDown={handleKeyDown}
             disabled={disabled}
             rows={1}
-            placeholder={disabled ? "El tutor está escribiendo…" : "Escribí tu pregunta aquí…"}
+            placeholder={placeholder ?? (disabled ? "El tutor está escribiendo…" : "Escribí tu pregunta aquí…")}
             aria-label="Mensaje"
             className="flex-1 resize-none bg-transparent py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             style={{ minHeight: "44px", maxHeight: "200px" }}
