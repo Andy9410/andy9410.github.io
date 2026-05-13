@@ -331,13 +331,15 @@ export const useChat = () => {
     if (accessToken) reloadData(accessToken);
   }, [accessToken, reloadData]);
 
-  // Heartbeat: proactively detect API downtime every 30s
+  // Heartbeat: check immediately on login, then every 30s
   useEffect(() => {
     if (!accessToken) return;
-    const id = setInterval(async () => {
+    const check = async () => {
       const ok = await checkHealth();
       if (!ok) setHasConnectionError(true);
-    }, 30_000);
+    };
+    check();
+    const id = setInterval(check, 30_000);
     return () => clearInterval(id);
   }, [accessToken]);
 
