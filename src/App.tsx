@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import * as Sentry from "@sentry/react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,36 +21,38 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <ScrollToTop />
-          <Suspense fallback={null}>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/apoyo-universitario" element={<ApoyoPage />} />
-              <Route path="/carrera-it" element={<CarreraPage />} />
-              <Route path="/ia-para-adultos" element={<IAPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+  <Sentry.ErrorBoundary fallback={null} showDialog={false}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <ScrollToTop />
+            <Suspense fallback={null}>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/apoyo-universitario" element={<ApoyoPage />} />
+                <Route path="/carrera-it" element={<CarreraPage />} />
+                <Route path="/ia-para-adultos" element={<IAPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
 
-              {/* Protected routes */}
-              <Route element={<PrivateRoute />}>
-                <Route path="/chat" element={<ChatPage />} />
-              </Route>
+                {/* Protected routes */}
+                <Route element={<PrivateRoute />}>
+                  <Route path="/chat" element={<ChatPage />} />
+                </Route>
 
-              {/* Fallback */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+                {/* Fallback */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </Sentry.ErrorBoundary>
 );
 
 export default App;
