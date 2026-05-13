@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, Code2, X, LogOut, User, Loader2 } from "lucide-react";
+import { Plus, MessageSquare, Code2, X, LogOut, User, Loader2, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useAuth } from "@/auth/useAuth";
@@ -26,6 +26,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   isMobile: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 function relativeTime(date: Date): string {
@@ -61,7 +63,8 @@ const SidebarContent = ({
   isLoadingHistory,
   onClose,
   isMobile,
-}: Omit<Props, "open">) => {
+  onToggleCollapse,
+}: Omit<Props, "open" | "collapsed">) => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   return (
@@ -75,13 +78,21 @@ const SidebarContent = ({
         </div>
         <span className="text-sm font-bold text-primary">LearnSoft</span>
       </Link>
-      {isMobile && (
+      {isMobile ? (
         <button
           onClick={onClose}
           aria-label="Cerrar menú"
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent"
         >
           <X className="h-4 w-4" />
+        </button>
+      ) : (
+        <button
+          onClick={onToggleCollapse}
+          aria-label="Colapsar barra lateral"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent"
+        >
+          <ChevronLeft className="h-4 w-4" />
         </button>
       )}
     </div>
@@ -245,13 +256,19 @@ function UserFooter() {
 }
 
 const ChatSidebar = (props: Props) => {
-  const { open, onClose, isMobile, ...rest } = props;
+  const { open, onClose, isMobile, collapsed, onToggleCollapse, ...rest } = props;
 
   if (!isMobile) {
     return (
-      <aside className="hidden w-64 shrink-0 border-r border-sidebar-border md:flex md:flex-col">
-        <SidebarContent {...rest} onClose={onClose} isMobile={false} />
-      </aside>
+      <motion.aside
+        animate={{ width: collapsed ? 0 : 256 }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="hidden shrink-0 overflow-hidden border-r border-sidebar-border md:flex md:flex-col"
+      >
+        <div className="w-64">
+          <SidebarContent {...rest} onClose={onClose} isMobile={false} onToggleCollapse={onToggleCollapse} />
+        </div>
+      </motion.aside>
     );
   }
 
