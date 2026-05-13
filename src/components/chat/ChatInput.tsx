@@ -49,8 +49,8 @@ const ChatInput = ({ onSend, disabled = false }: Props) => {
       <div className="mx-auto w-full max-w-3xl px-4">
         <div
           className={cn(
-          "flex items-end gap-2 rounded-xl border bg-card px-3 py-2 shadow-sm transition-shadow",
-          disabled ? "border-border" : "border-border focus-within:border-accent/50 focus-within:shadow-md focus-within:shadow-accent/10"
+          "flex items-stretch overflow-hidden rounded-xl border bg-card pl-3 shadow-sm transition-shadow",
+          disabled ? "border-border" : "border-border focus-within:border-cyan-400/60 focus-within:shadow-md focus-within:shadow-cyan-400/10"
           )}
         >
           {/* Attach file — reserved for future */}
@@ -58,7 +58,7 @@ const ChatInput = ({ onSend, disabled = false }: Props) => {
             type="button"
             disabled
             aria-label="Adjuntar archivo (próximamente)"
-            className="mb-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 transition-colors"
+            className="flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-lg text-muted-foreground/40 transition-colors"
             title="Próximamente"
           >
             <Paperclip className="h-4 w-4" />
@@ -73,8 +73,8 @@ const ChatInput = ({ onSend, disabled = false }: Props) => {
             rows={1}
             placeholder={disabled ? "El tutor está escribiendo…" : "Escribí tu pregunta aquí…"}
             aria-label="Mensaje"
-            className="flex-1 resize-none bg-transparent py-1.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-            style={{ minHeight: "36px", maxHeight: "200px" }}
+            className="flex-1 resize-none bg-transparent py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ minHeight: "44px", maxHeight: "200px" }}
           />
 
           <Tooltip>
@@ -85,10 +85,10 @@ const ChatInput = ({ onSend, disabled = false }: Props) => {
                 disabled={!canSend}
                 aria-label="Enviar mensaje"
                 className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
+                  "flex w-14 shrink-0 items-center justify-center rounded-xl m-1.5 transition-all cursor-pointer disabled:cursor-not-allowed",
                   canSend
-                    ? "bg-accent text-accent-foreground shadow-sm hover:bg-accent/90 active:scale-95"
-                    : "bg-muted text-muted-foreground/40"
+                    ? "bg-teal-400 text-white hover:bg-teal-300 active:brightness-95"
+                    : "bg-teal-400/30 text-teal-400/60"
                 )}
               >
                 <Send className="h-4 w-4" />

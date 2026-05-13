@@ -265,7 +265,7 @@ const ChatSidebar = (props: Props) => {
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         className="hidden shrink-0 overflow-hidden border-r border-sidebar-border md:flex md:flex-col"
       >
-        <div className="w-64">
+        <div className="h-full w-64">
           <SidebarContent {...rest} onClose={onClose} isMobile={false} onToggleCollapse={onToggleCollapse} />
         </div>
       </motion.aside>
