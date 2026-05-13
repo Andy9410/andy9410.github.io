@@ -27,7 +27,8 @@ export default function LoginPage() {
   const { login }    = useAuth()
   const navigate     = useNavigate()
   const location     = useLocation()
-  const from         = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/chat'
+  const from           = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/chat'
+  const sessionExpired = (location.state as { sessionExpired?: boolean })?.sessionExpired ?? false
   const [show, setShow]         = useState(false)
   const [serverErr, setServerErr] = useState<string | null>(null)
 
@@ -50,12 +51,27 @@ export default function LoginPage() {
   return (
     <AuthLayout mode="login">
 
+      {/* Session expired banner */}
+      <AnimatePresence>
+        {sessionExpired && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-5 overflow-hidden rounded-xl border px-4 py-2.5 text-sm"
+            style={{ borderColor: 'rgba(234,179,8,0.3)', background: 'rgba(234,179,8,0.08)', color: '#CA8A04' }}
+          >
+            Tu sesión expiró por inactividad. Ingresá nuevamente.
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="mb-7 text-center">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(170,80%,50%)' }}>
-          Bienvenido de vuelta
+          Bienvenido
         </p>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Ingresá a tu cuenta</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Ingrese cuenta</h2>
       </div>
 
       <Form {...form}>
@@ -67,7 +83,7 @@ export default function LoginPage() {
                 Email
               </FormLabel>
               <FormControl>
-                <input type="email" placeholder="vos@ejemplo.com" autoComplete="email"
+                <input type="email" placeholder="test@ejemplo.com" autoComplete="email"
                   className={inputClass} {...field} />
               </FormControl>
               <FormMessage className="text-xs text-red-400 mt-1" />
