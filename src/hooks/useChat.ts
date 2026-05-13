@@ -6,6 +6,7 @@ import {
   fetchConversationMessages,
   deleteConversationApi,
   generateConversationTitle,
+  checkHealth,
 } from "@/services/chatApi";
 import { useHealthCheck } from "./useHealthCheck";
 import { useAuth } from "@/auth/useAuth";
@@ -19,6 +20,7 @@ export const useChat = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
+  const [connectionReady, setConnectionReady] = useState(false);
 
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
@@ -287,24 +289,65 @@ export const useChat = () => {
     [accessToken, status, refreshAccessToken]
   );
 
-  const handleRestored = useCallback(() => {
-    const targetId = activeIdRef.current;
-    const restoredMsg: Message = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: "Conexión reestablecida. Podés continuar la conversación.",
-      timestamp: new Date(),
-      isRestored: true,
-    };
-    if (targetId) {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === targetId ? { ...c, messages: [...c.messages, restoredMsg] } : c
-        )
-      );
+  const reloadData = useCallback(async (token: string) => {
+    try {
+      const summaries = await fetchMyConversations(token);
+      setConversations(summaries.map((s) => ({
+        id: `backend-${s.id}`,
+        backendId: s.id,
+        title: s.title,
+        messages: [],
+        messagesLoaded: false,
+        createdAt: new Date(s.createdAt),
+        updatedAt: new Date(s.createdAt),
+      })));
+    } catch {}
+
+    const activeConv = conversationsRef.current.find((c) => c.id === activeIdRef.current);
+    if (activeConv?.backendId) {
+      try {
+        const msgs = await fetchConversationMessages(activeConv.backendId, token);
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === activeIdRef.current
+              ? {
+                  ...c,
+                  messagesLoaded: true,
+                  messages: msgs.map((m) => ({
+                    id: String(m.id),
+                    role: m.role,
+                    content: m.content,
+                    timestamp: new Date(m.createdAt),
+                  })),
+                }
+              : c
+          )
+        );
+      } catch {}
     }
-    setHasConnectionError(false);
   }, []);
+
+  const handleRestored = useCallback(() => {
+    setHasConnectionError(false);
+    if (accessToken) reloadData(accessToken);
+  }, [accessToken, reloadData]);
+
+  // Heartbeat: check immediately on login, then every 20s
+  useEffect(() => {
+    if (!accessToken) return;
+    const check = async () => {
+      const ok = await checkHealth();
+      if (ok) {
+        setConnectionReady(true);
+        setHasConnectionError(false);
+      } else {
+        setHasConnectionError(true);
+      }
+    };
+    check();
+    const id = setInterval(check, 20_000);
+    return () => clearInterval(id);
+  }, [accessToken]);
 
   useHealthCheck(hasConnectionError, handleRestored);
 
@@ -326,6 +369,8 @@ export const useChat = () => {
     activeConversation,
     activeId,
     status,
+    isOffline: hasConnectionError,
+    connectionReady,
     isLoadingHistory,
     sidebarOpen,
     setSidebarOpen,
