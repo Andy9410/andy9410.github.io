@@ -7,9 +7,10 @@ import type { Message } from "@/types/chat";
 
 interface Props {
   message: Message;
+  isFirstInGroup?: boolean;
 }
 
-const MessageBubble = ({ message }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true }: Props) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const isError = message.isError === true;
@@ -31,7 +32,11 @@ const MessageBubble = ({ message }: Props) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className={cn("group flex items-end gap-3 px-4 py-1.5", isUser && "flex-row-reverse")}
+      className={cn(
+        "group flex items-end gap-3 px-4",
+        isFirstInGroup ? "pt-4 pb-1" : "pt-0.5 pb-1",
+        isUser && "flex-row-reverse"
+      )}
     >
       {/* Avatar */}
       <div
