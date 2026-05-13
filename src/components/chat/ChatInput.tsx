@@ -46,11 +46,11 @@ const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
   const canSend = value.trim().length > 0 && !disabled;
 
   return (
-    <div className="bg-background pb-4 pt-3">
+    <div className="bg-background py-3">
       <div className="mx-auto w-full max-w-3xl px-4">
         <div
           className={cn(
-          "flex items-stretch overflow-hidden rounded-xl border bg-card pl-3 shadow-sm transition-shadow",
+          "flex items-stretch overflow-hidden rounded-xl border bg-transparent pl-3 shadow-sm transition-shadow",
           disabled ? "border-border" : "border-border focus-within:border-cyan-400/60 focus-within:shadow-md focus-within:shadow-cyan-400/10"
           )}
         >
@@ -74,7 +74,7 @@ const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
             rows={1}
             placeholder={placeholder ?? (disabled ? "El tutor está escribiendo…" : "Escribí tu pregunta aquí…")}
             aria-label="Mensaje"
-            className="flex-1 resize-none bg-transparent py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex-1 resize-none bg-transparent py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 placeholder:text-center focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             style={{ minHeight: "44px", maxHeight: "200px" }}
           />
 
