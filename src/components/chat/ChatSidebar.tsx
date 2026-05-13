@@ -1,7 +1,20 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, Trash2, Code2, X } from "lucide-react";
+import { Plus, MessageSquare, Code2, X, LogOut, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { useAuth } from "@/auth/useAuth";
+import { useNavigate, Link } from "react-router-dom";
 import type { Conversation } from "@/types/chat";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   conversations: Conversation[];
@@ -9,6 +22,7 @@ interface Props {
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
+  isLoadingHistory: boolean;
   open: boolean;
   onClose: () => void;
   isMobile: boolean;
@@ -22,24 +36,45 @@ function relativeTime(date: Date): string {
   return `${Math.floor(diff / 86400)}d`;
 }
 
+function ConversationSkeleton() {
+  return (
+    <div className="space-y-1 px-2">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5">
+          <div className="h-3.5 w-3.5 shrink-0 rounded bg-muted-foreground/10 animate-pulse" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-2.5 w-3/4 rounded bg-muted-foreground/10 animate-pulse" />
+            <div className="h-2 w-1/2 rounded bg-muted-foreground/10 animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const SidebarContent = ({
   conversations,
   activeId,
   onSelect,
   onNew,
   onDelete,
+  isLoadingHistory,
   onClose,
   isMobile,
-}: Omit<Props, "open">) => (
+}: Omit<Props, "open">) => {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  return (
+  <>
   <div className="flex h-full flex-col bg-sidebar">
     {/* Brand + close */}
     <div className="flex h-14 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
-      <div className="flex items-center gap-2">
+      <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
           <Code2 className="h-4 w-4 text-primary-foreground" />
         </div>
         <span className="text-sm font-bold text-primary">LearnSoft</span>
-      </div>
+      </Link>
       {isMobile && (
         <button
           onClick={onClose}
@@ -64,7 +99,15 @@ const SidebarContent = ({
 
     {/* Conversations */}
     <div className="mt-3 flex-1 overflow-y-auto px-2 pb-4">
-      {conversations.length === 0 ? (
+      {isLoadingHistory ? (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 px-3 pb-1">
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/50" />
+            <p className="text-[11px] text-muted-foreground/50">Cargando historial…</p>
+          </div>
+          <ConversationSkeleton />
+        </div>
+      ) : conversations.length === 0 ? (
         <div className="px-3 py-8 text-center text-xs text-muted-foreground">
           <MessageSquare className="mx-auto mb-2 h-6 w-6 opacity-30" />
           Sin conversaciones
@@ -104,7 +147,7 @@ const SidebarContent = ({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">{conv.title}</p>
                       <p className="text-[10px] text-muted-foreground/70">
-                        {relativeTime(conv.updatedAt)} · {conv.messages.length} msgs
+                        {relativeTime(conv.updatedAt)} · {conv.messages.length > 0 ? `${conv.messages.length} msgs` : "sin cargar"}
                       </p>
                     </div>
 
@@ -117,12 +160,12 @@ const SidebarContent = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(conv.id);
+                      setPendingDeleteId(conv.id);
                     }}
                     aria-label="Eliminar conversación"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 hidden h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:flex"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded opacity-0 text-muted-foreground/50 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </motion.div>
               );
@@ -132,14 +175,74 @@ const SidebarContent = ({
       )}
     </div>
 
-    {/* Footer */}
-    <div className="shrink-0 border-t border-sidebar-border px-4 py-3">
-      <p className="text-[10px] text-muted-foreground/50">
-        Chat en modo demo · sin conexión a backend
-      </p>
-    </div>
+    {/* Footer — user profile + logout */}
+    <UserFooter />
   </div>
-);
+
+  <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+        <AlertDialogDescription>
+          Esta acción no se puede deshacer. La conversación será eliminada del historial.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+        <AlertDialogAction
+          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          onClick={() => {
+            if (pendingDeleteId) onDelete(pendingDeleteId);
+            setPendingDeleteId(null);
+          }}
+        >
+          Eliminar
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+  </>
+  );
+};
+
+function UserFooter() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      // navigate to login even if the API call fails
+    }
+    navigate("/login", { replace: true });
+  };
+
+  return (
+    <div className="shrink-0 border-t border-sidebar-border px-3 py-3">
+      <div className="flex items-center gap-2 rounded-lg px-2 py-2">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+          <User className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.name ?? "User"}</p>
+          <p className="truncate text-[10px] text-muted-foreground/60">{user?.email}</p>
+        </div>
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          aria-label="Sign out"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const ChatSidebar = (props: Props) => {
   const { open, onClose, isMobile, ...rest } = props;

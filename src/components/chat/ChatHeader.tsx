@@ -1,6 +1,5 @@
-import { Menu, Bot, Sparkles } from "lucide-react";
+import { Menu, Bot } from "lucide-react";
 import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import type { Conversation } from "@/types/chat";
 
 interface Props {
@@ -35,23 +34,12 @@ const ChatHeader = ({ conversation, onToggleSidebar, isMobile }: Props) => (
       </div>
     </div>
 
-    <div className="flex items-center gap-2">
-      <span
-        className={cn(
-          "inline-flex items-center gap-1 rounded-full border border-accent-border bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent"
-        )}
-      >
-        <Sparkles className="h-3 w-3" />
-        Beta
-      </span>
-
-      <Link
-        to="/"
-        className="hidden rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground sm:inline-flex"
-      >
-        Volver al sitio
-      </Link>
-    </div>
+    <Link
+      to="/"
+      className="hidden rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground sm:inline-flex"
+    >
+      Volver al sitio
+    </Link>
   </header>
 );
 

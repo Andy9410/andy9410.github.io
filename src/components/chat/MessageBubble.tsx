@@ -7,9 +7,10 @@ import type { Message } from "@/types/chat";
 
 interface Props {
   message: Message;
+  isFirstInGroup?: boolean;
 }
 
-const MessageBubble = ({ message }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true }: Props) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const isError = message.isError === true;
@@ -31,7 +32,11 @@ const MessageBubble = ({ message }: Props) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className={cn("group flex items-end gap-3 px-4 py-1.5", isUser && "flex-row-reverse")}
+      className={cn(
+        "group flex items-end gap-3 px-4",
+        isFirstInGroup ? "pt-4 pb-1" : "pt-0.5 pb-1",
+        isUser && "flex-row-reverse"
+      )}
     >
       {/* Avatar */}
       <div
@@ -63,12 +68,12 @@ const MessageBubble = ({ message }: Props) => {
           className={cn(
             "relative rounded-2xl px-4 py-3",
             isUser
-              ? "rounded-br-sm bg-primary text-primary-foreground"
+              ? "rounded-none bg-primary text-primary-foreground"
               : isError
                 ? "rounded-bl-sm border border-destructive/30 bg-destructive/10 text-destructive"
                 : isRestored
                   ? "rounded-bl-sm border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : "rounded-bl-sm border border-border bg-section-alt text-foreground"
+                  : "rounded-bl-sm bg-section-alt text-foreground"
           )}
         >
           <MessageContent content={message.content} isUser={isUser} />

@@ -25,15 +25,19 @@ const MessageList = ({ messages, isTyping, onSuggestion }: Props) => {
       ) : (
         <div className="flex flex-col py-4">
           <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+            {messages.map((msg, i) => (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isFirstInGroup={i === 0 || messages[i - 1].role !== msg.role}
+              />
             ))}
           </AnimatePresence>
 
           {isTyping && <TypingIndicator />}
         </div>
       )}
-      <div ref={bottomRef} className="h-4 shrink-0" />
+      <div ref={bottomRef} />
     </div>
   );
 };
