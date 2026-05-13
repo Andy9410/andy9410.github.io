@@ -5,6 +5,7 @@ import {
   fetchMyConversations,
   fetchConversationMessages,
   deleteConversationApi,
+  generateConversationTitle,
 } from "@/services/chatApi";
 import { useHealthCheck } from "./useHealthCheck";
 import { useAuth } from "@/auth/useAuth";
@@ -189,6 +190,8 @@ export const useChat = () => {
 
       let receivedContent = false;
 
+      const isNewConversation = !targetBackendId;
+
       const doStream = (token: string) =>
         streamChatMessage(content.trim(), token, targetBackendId, async (event) => {
           if (event.type === "meta") {
@@ -197,6 +200,15 @@ export const useChat = () => {
                 c.id === capturedId ? { ...c, backendId: event.conversationId } : c
               )
             );
+            if (isNewConversation) {
+              generateConversationTitle(event.conversationId, token)
+                .then((title) => {
+                  setConversations((prev) =>
+                    prev.map((c) => (c.id === capturedId ? { ...c, title } : c))
+                  );
+                })
+                .catch(() => {});
+            }
           } else if (event.type === "chunk") {
             receivedContent = true;
             await new Promise((r) => setTimeout(r, 40));
