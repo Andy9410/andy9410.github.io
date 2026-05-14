@@ -105,35 +105,35 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
             </Suspense>
           )}
 
-          {!isError && !isRestored && (
-            <div className={cn(
-              "absolute top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100",
-              isUser ? "left-2" : "right-2"
-            )}>
-              {isLastAssistant && onRegenerate && (
-                <button
-                  onClick={onRegenerate}
-                  aria-label="Regenerar respuesta"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
-                >
-                  <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              )}
-              <button
-                onClick={copyToClipboard}
-                aria-label="Copiar mensaje"
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
-              >
-                {copied ? (
-                  <Check className="h-3.5 w-3.5 text-accent" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </button>
-            </div>
-          )}
         </div>
 
+        {!isError && !isRestored && (
+          <div className={cn(
+            "flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 -mt-0.5",
+            isUser ? "justify-end" : "justify-start"
+          )}>
+            {isLastAssistant && onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                aria-label="Regenerar respuesta"
+                className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+              >
+                <RefreshCw className="h-3 w-3 text-muted-foreground" />
+              </button>
+            )}
+            <button
+              onClick={copyToClipboard}
+              aria-label="Copiar mensaje"
+              className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+            >
+              {copied ? (
+                <Check className="h-3 w-3 text-accent" />
+              ) : (
+                <Copy className="h-3 w-3 text-muted-foreground" />
+              )}
+            </button>
+          </div>
+        )}
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
       </div>
     </motion.div>
