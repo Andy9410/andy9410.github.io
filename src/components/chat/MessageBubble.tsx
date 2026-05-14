@@ -1,6 +1,9 @@
 import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw } from "lucide-react";
+import { Shimmer } from "@/components/ui/shimmer";
+import { cn } from "@/lib/utils";
+import type { Message } from "@/types/chat";
 
 const dot = { initial: { y: 0 }, animate: { y: -4 } };
 
@@ -18,8 +21,6 @@ const TypingDots = () => (
     ))}
   </div>
 );
-import { cn } from "@/lib/utils";
-import type { Message } from "@/types/chat";
 
 const MessageContent = lazy(() => import("./MessageContent"));
 
@@ -98,7 +99,9 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
           )}
         >
           {isStreaming && !message.content ? (
-            <TypingDots />
+            <Shimmer as="span" duration={1.5} spread={3} className="text-sm text-muted-foreground">
+              Escribiendo…
+            </Shimmer>
           ) : (
             <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
               <MessageContent content={message.content} isUser={isUser} />
