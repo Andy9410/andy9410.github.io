@@ -30,7 +30,7 @@ const Shimmer = memo(
           aria-hidden
           className="absolute inset-0 bg-clip-text text-transparent"
           style={{
-            backgroundImage: `linear-gradient(90deg, currentColor calc(50% - ${spreadPx}px), hsl(var(--accent)) 50%, currentColor calc(50% + ${spreadPx}px))`,
+            backgroundImage: `linear-gradient(90deg, currentColor calc(50% - ${spreadPx}px), #3b82f6 50%, currentColor calc(50% + ${spreadPx}px))`,
             backgroundSize: "200% 100%",
           }}
           animate={{ backgroundPositionX: ["100%", "-100%"] }}
