@@ -107,7 +107,11 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
 
           {isStreaming && (
             <div className="absolute inset-0 overflow-hidden rounded-2xl rounded-bl-none pointer-events-none">
-              <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              <motion.div
+                className="absolute inset-y-0 w-full bg-gradient-to-r from-transparent via-white/15 to-transparent"
+                animate={{ x: ["-100%", "100%"] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+              />
             </div>
           )}
 
