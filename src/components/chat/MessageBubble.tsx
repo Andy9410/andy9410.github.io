@@ -99,7 +99,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
           )}
         >
           {isStreaming && !message.content ? (
-            <Shimmer as="span" duration={1.5} spread={3} className="text-sm font-semibold text-foreground">
+            <Shimmer as="span" duration={1.5} spread={3} className="text-sm font-bold text-foreground">
               Escribiendo…
             </Shimmer>
           ) : (
