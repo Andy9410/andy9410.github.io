@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, Code2, X, LogOut, User, Loader2 } from "lucide-react";
+import { SquareTerminal, MessageSquare, Code2, X, LogOut, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/auth/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import type { Conversation } from "@/types/chat";
@@ -17,6 +19,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuAction,
+  SidebarRail,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -78,29 +82,60 @@ function UserFooter() {
   };
 
   return (
-    <div className="flex items-center gap-2 rounded-lg px-2 py-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
-        <User className="h-3.5 w-3.5" />
+    <>
+      {/* Expanded */}
+      <div className="flex items-center gap-2 rounded-lg px-2 py-2 group-data-[collapsible=icon]:hidden">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+          <User className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.name ?? "User"}</p>
+          <p className="truncate text-[10px] text-muted-foreground/60">{user?.email}</p>
+        </div>
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          aria-label="Cerrar sesión"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+        </button>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.name ?? "User"}</p>
-        <p className="truncate text-[10px] text-muted-foreground/60">{user?.email}</p>
+
+      {/* Collapsed */}
+      <div className="hidden flex-col items-center group-data-[collapsible=icon]:flex">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              aria-label="Cuenta"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-accent transition-colors hover:bg-accent/30"
+            >
+              <User className="h-3.5 w-3.5" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent side="right" align="end" className="w-52 p-2">
+            <div className="mb-2 px-2 py-1.5">
+              <p className="truncate text-xs font-medium text-foreground">{user?.name ?? "User"}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+              Cerrar sesión
+            </button>
+          </PopoverContent>
+        </Popover>
       </div>
-      <button
-        onClick={handleLogout}
-        disabled={loggingOut}
-        aria-label="Cerrar sesión"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        {loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
-      </button>
-    </div>
+    </>
   );
 }
 
 const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoadingHistory }: Props) => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const { setOpenMobile } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
 
   const handleSelect = (id: string) => {
     onSelect(id);
@@ -114,27 +149,35 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
 
   return (
     <>
-      <Sidebar collapsible="offcanvas">
-        <SidebarHeader className="border-b border-sidebar-border h-14 flex-row items-center px-4 py-0">
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="border-b border-sidebar-border flex-row items-center px-4 py-0 h-14 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
               <Code2 className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-sm font-bold text-primary">LearnSoft</span>
+            <span className="text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
           </Link>
+          <SidebarTrigger className="ml-auto text-muted-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:ml-0" />
         </SidebarHeader>
 
-        <div className="px-3 pt-3">
-          <button
-            onClick={handleNew}
-            className="flex w-full items-center gap-2 rounded-lg bg-accent px-3 py-2.5 text-sm font-semibold text-accent-foreground transition-all hover:bg-accent/90 active:scale-[0.98]"
-          >
-            <Plus className="h-4 w-4" />
-            Nuevo chat
-          </button>
+        <div className="px-3 pt-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleNew}
+                className="flex w-full items-center gap-2 rounded-lg bg-accent px-3 py-2.5 text-sm font-semibold text-accent-foreground transition-all hover:bg-accent/90 active:scale-[0.98] group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md"
+              >
+                <SquareTerminal className="h-4 w-4 shrink-0 group-data-[collapsible=icon]:h-[18px] group-data-[collapsible=icon]:w-[18px]" />
+                <span className="group-data-[collapsible=icon]:hidden">Nuevo chat</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" hidden={state !== "collapsed"}>
+              Nuevo chat
+            </TooltipContent>
+          </Tooltip>
         </div>
 
-        <SidebarContent className="mt-1">
+        <SidebarContent className="mt-1 group-data-[collapsible=icon]:hidden">
           {isLoadingHistory ? (
             <div className="mt-2 space-y-1">
               <div className="flex items-center gap-1.5 px-5 pb-1">
@@ -169,6 +212,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
                               isActive={isActive}
                               size="lg"
                               onClick={() => handleSelect(conv.id)}
+                              tooltip={conv.title}
                               className="h-auto py-2"
                             >
                               <MessageSquare className={cn("h-3.5 w-3.5 shrink-0", isActive ? "text-accent" : "text-muted-foreground/60")} />
@@ -198,9 +242,10 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
           )}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-sidebar-border px-3 py-3">
+        <SidebarFooter className="border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
           <UserFooter />
         </SidebarFooter>
+        <SidebarRail />
       </Sidebar>
 
       <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
