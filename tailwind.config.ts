@@ -107,8 +107,8 @@ export default {
   				}
   			},
   			shimmer: {
-  				'0%': { backgroundPosition: '-200% center' },
-  				'100%': { backgroundPosition: '200% center' },
+  				'0%': { transform: 'translateX(-100%)' },
+  				'100%': { transform: 'translateX(100%)' },
   			}
   		},
   		animation: {

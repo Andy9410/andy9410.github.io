@@ -94,9 +94,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                 ? "rounded-bl-none border border-destructive/30 bg-destructive/10 text-destructive"
                 : isRestored
                   ? "rounded-bl-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : isStreaming
-                    ? "rounded-bl-none text-foreground bg-[length:200%_100%] animate-shimmer bg-gradient-to-r from-section-alt via-accent/10 to-section-alt"
-                    : "rounded-bl-none bg-section-alt text-foreground"
+                  : "rounded-bl-none bg-section-alt text-foreground"
           )}
         >
           {isStreaming && !message.content ? (
@@ -105,6 +103,12 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
             <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
               <MessageContent content={message.content} isUser={isUser} />
             </Suspense>
+          )}
+
+          {isStreaming && (
+            <div className="absolute inset-0 overflow-hidden rounded-2xl rounded-bl-none pointer-events-none">
+              <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            </div>
           )}
 
           {!isError && !isRestored && (
