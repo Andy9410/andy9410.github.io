@@ -87,7 +87,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
       <div className={cn("flex max-w-[85%] flex-col gap-1", isUser && "items-end")}>
         <div
           className={cn(
-            "relative rounded-2xl px-4 py-3",
+            "relative rounded-2xl px-4 py-3 pr-20",
             isUser
               ? "rounded-br-none bg-primary text-primary-foreground"
               : isError
@@ -98,10 +98,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
           )}
         >
           {!isError && !isRestored && (
-            <div className={cn(
-              "absolute -top-8 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100",
-              isUser ? "right-0" : "left-0"
-            )}>
+            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               {isLastAssistant && onRegenerate && (
                 <button
                   onClick={onRegenerate}
