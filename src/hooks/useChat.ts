@@ -18,7 +18,6 @@ export const useChat = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [status, setStatus] = useState<ChatStatus>("idle");
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
   const [connectionReady, setConnectionReady] = useState(false);
 
@@ -73,7 +72,6 @@ export const useChat = () => {
     );
     if (existing) {
       setActiveId(existing.id);
-      setSidebarOpen(false);
       return;
     }
 
@@ -88,13 +86,11 @@ export const useChat = () => {
     };
     setConversations((prev) => [conv, ...prev]);
     setActiveId(id);
-    setSidebarOpen(false);
   }, []);
 
   const selectConversation = useCallback(
     async (id: string) => {
       setActiveId(id);
-      setSidebarOpen(false);
 
       const conv = conversationsRef.current.find((c) => c.id === id);
       if (!conv || conv.messagesLoaded || !conv.backendId || !accessToken) return;
@@ -481,8 +477,6 @@ export const useChat = () => {
     isOffline: hasConnectionError,
     connectionReady,
     isLoadingHistory,
-    sidebarOpen,
-    setSidebarOpen,
     newConversation,
     sendMessage,
     selectConversation,
