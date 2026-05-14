@@ -40,9 +40,10 @@ const BTN_STYLE = [
 interface Props {
   content: string;
   isUser?: boolean;
+  isStreaming?: boolean;
 }
 
-const MessageContent = ({ content, isUser = false }: Props) => {
+const MessageContent = ({ content, isUser = false, isStreaming = false }: Props) => {
   const html = useMemo(() => md.render(content.trimStart()), [content]);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +98,7 @@ const MessageContent = ({ content, isUser = false }: Props) => {
       ref={containerRef}
       className={cn(
         "prose prose-sm max-w-none break-words",
+        isStreaming && !isUser && "shimmer-text",
         isUser
           ? "prose-invert text-primary-foreground"
           : [

@@ -84,10 +84,11 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
       </div>
 
       {/* Bubble */}
-      <div className={cn("flex max-w-[75%] flex-col gap-1", isUser && "items-end")}>
+      <div className={cn("flex max-w-[85%] flex-col gap-1", isUser && "items-end")}>
         <div
           className={cn(
             "relative rounded-2xl px-4 py-3",
+            !isUser && !isError && !isRestored && "pr-20",
             isUser
               ? "rounded-br-none bg-primary text-primary-foreground"
               : isError
@@ -97,45 +98,43 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                   : "rounded-bl-none bg-section-alt text-foreground"
           )}
         >
+          {!isError && !isRestored && !isUser && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              {isLastAssistant && (
+                <button
+                  onClick={onRegenerate}
+                  disabled={!onRegenerate}
+                  aria-label="Regenerar respuesta"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
+              <button
+                onClick={copyToClipboard}
+                aria-label="Copiar mensaje"
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+              >
+                {copied ? (
+                  <Check className="h-3.5 w-3.5 text-accent" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </button>
+            </div>
+          )}
+
           {isStreaming && !message.content ? (
             <TypingDots />
           ) : (
             <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
-              <MessageContent content={message.content} isUser={isUser} />
+              <MessageContent content={message.content} isUser={isUser} isStreaming={isStreaming && !!message.content} />
             </Suspense>
           )}
 
-          {!isError && !isRestored && (
-            <button
-              onClick={copyToClipboard}
-              aria-label="Copiar mensaje"
-              className={cn(
-                "absolute -top-2 opacity-0 transition-opacity group-hover:opacity-100",
-                isUser ? "-left-8" : "-right-8",
-                "flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
-              )}
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-accent" />
-              ) : (
-                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </button>
-          )}
         </div>
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
-
-        {isLastAssistant && onRegenerate && (
-          <button
-            onClick={onRegenerate}
-            aria-label="Regenerar respuesta"
-            className="flex items-center gap-1 px-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Regenerar
-          </button>
-        )}
       </div>
     </motion.div>
   );
