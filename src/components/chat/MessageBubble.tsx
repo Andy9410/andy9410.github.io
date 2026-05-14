@@ -97,7 +97,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                   : "rounded-bl-none bg-section-alt text-foreground"
           )}
         >
-          {!isError && !isRestored && (
+          {!isError && !isRestored && !isUser && (
             <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               {isLastAssistant && onRegenerate && (
                 <button
