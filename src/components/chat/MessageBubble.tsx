@@ -88,6 +88,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
         <div
           className={cn(
             "relative rounded-2xl px-4 py-3",
+            !isUser && !isError && !isRestored && "pr-20",
             isUser
               ? "rounded-br-none bg-primary text-primary-foreground"
               : isError
