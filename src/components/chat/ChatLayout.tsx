@@ -1,16 +1,12 @@
-import { useState } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { WifiOff, ServerCrash } from "lucide-react";
 import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import { useChat } from "@/hooks/useChat";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 const ChatLayout = () => {
-  const isMobile = useIsMobile();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   const {
     conversations,
     activeConversation,
@@ -19,8 +15,6 @@ const ChatLayout = () => {
     isOffline,
     connectionReady,
     isLoadingHistory,
-    sidebarOpen,
-    setSidebarOpen,
     newConversation,
     sendMessage,
     selectConversation,
@@ -58,16 +52,8 @@ const ChatLayout = () => {
 
   const messages = activeConversation?.messages ?? [];
 
-  const toggleSidebar = () => {
-    if (isMobile) {
-      setSidebarOpen(true);
-    } else {
-      setSidebarCollapsed((v) => !v);
-    }
-  };
-
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <SidebarProvider className="h-screen overflow-hidden">
       <ChatSidebar
         conversations={conversations}
         activeId={activeId}
@@ -75,11 +61,6 @@ const ChatLayout = () => {
         onNew={newConversation}
         onDelete={deleteConversation}
         isLoadingHistory={isLoadingHistory}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        isMobile={isMobile}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -90,11 +71,7 @@ const ChatLayout = () => {
           </div>
         )}
 
-        <ChatHeader
-          conversation={activeConversation}
-          onToggleSidebar={toggleSidebar}
-          isMobile={isMobile}
-        />
+        <ChatHeader conversation={activeConversation} />
 
         <MessageList
           messages={messages}
@@ -109,7 +86,7 @@ const ChatLayout = () => {
           placeholder={isLoadingHistory ? "Cargando historial…" : undefined}
         />
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
