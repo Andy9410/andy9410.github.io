@@ -17,7 +17,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuAction,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -116,14 +115,13 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
   return (
     <>
       <Sidebar collapsible="offcanvas">
-        <SidebarHeader className="border-b border-sidebar-border h-14 flex-row items-center justify-between px-4 py-0">
+        <SidebarHeader className="border-b border-sidebar-border h-14 flex-row items-center px-4 py-0">
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <Code2 className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="text-sm font-bold text-primary">LearnSoft</span>
           </Link>
-          <SidebarTrigger className="text-muted-foreground hover:bg-sidebar-accent hover:text-foreground" />
         </SidebarHeader>
 
         <div className="px-3 pt-3">
