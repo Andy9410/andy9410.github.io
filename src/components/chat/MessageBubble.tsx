@@ -99,11 +99,12 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
         >
           {!isError && !isRestored && !isUser && (
             <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-              {isLastAssistant && onRegenerate && (
+              {isLastAssistant && (
                 <button
                   onClick={onRegenerate}
+                  disabled={!onRegenerate}
                   aria-label="Regenerar respuesta"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
