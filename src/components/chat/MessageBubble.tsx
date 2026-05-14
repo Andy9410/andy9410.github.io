@@ -101,18 +101,8 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
             <TypingDots />
           ) : (
             <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
-              <MessageContent content={message.content} isUser={isUser} />
+              <MessageContent content={message.content} isUser={isUser} isStreaming={isStreaming && !!message.content} />
             </Suspense>
-          )}
-
-          {isStreaming && (
-            <div className="absolute inset-0 overflow-hidden rounded-2xl rounded-bl-none pointer-events-none">
-              <motion.div
-                className="absolute inset-y-0 w-full bg-gradient-to-r from-transparent via-white/15 to-transparent"
-                animate={{ x: ["-100%", "100%"] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-              />
-            </div>
           )}
 
           {!isError && !isRestored && (
