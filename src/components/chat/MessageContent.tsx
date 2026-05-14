@@ -43,7 +43,7 @@ interface Props {
 }
 
 const MessageContent = ({ content, isUser = false }: Props) => {
-  const html = useMemo(() => md.render(content), [content]);
+  const html = useMemo(() => md.render(content.trimStart()), [content]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

@@ -1,6 +1,23 @@
 import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw } from "lucide-react";
+
+const dot = { initial: { y: 0 }, animate: { y: -4 } };
+
+const TypingDots = () => (
+  <div className="flex items-center gap-1.5 py-0.5">
+    {[0, 1, 2].map((i) => (
+      <motion.span
+        key={i}
+        className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60"
+        variants={dot}
+        initial="initial"
+        animate="animate"
+        transition={{ duration: 0.4, repeat: Infinity, repeatType: "reverse", delay: i * 0.12, ease: "easeInOut" }}
+      />
+    ))}
+  </div>
+);
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types/chat";
 
@@ -10,10 +27,11 @@ interface Props {
   message: Message;
   isFirstInGroup?: boolean;
   isLastAssistant?: boolean;
+  isStreaming?: boolean;
   onRegenerate?: () => void;
 }
 
-const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, onRegenerate }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate }: Props) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const isError = message.isError === true;
@@ -79,9 +97,13 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                   : "rounded-bl-none bg-section-alt text-foreground"
           )}
         >
-          <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
-            <MessageContent content={message.content} isUser={isUser} />
-          </Suspense>
+          {isStreaming && !message.content ? (
+            <TypingDots />
+          ) : (
+            <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
+              <MessageContent content={message.content} isUser={isUser} />
+            </Suspense>
+          )}
 
           {!isError && !isRestored && (
             <button
