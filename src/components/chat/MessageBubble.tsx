@@ -106,36 +106,35 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
           )}
 
           {!isError && !isRestored && (
-            <button
-              onClick={copyToClipboard}
-              aria-label="Copiar mensaje"
-              className={cn(
-                "absolute -top-2 opacity-0 transition-opacity group-hover:opacity-100",
-                isUser ? "-left-8" : "-right-8",
-                "flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+            <div className={cn(
+              "absolute -top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100",
+              isUser ? "right-full mr-1" : "left-full ml-1"
+            )}>
+              <button
+                onClick={copyToClipboard}
+                aria-label="Copiar mensaje"
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+              >
+                {copied ? (
+                  <Check className="h-3.5 w-3.5 text-accent" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </button>
+              {isLastAssistant && onRegenerate && (
+                <button
+                  onClick={onRegenerate}
+                  aria-label="Regenerar respuesta"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
               )}
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-accent" />
-              ) : (
-                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </button>
+            </div>
           )}
         </div>
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
-
-        {isLastAssistant && onRegenerate && (
-          <button
-            onClick={onRegenerate}
-            aria-label="Regenerar respuesta"
-            className="flex items-center gap-1 px-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Regenerar
-          </button>
-        )}
       </div>
     </motion.div>
   );
