@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuAction,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -122,6 +123,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
             </div>
             <span className="text-sm font-bold text-primary">LearnSoft</span>
           </Link>
+          <SidebarTrigger className="text-muted-foreground hover:bg-sidebar-accent hover:text-foreground" />
         </SidebarHeader>
 
         <div className="px-3 pt-3">
