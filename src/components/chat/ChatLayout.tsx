@@ -53,7 +53,7 @@ const ChatLayout = () => {
   const messages = activeConversation?.messages ?? [];
 
   return (
-    <SidebarProvider className="h-screen overflow-hidden">
+    <SidebarProvider>
       <ChatSidebar
         conversations={conversations}
         activeId={activeId}
@@ -63,7 +63,7 @@ const ChatLayout = () => {
         isLoadingHistory={isLoadingHistory}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="flex min-w-0 flex-1 flex-col h-screen overflow-hidden">
         {isOffline && (
           <div className="flex items-center justify-center gap-2 bg-destructive/10 px-4 py-2 text-xs font-medium text-destructive">
             <WifiOff className="h-3.5 w-3.5" />
@@ -85,7 +85,7 @@ const ChatLayout = () => {
           disabled={status === "loading" || isOffline || isLoadingHistory}
           placeholder={isLoadingHistory ? "Cargando historial…" : undefined}
         />
-      </div>
+      </main>
     </SidebarProvider>
   );
 };
