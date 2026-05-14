@@ -109,7 +109,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
 
         {!isError && !isRestored && (
           <div className={cn(
-            "flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 -mt-0.5",
+            "flex items-center gap-1 -mt-0.5",
             isUser ? "justify-end" : "justify-start"
           )}>
             {isLastAssistant && onRegenerate && (
