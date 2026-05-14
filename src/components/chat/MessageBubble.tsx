@@ -94,7 +94,9 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                 ? "rounded-bl-none border border-destructive/30 bg-destructive/10 text-destructive"
                 : isRestored
                   ? "rounded-bl-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : "rounded-bl-none bg-section-alt text-foreground"
+                  : isStreaming
+                    ? "rounded-bl-none text-foreground bg-[length:200%_100%] animate-shimmer bg-gradient-to-r from-section-alt via-accent/10 to-section-alt"
+                    : "rounded-bl-none bg-section-alt text-foreground"
           )}
         >
           {isStreaming && !message.content ? (

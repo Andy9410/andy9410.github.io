@@ -105,12 +105,17 @@ export default {
   					opacity: '1',
   					transform: 'translateY(0)'
   				}
+  			},
+  			shimmer: {
+  				'0%': { backgroundPosition: '-200% center' },
+  				'100%': { backgroundPosition: '200% center' },
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
-  			'fade-up': 'fade-up 0.6s ease-out forwards'
+  			'fade-up': 'fade-up 0.6s ease-out forwards',
+  			shimmer: 'shimmer 2s linear infinite',
   		}
   	}
   },
