@@ -12,6 +12,11 @@ import { uploadDocuments } from "@/services/documentApi";
 import { useHealthCheck } from "./useHealthCheck";
 import { useAuth } from "@/auth/useAuth";
 
+const deriveTitle = (content: string, file?: File): string => {
+  const t = content.trim() || file?.name || "Nueva conversación";
+  return t.length > 45 ? t.slice(0, 45) + "…" : t;
+};
+
 export const useChat = () => {
   const { accessToken, refreshAccessToken } = useAuth();
 
@@ -138,8 +143,7 @@ export const useChat = () => {
 
       if (!targetId) {
         targetId = crypto.randomUUID();
-        const titleText = content.trim() || file?.name || "Nueva conversación";
-        const title = titleText.length > 45 ? titleText.slice(0, 45) + "…" : titleText;
+        const title = deriveTitle(content, file);
         const newConv: Conversation = {
           id: targetId,
           title,
@@ -181,7 +185,7 @@ export const useChat = () => {
                 updatedAt: new Date(),
                 title:
                   c.messages.length === 0
-                    ? (() => { const t = content.trim() || file?.name || "Nueva conversación"; return t.length > 45 ? t.slice(0, 45) + "…" : t; })()
+                    ? deriveTitle(content, file)
                     : c.title,
               }
             : c
@@ -232,11 +236,10 @@ export const useChat = () => {
 
       let receivedContent = false;
 
-      const effectiveContent = content.trim() || "Analizá el documento adjunto.";
       const isNewConversation = !targetBackendId;
 
       const doStream = (token: string) =>
-        streamChatMessage(effectiveContent, token, targetBackendId, async (event) => {
+        streamChatMessage(userMsg.content, token, targetBackendId, async (event) => {
           if (event.type === "meta") {
             setConversations((prev) =>
               prev.map((c) =>

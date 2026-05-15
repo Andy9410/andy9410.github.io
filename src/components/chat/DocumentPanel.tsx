@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { uploadDocuments, listDocuments, deleteDocumentApi } from "@/services/documentApi";
-import type { DocumentOut, UploadResult } from "@/services/documentApi";
+import { uploadDocuments, deleteDocumentApi } from "@/services/documentApi";
+import type { UploadResult } from "@/services/documentApi";
+import { useDocuments } from "@/hooks/useDocuments";
 
 interface Props {
   isOpen: boolean;
@@ -22,26 +23,16 @@ function formatDate(iso: string): string {
   });
 }
 
+const isSuccess = (r: UploadResult) =>
+  r.status === "ok" || r.status === "ready" || r.status === "duplicate";
+
 const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess }: Props) => {
-  const [documents, setDocuments] = useState<DocumentOut[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { documents, refresh: fetchDocs, loading } = useDocuments(token);
   const [uploading, setUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const fetchDocs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const docs = await listDocuments(token);
-      setDocuments(docs);
-    } catch {
-      setDocuments([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +52,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess }: Props) => {
         const results = await uploadDocuments(arr, token);
         setUploadResults(results);
         await fetchDocs();
-        if (results.some((r) => r.status === "ok" || r.status === "ready" || r.status === "duplicate")) onUploadSuccess?.();
+        if (results.some(isSuccess)) onUploadSuccess?.();
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error desconocido";
         const label =
@@ -103,14 +94,14 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess }: Props) => {
       setDeletingId(id);
       try {
         await deleteDocumentApi(id, token);
-        setDocuments((prev) => prev.filter((d) => d.id !== id));
+        await fetchDocs();
         onUploadSuccess?.();
       } catch {}
       finally {
         setDeletingId(null);
       }
     },
-    [token]
+    [token, fetchDocs]
   );
 
   return (
@@ -129,7 +120,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess }: Props) => {
             <div
               onDragOver={(e) => {
                 e.preventDefault();
-                setIsDragging(true);
+                if (!isDragging) setIsDragging(true);
               }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
@@ -177,12 +168,12 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess }: Props) => {
                   key={i}
                   className={cn(
                     "flex items-start gap-2.5 rounded-lg px-3 py-2 text-xs",
-                    r.status === "ok" || r.status === "ready" || r.status === "duplicate"
+                    isSuccess(r)
                       ? "bg-teal-500/10 text-teal-400"
                       : "bg-destructive/10 text-destructive"
                   )}
                 >
-                  {r.status === "ok" || r.status === "ready" || r.status === "duplicate" ? (
+                  {isSuccess(r) ? (
                     <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   ) : (
                     <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
