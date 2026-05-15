@@ -76,7 +76,7 @@ const ChatLayout = () => {
         <MessageList
           messages={messages}
           isTyping={status === "loading"}
-          onSuggestion={sendMessage}
+          onSuggestion={(s) => sendMessage(s)}
           onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
         />
 
