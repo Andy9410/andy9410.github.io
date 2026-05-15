@@ -7,6 +7,8 @@ export interface Message {
   timestamp: Date;
   isError?: boolean;
   isRestored?: boolean;
+  sources?: string[];
+  attachedFileName?: string;
 }
 
 export interface Conversation {

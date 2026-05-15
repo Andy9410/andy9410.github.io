@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw } from "lucide-react";
+import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText } from "lucide-react";
 
 const dot = { initial: { y: 0 }, animate: { y: -4 } };
 
@@ -134,7 +134,30 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
 
         </div>
 
+        {isUser && message.attachedFileName && (
+          <div className="flex items-center gap-1.5 px-1 pt-0.5">
+            <FileText className="h-3 w-3 shrink-0 text-cyan-400/70" />
+            <span className="rounded-md bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400/80">
+              {message.attachedFileName}
+            </span>
+          </div>
+        )}
+
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
+
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">
+            <FileText className="h-3 w-3 shrink-0 text-cyan-400/70" />
+            {message.sources.map((f) => (
+              <span
+                key={f}
+                className="rounded-md bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400/80"
+              >
+                {f}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </motion.div>
   );

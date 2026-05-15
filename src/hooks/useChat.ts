@@ -8,6 +8,7 @@ import {
   generateConversationTitle,
   checkHealth,
 } from "@/services/chatApi";
+import { uploadDocuments } from "@/services/documentApi";
 import { useHealthCheck } from "./useHealthCheck";
 import { useAuth } from "@/auth/useAuth";
 
@@ -128,15 +129,17 @@ export const useChat = () => {
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || status === "loading" || !accessToken) return;
+    async (content: string, file?: File) => {
+      if (!content.trim() && !file) return;
+      if (status === "loading" || !accessToken) return;
 
       let targetId = activeIdRef.current;
       let targetBackendId: number | undefined;
 
       if (!targetId) {
         targetId = crypto.randomUUID();
-        const title = content.length > 45 ? content.slice(0, 45) + "…" : content;
+        const titleText = content.trim() || file?.name || "Nueva conversación";
+        const title = titleText.length > 45 ? titleText.slice(0, 45) + "…" : titleText;
         const newConv: Conversation = {
           id: targetId,
           title,
@@ -156,8 +159,9 @@ export const useChat = () => {
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: "user",
-        content: content.trim(),
+        content: content.trim() || "Analizá el documento adjunto.",
         timestamp: new Date(),
+        attachedFileName: file?.name,
       };
 
       const aiMsgId = crypto.randomUUID();
@@ -177,9 +181,7 @@ export const useChat = () => {
                 updatedAt: new Date(),
                 title:
                   c.messages.length === 0
-                    ? content.length > 45
-                      ? content.slice(0, 45) + "…"
-                      : content
+                    ? (() => { const t = content.trim() || file?.name || "Nueva conversación"; return t.length > 45 ? t.slice(0, 45) + "…" : t; })()
                     : c.title,
               }
             : c
@@ -188,12 +190,53 @@ export const useChat = () => {
 
       setStatus("loading");
 
+      // Upload attached file before streaming so RAG can find it
+      if (file) {
+        const doUpload = async (token: string) => uploadDocuments([file], token);
+        let uploadError: string | null = null;
+        try {
+          await doUpload(accessToken).catch(async (err: Error) => {
+            if (err.message === "401") {
+              const fresh = await refreshAccessToken();
+              if (!fresh) throw err;
+              return doUpload(fresh);
+            }
+            throw err;
+          });
+        } catch (err) {
+          const code = err instanceof Error ? err.message : "";
+          uploadError =
+            code === "401" ? "Tu sesión expiró. Recargá la página e intentá de nuevo." :
+            code === "422" ? "El archivo no es un PDF válido o está protegido." :
+            code === "413" ? "El archivo supera el tamaño máximo permitido (20 MB)." :
+            code.startsWith("Type") ? "No se pudo conectar con el servidor de documentos." :
+            "No se pudo procesar el documento adjunto. Intentá de nuevo.";
+        }
+        if (uploadError) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === aiMsgId ? { ...m, content: uploadError!, isError: true } : m
+                    ),
+                  }
+                : c
+            )
+          );
+          setStatus("idle");
+          return;
+        }
+      }
+
       let receivedContent = false;
 
+      const effectiveContent = content.trim() || "Analizá el documento adjunto.";
       const isNewConversation = !targetBackendId;
 
       const doStream = (token: string) =>
-        streamChatMessage(content.trim(), token, targetBackendId, async (event) => {
+        streamChatMessage(effectiveContent, token, targetBackendId, async (event) => {
           if (event.type === "meta") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -219,6 +262,19 @@ export const useChat = () => {
                       ...c,
                       messages: c.messages.map((m) =>
                         m.id === aiMsgId ? { ...m, content: m.content + event.text } : m
+                      ),
+                    }
+                  : c
+              )
+            );
+          } else if (event.type === "sources") {
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === aiMsgId ? { ...m, sources: event.files } : m
                       ),
                     }
                   : c
