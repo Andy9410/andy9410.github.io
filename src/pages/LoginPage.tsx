@@ -154,7 +154,7 @@ export default function LoginPage() {
 
       <div className="mt-6 flex items-center gap-3">
         <div className="h-px flex-1" style={{ background: 'rgba(0,0,0,0.06)' }} />
-        <span className="text-xs" style={{ color: '#94A3B8' }}>¿nuevo acá?</span>
+        <span className="text-xs" style={{ color: '#94A3B8' }}>¿nuevo?</span>
         <div className="h-px flex-1" style={{ background: 'rgba(0,0,0,0.06)' }} />
       </div>
 
