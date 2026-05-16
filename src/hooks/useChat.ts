@@ -18,7 +18,7 @@ const deriveTitle = (content: string, file?: File): string => {
 };
 
 export const useChat = () => {
-  const { accessToken, refreshAccessToken } = useAuth();
+  const { accessToken, refreshAccessToken, forceLogout } = useAuth();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -203,7 +203,7 @@ export const useChat = () => {
           const results = await doUpload(accessToken).catch(async (err: Error) => {
             if (err.message === "401") {
               const fresh = await refreshAccessToken();
-              if (!fresh) throw err;
+              if (!fresh) throw new Error("session_expired");
               return doUpload(fresh);
             }
             throw err;
@@ -211,8 +211,12 @@ export const useChat = () => {
           uploadedDocId = results[0]?.document_id ?? undefined;
         } catch (err) {
           const code = err instanceof Error ? err.message : "";
+          if (code === "401" || code === "session_expired" || code === "403") {
+            if (code === "403") forceLogout();
+            setStatus("idle");
+            return;
+          }
           uploadError =
-            code === "401" ? "Tu sesión expiró. Recargá la página e intentá de nuevo." :
             code === "422" ? "El archivo no es un PDF válido o está protegido." :
             code === "413" ? "El archivo supera el tamaño máximo permitido (20 MB)." :
             code.startsWith("Type") ? "No se pudo conectar con el servidor de documentos." :
@@ -311,8 +315,12 @@ export const useChat = () => {
         await doStream(accessToken).catch(async (err: Error) => {
           if (err.message === "401") {
             const fresh = await refreshAccessToken();
-            if (!fresh) throw err;
+            if (!fresh) return; // clearSession + redirect handled by refreshAccessToken
             return doStream(fresh);
+          }
+          if (err.message === "403") {
+            forceLogout();
+            return;
           }
           throw err;
         });
@@ -345,7 +353,7 @@ export const useChat = () => {
         setStatus("idle");
       }
     },
-    [accessToken, status, refreshAccessToken]
+    [accessToken, status, refreshAccessToken, forceLogout]
   );
 
   const regenerateLastMessage = useCallback(async () => {
@@ -430,8 +438,12 @@ export const useChat = () => {
       await doStream(accessToken).catch(async (err: Error) => {
         if (err.message === "401") {
           const fresh = await refreshAccessToken();
-          if (!fresh) throw err;
+          if (!fresh) return;
           return doStream(fresh);
+        }
+        if (err.message === "403") {
+          forceLogout();
+          return;
         }
         throw err;
       });
@@ -452,7 +464,7 @@ export const useChat = () => {
       }
       setStatus("idle");
     }
-  }, [accessToken, status, refreshAccessToken]);
+  }, [accessToken, status, refreshAccessToken, forceLogout]);
 
   const reloadData = useCallback(async (token: string) => {
     try {
