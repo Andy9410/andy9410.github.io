@@ -67,7 +67,7 @@ export default function LoginPage() {
             className="mb-5 overflow-hidden rounded-xl border px-4 py-2.5 text-sm"
             style={{ borderColor: 'rgba(234,179,8,0.3)', background: 'rgba(234,179,8,0.08)', color: '#CA8A04' }}
           >
-            Tu sesión expiró por inactividad. Ingresá nuevamente.
+            Tu sesión expiró. Ingresá nuevamente.
           </motion.div>
         )}
       </AnimatePresence>

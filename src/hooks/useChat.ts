@@ -12,8 +12,13 @@ import { uploadDocuments } from "@/services/documentApi";
 import { useHealthCheck } from "./useHealthCheck";
 import { useAuth } from "@/auth/useAuth";
 
+const deriveTitle = (content: string, file?: File): string => {
+  const t = content.trim() || file?.name || "Nueva conversación";
+  return t.length > 45 ? t.slice(0, 45) + "…" : t;
+};
+
 export const useChat = () => {
-  const { accessToken, refreshAccessToken } = useAuth();
+  const { accessToken, refreshAccessToken, forceLogout } = useAuth();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -138,8 +143,7 @@ export const useChat = () => {
 
       if (!targetId) {
         targetId = crypto.randomUUID();
-        const titleText = content.trim() || file?.name || "Nueva conversación";
-        const title = titleText.length > 45 ? titleText.slice(0, 45) + "…" : titleText;
+        const title = deriveTitle(content, file);
         const newConv: Conversation = {
           id: targetId,
           title,
@@ -181,7 +185,7 @@ export const useChat = () => {
                 updatedAt: new Date(),
                 title:
                   c.messages.length === 0
-                    ? (() => { const t = content.trim() || file?.name || "Nueva conversación"; return t.length > 45 ? t.slice(0, 45) + "…" : t; })()
+                    ? deriveTitle(content, file)
                     : c.title,
               }
             : c
@@ -191,22 +195,28 @@ export const useChat = () => {
       setStatus("loading");
 
       // Upload attached file before streaming so RAG can find it
+      let uploadedDocId: number | undefined;
       if (file) {
         const doUpload = async (token: string) => uploadDocuments([file], token);
         let uploadError: string | null = null;
         try {
-          await doUpload(accessToken).catch(async (err: Error) => {
+          const results = await doUpload(accessToken).catch(async (err: Error) => {
             if (err.message === "401") {
               const fresh = await refreshAccessToken();
-              if (!fresh) throw err;
+              if (!fresh) throw new Error("session_expired");
               return doUpload(fresh);
             }
             throw err;
           });
+          uploadedDocId = results[0]?.document_id ?? undefined;
         } catch (err) {
           const code = err instanceof Error ? err.message : "";
+          if (code === "401" || code === "session_expired" || code === "403") {
+            if (code === "403") forceLogout();
+            setStatus("idle");
+            return;
+          }
           uploadError =
-            code === "401" ? "Tu sesión expiró. Recargá la página e intentá de nuevo." :
             code === "422" ? "El archivo no es un PDF válido o está protegido." :
             code === "413" ? "El archivo supera el tamaño máximo permitido (20 MB)." :
             code.startsWith("Type") ? "No se pudo conectar con el servidor de documentos." :
@@ -232,11 +242,10 @@ export const useChat = () => {
 
       let receivedContent = false;
 
-      const effectiveContent = content.trim() || "Analizá el documento adjunto.";
       const isNewConversation = !targetBackendId;
 
       const doStream = (token: string) =>
-        streamChatMessage(effectiveContent, token, targetBackendId, async (event) => {
+        streamChatMessage(userMsg.content, token, targetBackendId, async (event) => {
           if (event.type === "meta") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -300,14 +309,18 @@ export const useChat = () => {
               )
             );
           }
-        });
+        }, undefined, uploadedDocId);
 
       try {
         await doStream(accessToken).catch(async (err: Error) => {
           if (err.message === "401") {
             const fresh = await refreshAccessToken();
-            if (!fresh) throw err;
+            if (!fresh) return; // clearSession + redirect handled by refreshAccessToken
             return doStream(fresh);
+          }
+          if (err.message === "403") {
+            forceLogout();
+            return;
           }
           throw err;
         });
@@ -340,7 +353,7 @@ export const useChat = () => {
         setStatus("idle");
       }
     },
-    [accessToken, status, refreshAccessToken]
+    [accessToken, status, refreshAccessToken, forceLogout]
   );
 
   const regenerateLastMessage = useCallback(async () => {
@@ -425,8 +438,12 @@ export const useChat = () => {
       await doStream(accessToken).catch(async (err: Error) => {
         if (err.message === "401") {
           const fresh = await refreshAccessToken();
-          if (!fresh) throw err;
+          if (!fresh) return;
           return doStream(fresh);
+        }
+        if (err.message === "403") {
+          forceLogout();
+          return;
         }
         throw err;
       });
@@ -447,7 +464,7 @@ export const useChat = () => {
       }
       setStatus("idle");
     }
-  }, [accessToken, status, refreshAccessToken]);
+  }, [accessToken, status, refreshAccessToken, forceLogout]);
 
   const reloadData = useCallback(async (token: string) => {
     try {
