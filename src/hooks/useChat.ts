@@ -195,11 +195,12 @@ export const useChat = () => {
       setStatus("loading");
 
       // Upload attached file before streaming so RAG can find it
+      let uploadedDocId: number | undefined;
       if (file) {
         const doUpload = async (token: string) => uploadDocuments([file], token);
         let uploadError: string | null = null;
         try {
-          await doUpload(accessToken).catch(async (err: Error) => {
+          const results = await doUpload(accessToken).catch(async (err: Error) => {
             if (err.message === "401") {
               const fresh = await refreshAccessToken();
               if (!fresh) throw err;
@@ -207,6 +208,7 @@ export const useChat = () => {
             }
             throw err;
           });
+          uploadedDocId = results[0]?.document_id ?? undefined;
         } catch (err) {
           const code = err instanceof Error ? err.message : "";
           uploadError =
@@ -303,7 +305,7 @@ export const useChat = () => {
               )
             );
           }
-        });
+        }, undefined, uploadedDocId);
 
       try {
         await doStream(accessToken).catch(async (err: Error) => {
