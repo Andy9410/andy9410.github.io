@@ -20,6 +20,7 @@ export interface Conversation {
   messageCount?: number;
   createdAt: Date;
   updatedAt: Date;
+  preferredDocumentId?: number;
 }
 
 export interface ConversationSummary {
