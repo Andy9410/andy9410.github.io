@@ -150,14 +150,14 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
   return (
     <>
       <Sidebar collapsible="icon">
-        <SidebarHeader className="border-b border-sidebar-border flex-row items-center px-4 py-0 h-14 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
+        <SidebarHeader className="border-b border-sidebar-border flex-row items-center px-4 py-0 h-14 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3 group/sidebar-header">
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
               <Code2 className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
           </Link>
-          <SidebarTrigger className="ml-auto text-muted-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:ml-0" />
+          <SidebarTrigger className="ml-auto text-muted-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:group-hover/sidebar-header:opacity-100 group-data-[collapsible=icon]:transition-opacity group-data-[collapsible=icon]:duration-150" />
         </SidebarHeader>
 
         <div className="px-3 pt-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1.5">
@@ -242,7 +242,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
           )}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
+        <SidebarFooter className="mt-auto border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
           <UserFooter />
         </SidebarFooter>
         <SidebarRail />
