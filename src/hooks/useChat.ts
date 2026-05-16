@@ -209,6 +209,11 @@ export const useChat = () => {
             throw err;
           });
           uploadedDocId = results[0]?.document_id ?? undefined;
+          if (uploadedDocId) {
+            setConversations((prev) =>
+              prev.map((c) => c.id === capturedId ? { ...c, preferredDocumentId: uploadedDocId } : c)
+            );
+          }
         } catch (err) {
           const code = err instanceof Error ? err.message : "";
           if (code === "401" || code === "session_expired" || code === "403") {
@@ -243,6 +248,9 @@ export const useChat = () => {
       let receivedContent = false;
 
       const isNewConversation = !targetBackendId;
+
+      const activeDocId = uploadedDocId
+        ?? conversationsRef.current.find((c) => c.id === capturedId)?.preferredDocumentId;
 
       const doStream = (token: string) =>
         streamChatMessage(userMsg.content, token, targetBackendId, async (event) => {
@@ -309,7 +317,7 @@ export const useChat = () => {
               )
             );
           }
-        }, undefined, uploadedDocId);
+        }, undefined, activeDocId);
 
       try {
         await doStream(accessToken).catch(async (err: Error) => {
