@@ -150,14 +150,23 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
   return (
     <>
       <Sidebar collapsible="icon">
-        <SidebarHeader className="border-b border-sidebar-border flex-row items-center px-4 py-0 h-14 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3 group/sidebar-header">
-          <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+        <SidebarHeader className="border-b border-sidebar-border flex-row items-center px-4 py-0 h-14 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
+          {/* Logo ↔ Trigger swap — same 32×32 box, no layout shift */}
+          <div className="group/logo relative flex h-8 w-8 shrink-0">
+            {/* Logo face */}
+            <Link
+              to="/"
+              tabIndex={-1}
+              aria-hidden
+              className="absolute inset-0 flex items-center justify-center rounded-lg bg-primary transition-opacity duration-200 ease-in-out group-hover/logo:opacity-0 group-hover/logo:pointer-events-none"
+            >
               <Code2 className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
-          </Link>
-          <SidebarTrigger className="ml-auto text-muted-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:group-hover/sidebar-header:opacity-100 group-data-[collapsible=icon]:transition-opacity group-data-[collapsible=icon]:duration-150" />
+            </Link>
+            {/* Trigger face */}
+            <SidebarTrigger className="absolute inset-0 h-8 w-8 rounded-lg bg-sidebar-accent p-0 text-sidebar-foreground opacity-0 transition-opacity duration-200 ease-in-out group-hover/logo:opacity-100 hover:bg-sidebar-accent/80 [&>svg]:h-4 [&>svg]:w-4" />
+          </div>
+
+          <span className="ml-2 text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
         </SidebarHeader>
 
         <div className="px-3 pt-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1.5">
