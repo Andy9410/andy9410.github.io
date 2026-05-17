@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SquareTerminal, MessageSquare, Code2, X, LogOut, User, Loader2 } from "lucide-react";
+import { SquareTerminal, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -136,7 +136,7 @@ function UserFooter() {
 const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoadingHistory }: Props) => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [logoHovered, setLogoHovered] = useState(false);
-  const { state, setOpenMobile } = useSidebar();
+  const { state, setOpenMobile, toggleSidebar } = useSidebar();
 
   const handleSelect = (id: string) => {
     onSelect(id);
@@ -171,10 +171,16 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
               <Code2 className="h-4 w-4 text-primary-foreground" />
             </Link>
             {/* Trigger face */}
-            <SidebarTrigger className={cn(
-              "absolute inset-0 h-8 w-8 rounded-lg p-0 transition-opacity duration-200 bg-white text-slate-700 hover:bg-white/90 [&>svg]:h-4 [&>svg]:w-4",
-              logoHovered ? "opacity-100" : "opacity-0 pointer-events-none"
-            )} />
+            <button
+              onClick={toggleSidebar}
+              aria-label="Toggle sidebar"
+              className={cn(
+                "absolute inset-0 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-slate-600 shadow-sm transition-opacity duration-200 hover:bg-slate-50",
+                logoHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
           </div>
 
           <span className="ml-2 text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
