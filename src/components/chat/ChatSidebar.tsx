@@ -172,7 +172,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
             </Link>
             {/* Trigger face */}
             <SidebarTrigger className={cn(
-              "absolute inset-0 h-8 w-8 rounded-lg p-0 transition-opacity duration-200 [&>svg]:h-4 [&>svg]:w-4",
+              "absolute inset-0 h-8 w-8 rounded-lg p-0 transition-opacity duration-200 bg-white text-slate-700 hover:bg-white/90 [&>svg]:h-4 [&>svg]:w-4",
               logoHovered ? "opacity-100" : "opacity-0 pointer-events-none"
             )} />
           </div>
