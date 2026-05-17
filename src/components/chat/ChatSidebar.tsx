@@ -135,6 +135,7 @@ function UserFooter() {
 
 const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoadingHistory }: Props) => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [logoHovered, setLogoHovered] = useState(false);
   const { state, setOpenMobile } = useSidebar();
 
   const handleSelect = (id: string) => {
@@ -152,18 +153,28 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
       <Sidebar collapsible="icon">
         <SidebarHeader className="border-b border-sidebar-border flex-row items-center px-4 py-0 h-14 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
           {/* Logo ↔ Trigger swap — same 32×32 box, no layout shift */}
-          <div className="group/logo relative flex h-8 w-8 shrink-0">
+          <div
+            className="relative flex h-8 w-8 shrink-0"
+            onMouseEnter={() => setLogoHovered(true)}
+            onMouseLeave={() => setLogoHovered(false)}
+          >
             {/* Logo face */}
             <Link
               to="/"
               tabIndex={-1}
               aria-hidden
-              className="absolute inset-0 flex items-center justify-center rounded-lg bg-primary transition-opacity duration-200 ease-in-out group-hover/logo:opacity-0 group-hover/logo:pointer-events-none"
+              className={cn(
+                "absolute inset-0 flex items-center justify-center rounded-lg bg-primary transition-opacity duration-200",
+                logoHovered ? "opacity-0 pointer-events-none" : "opacity-100"
+              )}
             >
               <Code2 className="h-4 w-4 text-primary-foreground" />
             </Link>
             {/* Trigger face */}
-            <SidebarTrigger className="absolute inset-0 h-8 w-8 rounded-lg bg-sidebar-accent p-0 text-sidebar-foreground opacity-0 transition-opacity duration-200 ease-in-out group-hover/logo:opacity-100 hover:bg-sidebar-accent/80 [&>svg]:h-4 [&>svg]:w-4" />
+            <SidebarTrigger className={cn(
+              "absolute inset-0 h-8 w-8 rounded-lg p-0 transition-opacity duration-200 [&>svg]:h-4 [&>svg]:w-4",
+              logoHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+            )} />
           </div>
 
           <span className="ml-2 text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
