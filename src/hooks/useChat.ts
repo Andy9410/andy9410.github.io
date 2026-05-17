@@ -12,8 +12,8 @@ import { uploadDocuments } from "@/services/documentApi";
 import { useHealthCheck } from "./useHealthCheck";
 import { useAuth } from "@/auth/useAuth";
 
-const deriveTitle = (content: string, file?: File): string => {
-  const t = content.trim() || file?.name || "Nueva conversación";
+const deriveTitle = (content: string, files?: File[]): string => {
+  const t = content.trim() || files?.[0]?.name || "Nueva conversación";
   return t.length > 45 ? t.slice(0, 45) + "…" : t;
 };
 
@@ -134,8 +134,9 @@ export const useChat = () => {
   );
 
   const sendMessage = useCallback(
-    async (content: string, file?: File) => {
-      if (!content.trim() && !file) return;
+    async (content: string, files?: File[]) => {
+      const file = files?.[0];
+      if (!content.trim() && !files?.length) return;
       if (status === "loading" || !accessToken) return;
 
       let targetId = activeIdRef.current;
@@ -143,7 +144,7 @@ export const useChat = () => {
 
       if (!targetId) {
         targetId = crypto.randomUUID();
-        const title = deriveTitle(content, file);
+        const title = deriveTitle(content, files);
         const newConv: Conversation = {
           id: targetId,
           title,
@@ -165,7 +166,7 @@ export const useChat = () => {
         role: "user",
         content: content.trim() || "Analizá el documento adjunto.",
         timestamp: new Date(),
-        attachedFileName: file?.name,
+        attachedFileName: files?.length ? files.map(f => f.name).join(", ") : undefined,
       };
 
       const aiMsgId = crypto.randomUUID();
@@ -185,7 +186,7 @@ export const useChat = () => {
                 updatedAt: new Date(),
                 title:
                   c.messages.length === 0
-                    ? deriveTitle(content, file)
+                    ? deriveTitle(content, files)
                     : c.title,
               }
             : c
@@ -194,10 +195,10 @@ export const useChat = () => {
 
       setStatus("loading");
 
-      // Upload attached file before streaming so RAG can find it
+      // Upload attached files before streaming so RAG can find them
       let uploadedDocId: number | undefined;
-      if (file) {
-        const doUpload = async (token: string) => uploadDocuments([file], token);
+      if (files?.length) {
+        const doUpload = async (token: string) => uploadDocuments(files, token);
         let uploadError: string | null = null;
         try {
           const results = await doUpload(accessToken).catch(async (err: Error) => {
