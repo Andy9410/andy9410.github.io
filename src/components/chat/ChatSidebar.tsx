@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SquareTerminal, MessageSquare, Code2, X, LogOut, User, Loader2 } from "lucide-react";
+import { SquareTerminal, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -135,7 +135,8 @@ function UserFooter() {
 
 const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoadingHistory }: Props) => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const { state, setOpenMobile } = useSidebar();
+  const [logoHovered, setLogoHovered] = useState(false);
+  const { state, setOpenMobile, toggleSidebar } = useSidebar();
 
   const handleSelect = (id: string) => {
     onSelect(id);
@@ -151,13 +152,39 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
     <>
       <Sidebar collapsible="icon">
         <SidebarHeader className="border-b border-sidebar-border flex-row items-center px-4 py-0 h-14 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
-          <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+          {/* Logo ↔ Trigger swap — same 32×32 box, no layout shift */}
+          <div
+            className="relative flex h-8 w-8 shrink-0"
+            onMouseEnter={() => setLogoHovered(true)}
+            onMouseLeave={() => setLogoHovered(false)}
+          >
+            {/* Logo face */}
+            <Link
+              to="/"
+              tabIndex={-1}
+              aria-hidden
+              className={cn(
+                "absolute inset-0 flex items-center justify-center rounded-lg bg-primary transition-opacity duration-200",
+                logoHovered ? "opacity-0 pointer-events-none" : "opacity-100"
+              )}
+            >
               <Code2 className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
-          </Link>
-          <SidebarTrigger className="ml-auto text-muted-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:ml-0" />
+            </Link>
+            {/* Trigger face */}
+            <button
+              onClick={toggleSidebar}
+              aria-label="Toggle sidebar"
+              className={cn(
+                "absolute inset-0 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-slate-600 shadow-sm transition-opacity duration-200 hover:bg-slate-50",
+                logoHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+          </div>
+
+          <span className="ml-2 text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
+          <SidebarTrigger className="ml-auto text-muted-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:hidden" />
         </SidebarHeader>
 
         <div className="px-3 pt-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1.5">
@@ -242,7 +269,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
           )}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
+        <SidebarFooter className="mt-auto border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
           <UserFooter />
         </SidebarFooter>
         <SidebarRail />
