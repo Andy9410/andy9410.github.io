@@ -1,4 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+
+const RATE_LIMIT_MAX = Number(import.meta.env.VITE_RATE_LIMIT_MAX ?? 20);
+const RATE_LIMIT_WINDOW_MS = Number(import.meta.env.VITE_RATE_LIMIT_WINDOW_MS ?? 60_000);
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
 import {
   streamChatMessage,
@@ -26,6 +29,10 @@ export const useChat = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
   const [connectionReady, setConnectionReady] = useState(false);
+  const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
+
+  const msgTimestampsRef = useRef<number[]>([]);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
@@ -138,6 +145,28 @@ export const useChat = () => {
       const file = files?.[0];
       if (!content.trim() && !files?.length) return;
       if (status === "loading" || !accessToken) return;
+
+      const now = Date.now();
+      msgTimestampsRef.current = msgTimestampsRef.current.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+      if (msgTimestampsRef.current.length >= RATE_LIMIT_MAX) {
+        const oldestExpiry = msgTimestampsRef.current[0] + RATE_LIMIT_WINDOW_MS;
+        const secondsLeft = Math.ceil((oldestExpiry - now) / 1000);
+        setRateLimitSecondsLeft(secondsLeft);
+        if (!rateLimitTimerRef.current) {
+          rateLimitTimerRef.current = setInterval(() => {
+            const remaining = Math.ceil((msgTimestampsRef.current[0] + RATE_LIMIT_WINDOW_MS - Date.now()) / 1000);
+            if (remaining <= 0) {
+              setRateLimitSecondsLeft(0);
+              clearInterval(rateLimitTimerRef.current!);
+              rateLimitTimerRef.current = null;
+            } else {
+              setRateLimitSecondsLeft(remaining);
+            }
+          }, 1000);
+        }
+        return;
+      }
+      msgTimestampsRef.current.push(now);
 
       let targetId = activeIdRef.current;
       let targetBackendId: number | undefined;
@@ -559,6 +588,7 @@ export const useChat = () => {
     isOffline: hasConnectionError,
     connectionReady,
     isLoadingHistory,
+    rateLimitSecondsLeft,
     newConversation,
     sendMessage,
     selectConversation,
