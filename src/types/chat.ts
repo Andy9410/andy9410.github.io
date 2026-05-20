@@ -7,6 +7,8 @@ export interface Message {
   timestamp: Date;
   isError?: boolean;
   isRestored?: boolean;
+  sources?: string[];
+  attachedFileName?: string;
 }
 
 export interface Conversation {
@@ -18,6 +20,7 @@ export interface Conversation {
   messageCount?: number;
   createdAt: Date;
   updatedAt: Date;
+  preferredDocumentId?: number;
 }
 
 export interface ConversationSummary {

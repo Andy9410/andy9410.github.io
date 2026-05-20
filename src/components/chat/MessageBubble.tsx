@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw } from "lucide-react";
+import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText } from "lucide-react";
 
 const dot = { initial: { y: 0 }, animate: { y: -4 } };
 
@@ -84,10 +84,11 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
       </div>
 
       {/* Bubble */}
-      <div className={cn("flex max-w-[75%] flex-col gap-1", isUser && "items-end")}>
+      <div className={cn("flex min-w-0 max-w-[85%] flex-col gap-1", isUser && "items-end")}>
         <div
           className={cn(
             "relative rounded-2xl px-4 py-3",
+            !isUser && !isError && !isRestored && "pr-20",
             isUser
               ? "rounded-br-none bg-primary text-primary-foreground"
               : isError
@@ -97,44 +98,65 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                   : "rounded-bl-none bg-section-alt text-foreground"
           )}
         >
+          {!isError && !isRestored && !isUser && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              {isLastAssistant && (
+                <button
+                  onClick={onRegenerate}
+                  disabled={!onRegenerate}
+                  aria-label="Regenerar respuesta"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
+              <button
+                onClick={copyToClipboard}
+                aria-label="Copiar mensaje"
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+              >
+                {copied ? (
+                  <Check className="h-3.5 w-3.5 text-accent" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </button>
+            </div>
+          )}
+
           {isStreaming && !message.content ? (
             <TypingDots />
           ) : (
             <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
-              <MessageContent content={message.content} isUser={isUser} />
+              <MessageContent content={message.content} isUser={isUser} isStreaming={isStreaming && !!message.content} />
             </Suspense>
           )}
 
-          {!isError && !isRestored && (
-            <button
-              onClick={copyToClipboard}
-              aria-label="Copiar mensaje"
-              className={cn(
-                "absolute -top-2 opacity-0 transition-opacity group-hover:opacity-100",
-                isUser ? "-left-8" : "-right-8",
-                "flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
-              )}
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-accent" />
-              ) : (
-                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </button>
-          )}
         </div>
+
+        {isUser && message.attachedFileName && (
+          <div className="flex items-center gap-1.5 px-1 pt-0.5">
+            <FileText className="h-3 w-3 shrink-0 text-cyan-400/70" />
+            <span className="rounded-md bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400/80">
+              {message.attachedFileName}
+            </span>
+          </div>
+        )}
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
 
-        {isLastAssistant && onRegenerate && (
-          <button
-            onClick={onRegenerate}
-            aria-label="Regenerar respuesta"
-            className="flex items-center gap-1 px-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Regenerar
-          </button>
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">
+            <FileText className="h-3 w-3 shrink-0 text-cyan-400/70" />
+            {message.sources.map((f) => (
+              <span
+                key={f}
+                className="rounded-md bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400/80"
+              >
+                {f}
+              </span>
+            ))}
+          </div>
         )}
       </div>
     </motion.div>
