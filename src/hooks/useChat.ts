@@ -26,6 +26,10 @@ export const useChat = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
   const [connectionReady, setConnectionReady] = useState(false);
+  const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
+
+  const msgTimestampsRef = useRef<number[]>([]);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
@@ -138,6 +142,28 @@ export const useChat = () => {
       const file = files?.[0];
       if (!content.trim() && !files?.length) return;
       if (status === "loading" || !accessToken) return;
+
+      const now = Date.now();
+      msgTimestampsRef.current = msgTimestampsRef.current.filter((t) => now - t < 60_000);
+      if (msgTimestampsRef.current.length >= 20) {
+        const oldestExpiry = msgTimestampsRef.current[0] + 60_000;
+        const secondsLeft = Math.ceil((oldestExpiry - now) / 1000);
+        setRateLimitSecondsLeft(secondsLeft);
+        if (!rateLimitTimerRef.current) {
+          rateLimitTimerRef.current = setInterval(() => {
+            const remaining = Math.ceil((msgTimestampsRef.current[0] + 60_000 - Date.now()) / 1000);
+            if (remaining <= 0) {
+              setRateLimitSecondsLeft(0);
+              clearInterval(rateLimitTimerRef.current!);
+              rateLimitTimerRef.current = null;
+            } else {
+              setRateLimitSecondsLeft(remaining);
+            }
+          }, 1000);
+        }
+        return;
+      }
+      msgTimestampsRef.current.push(now);
 
       let targetId = activeIdRef.current;
       let targetBackendId: number | undefined;
@@ -559,6 +585,7 @@ export const useChat = () => {
     isOffline: hasConnectionError,
     connectionReady,
     isLoadingHistory,
+    rateLimitSecondsLeft,
     newConversation,
     sendMessage,
     selectConversation,
