@@ -1,4 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+
+const RATE_LIMIT_MAX = Number(import.meta.env.VITE_RATE_LIMIT_MAX ?? 20);
+const RATE_LIMIT_WINDOW_MS = Number(import.meta.env.VITE_RATE_LIMIT_WINDOW_MS ?? 60_000);
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
 import {
   streamChatMessage,
@@ -144,14 +147,14 @@ export const useChat = () => {
       if (status === "loading" || !accessToken) return;
 
       const now = Date.now();
-      msgTimestampsRef.current = msgTimestampsRef.current.filter((t) => now - t < 60_000);
-      if (msgTimestampsRef.current.length >= 20) {
-        const oldestExpiry = msgTimestampsRef.current[0] + 60_000;
+      msgTimestampsRef.current = msgTimestampsRef.current.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+      if (msgTimestampsRef.current.length >= RATE_LIMIT_MAX) {
+        const oldestExpiry = msgTimestampsRef.current[0] + RATE_LIMIT_WINDOW_MS;
         const secondsLeft = Math.ceil((oldestExpiry - now) / 1000);
         setRateLimitSecondsLeft(secondsLeft);
         if (!rateLimitTimerRef.current) {
           rateLimitTimerRef.current = setInterval(() => {
-            const remaining = Math.ceil((msgTimestampsRef.current[0] + 60_000 - Date.now()) / 1000);
+            const remaining = Math.ceil((msgTimestampsRef.current[0] + RATE_LIMIT_WINDOW_MS - Date.now()) / 1000);
             if (remaining <= 0) {
               setRateLimitSecondsLeft(0);
               clearInterval(rateLimitTimerRef.current!);
