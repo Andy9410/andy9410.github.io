@@ -42,8 +42,16 @@ interface Props {
   isUser?: boolean;
 }
 
+// Ensure consecutive $$ blocks have a blank line between them so
+// markdown-it-texmath's block rule triggers correctly for each one.
+const normalizeLatexBlocks = (text: string): string =>
+  text.replace(/(\$\$[ \t]*)\n(\$\$)/g, "$1\n\n$2");
+
 const MessageContent = ({ content, isUser = false }: Props) => {
-  const html = useMemo(() => md.render(content.trimStart()), [content]);
+  const html = useMemo(
+    () => md.render(normalizeLatexBlocks(content.trimStart())),
+    [content],
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
