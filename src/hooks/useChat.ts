@@ -2,6 +2,13 @@ import { useState, useCallback, useRef, useEffect } from "react";
 
 const RATE_LIMIT_MAX = Number(import.meta.env.VITE_RATE_LIMIT_MAX ?? 20);
 const RATE_LIMIT_WINDOW_MS = Number(import.meta.env.VITE_RATE_LIMIT_WINDOW_MS ?? 60_000);
+
+const savePrefDoc = (backendId: number, docId: number) => {
+  try { localStorage.setItem(`ls_pref_doc_${backendId}`, String(docId)); } catch {}
+};
+const loadPrefDoc = (backendId: number): number | undefined => {
+  try { return Number(localStorage.getItem(`ls_pref_doc_${backendId}`)) || undefined; } catch { return undefined; }
+};
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
 import {
   streamChatMessage,
@@ -62,6 +69,7 @@ export const useChat = () => {
             messages: [],
             messagesLoaded: false,
             messageCount: s.messageCount,
+            preferredDocumentId: loadPrefDoc(s.id),
             createdAt: new Date(s.createdAt),
             updatedAt: new Date(s.createdAt),
           }))
@@ -291,6 +299,9 @@ export const useChat = () => {
                 c.id === capturedId ? { ...c, backendId: event.conversationId } : c
               )
             );
+            if (uploadedDocId) {
+              savePrefDoc(event.conversationId, uploadedDocId);
+            }
             if (isNewConversation) {
               generateConversationTitle(event.conversationId, token)
                 .then((title) => {
@@ -515,6 +526,7 @@ export const useChat = () => {
         messages: [],
         messagesLoaded: false,
         messageCount: s.messageCount,
+        preferredDocumentId: loadPrefDoc(s.id),
         createdAt: new Date(s.createdAt),
         updatedAt: new Date(s.createdAt),
       })));
