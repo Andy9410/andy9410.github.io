@@ -97,15 +97,18 @@ const MessageContent = ({ content, isUser = false, isStreaming = false }: Props)
     <div
       ref={containerRef}
       className={cn(
-        "prose prose-sm max-w-none break-words",
+        "prose prose-sm max-w-none min-w-0 overflow-x-auto break-words",
+        "[&_pre]:overflow-x-auto [&_pre]:max-w-full",
+        "[&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full",
+        "[&_img]:max-w-full",
         isStreaming && !isUser && "shimmer-text",
         isUser
           ? "prose-invert text-primary-foreground"
           : [
               "text-foreground",
               "prose-headings:text-primary prose-headings:font-bold",
-              "prose-code:rounded prose-code:bg-black/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-[0.8em]",
-              "prose-pre:rounded-lg prose-pre:bg-[#353539] prose-pre:text-zinc-100 prose-pre:p-4 prose-pre:font-mono prose-pre:text-sm prose-pre:leading-relaxed",
+              "prose-code:rounded prose-code:bg-black/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-[0.8em] prose-code:break-words",
+              "prose-pre:rounded-lg prose-pre:bg-[#353539] prose-pre:text-zinc-100 prose-pre:p-4 prose-pre:font-mono prose-pre:text-sm prose-pre:leading-relaxed prose-pre:overflow-x-auto prose-pre:max-w-full",
               "prose-code:bg-zinc-900/10 dark:prose-code:bg-zinc-100/10",
               "prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground",
               "prose-a:text-accent prose-a:underline-offset-2",
