@@ -15,11 +15,13 @@ const ChatLayout = () => {
     isOffline,
     connectionReady,
     isLoadingHistory,
+    isLoadingMoreMessages,
     newConversation,
     sendMessage,
     selectConversation,
     deleteConversation,
     regenerateLastMessage,
+    loadMoreMessages,
   } = useChat();
 
   if (!connectionReady && isOffline) {
@@ -78,6 +80,9 @@ const ChatLayout = () => {
           isTyping={status === "loading"}
           onSuggestion={sendMessage}
           onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
+          onLoadMore={loadMoreMessages}
+          hasMore={activeConversation?.hasMoreMessages}
+          isLoadingMore={isLoadingMoreMessages}
         />
 
         <ChatInput

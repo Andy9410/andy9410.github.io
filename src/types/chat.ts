@@ -16,6 +16,7 @@ export interface Conversation {
   messages: Message[];
   messagesLoaded: boolean;
   messageCount?: number;
+  hasMoreMessages?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

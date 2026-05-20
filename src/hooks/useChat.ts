@@ -20,7 +20,9 @@ export const useChat = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
   const [connectionReady, setConnectionReady] = useState(false);
+  const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
 
+  const isLoadingMoreRef = useRef(false);
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
   const activeIdRef = useRef(activeId);
@@ -96,13 +98,14 @@ export const useChat = () => {
       if (!conv || conv.messagesLoaded || !conv.backendId || !accessToken) return;
 
       try {
-        const backendMessages = await fetchConversationMessages(conv.backendId, accessToken);
+        const { messages: backendMessages, hasMore } = await fetchConversationMessages(conv.backendId, accessToken);
         setConversations((prev) =>
           prev.map((c) =>
             c.id === id
               ? {
                   ...c,
                   messagesLoaded: true,
+                  hasMoreMessages: hasMore,
                   messages: backendMessages.map((m) => ({
                     id: String(m.id),
                     role: m.role,
@@ -411,13 +414,14 @@ export const useChat = () => {
     const activeConv = conversationsRef.current.find((c) => c.id === activeIdRef.current);
     if (activeConv?.backendId) {
       try {
-        const msgs = await fetchConversationMessages(activeConv.backendId, token);
+        const { messages: msgs, hasMore } = await fetchConversationMessages(activeConv.backendId, token);
         setConversations((prev) =>
           prev.map((c) =>
             c.id === activeIdRef.current
               ? {
                   ...c,
                   messagesLoaded: true,
+                  hasMoreMessages: hasMore,
                   messages: msgs.map((m) => ({
                     id: String(m.id),
                     role: m.role,
@@ -431,6 +435,47 @@ export const useChat = () => {
       } catch {}
     }
   }, []);
+
+  const loadMoreMessages = useCallback(async () => {
+    const conv = conversationsRef.current.find((c) => c.id === activeIdRef.current);
+    if (!conv?.backendId || !conv.hasMoreMessages || isLoadingMoreRef.current || !accessToken) return;
+
+    const oldestId = conv.messages
+      .map((m) => Number(m.id))
+      .filter((id) => !isNaN(id) && id > 0)
+      .sort((a, b) => a - b)[0];
+
+    if (!oldestId) return;
+
+    isLoadingMoreRef.current = true;
+    setIsLoadingMoreMessages(true);
+    try {
+      const { messages: older, hasMore } = await fetchConversationMessages(conv.backendId, accessToken, 30, oldestId);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeIdRef.current
+            ? {
+                ...c,
+                hasMoreMessages: hasMore,
+                messages: [
+                  ...older.map((m) => ({
+                    id: String(m.id),
+                    role: m.role,
+                    content: m.content,
+                    timestamp: new Date(m.createdAt),
+                  })),
+                  ...c.messages,
+                ],
+              }
+            : c
+        )
+      );
+    } catch {}
+    finally {
+      isLoadingMoreRef.current = false;
+      setIsLoadingMoreMessages(false);
+    }
+  }, [accessToken]);
 
   const handleRestored = useCallback(() => {
     setHasConnectionError(false);
@@ -477,10 +522,12 @@ export const useChat = () => {
     isOffline: hasConnectionError,
     connectionReady,
     isLoadingHistory,
+    isLoadingMoreMessages,
     newConversation,
     sendMessage,
     selectConversation,
     deleteConversation,
     regenerateLastMessage,
+    loadMoreMessages,
   };
 };
