@@ -3,6 +3,7 @@ import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { useChat } from "@/hooks/useChat";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -81,12 +82,14 @@ const ChatLayout = () => {
 
         <ChatHeader conversation={activeConversation} />
 
-        <MessageList
-          messages={messages}
-          isTyping={status === "loading"}
-          onSuggestion={sendMessage}
-          onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
-        />
+        <ErrorBoundary>
+          <MessageList
+            messages={messages}
+            isTyping={status === "loading"}
+            onSuggestion={sendMessage}
+            onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
+          />
+        </ErrorBoundary>
 
         <ChatInput
           onSend={sendMessage}

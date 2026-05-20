@@ -95,9 +95,17 @@ export async function fetchMyConversations(token: string): Promise<ConversationS
   return res.json() as Promise<ConversationSummary[]>;
 }
 
-export async function fetchConversationMessages(id: number, token: string): Promise<BackendMessage[]> {
-  const res = await chatFetch(`/api/conversations/${id}/messages`, token);
-  return res.json() as Promise<BackendMessage[]>;
+export async function fetchConversationMessages(
+  id: number,
+  token: string,
+  options?: { limit?: number; before?: number }
+): Promise<{ messages: BackendMessage[]; hasMore: boolean }> {
+  const params = new URLSearchParams();
+  if (options?.limit !== undefined) params.set("limit", String(options.limit));
+  if (options?.before !== undefined) params.set("before", String(options.before));
+  const query = params.toString() ? `?${params}` : "";
+  const res = await chatFetch(`/api/conversations/${id}/messages${query}`, token);
+  return res.json() as Promise<{ messages: BackendMessage[]; hasMore: boolean }>;
 }
 
 export async function deleteConversationApi(id: number, token: string): Promise<void> {
