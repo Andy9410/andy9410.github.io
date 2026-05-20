@@ -72,7 +72,7 @@ const MessageList = ({
   );
 
   return (
-    <div ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto">
+    <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
       {messages.length === 0 && !isTyping ? (
         <EmptyState onSuggestion={onSuggestion} />
       ) : (

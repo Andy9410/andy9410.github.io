@@ -1,4 +1,4 @@
-import { WifiOff, ServerCrash } from "lucide-react";
+import { WifiOff, ServerCrash, Clock } from "lucide-react";
 import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
@@ -15,7 +15,7 @@ const ChatLayout = () => {
     isOffline,
     connectionReady,
     isLoadingHistory,
-    isLoadingMoreMessages,
+    rateLimitSecondsLeft,
     newConversation,
     sendMessage,
     selectConversation,
@@ -73,6 +73,13 @@ const ChatLayout = () => {
           </div>
         )}
 
+        {rateLimitSecondsLeft > 0 && (
+          <div className="flex items-center justify-center gap-2 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <Clock className="h-3.5 w-3.5" />
+            Límite de mensajes alcanzado — podés enviar más en {rateLimitSecondsLeft}s
+          </div>
+        )}
+
         <ChatHeader conversation={activeConversation} />
 
         <MessageList
@@ -87,8 +94,14 @@ const ChatLayout = () => {
 
         <ChatInput
           onSend={sendMessage}
-          disabled={status === "loading" || isOffline || isLoadingHistory}
-          placeholder={isLoadingHistory ? "Cargando historial…" : undefined}
+          disabled={status === "loading" || isOffline || isLoadingHistory || rateLimitSecondsLeft > 0}
+          placeholder={
+            rateLimitSecondsLeft > 0
+              ? `Esperá ${rateLimitSecondsLeft}s para seguir enviando…`
+              : isLoadingHistory
+              ? "Cargando historial…"
+              : undefined
+          }
         />
       </main>
     </SidebarProvider>

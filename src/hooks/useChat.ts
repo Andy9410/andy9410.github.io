@@ -1,4 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+
+const RATE_LIMIT_MAX = Number(import.meta.env.VITE_RATE_LIMIT_MAX ?? 20);
+const RATE_LIMIT_WINDOW_MS = Number(import.meta.env.VITE_RATE_LIMIT_WINDOW_MS ?? 60_000);
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
 import {
   streamChatMessage,
@@ -8,11 +11,17 @@ import {
   generateConversationTitle,
   checkHealth,
 } from "@/services/chatApi";
+import { uploadDocuments } from "@/services/documentApi";
 import { useHealthCheck } from "./useHealthCheck";
 import { useAuth } from "@/auth/useAuth";
 
+const deriveTitle = (content: string, files?: File[]): string => {
+  const t = content.trim() || files?.[0]?.name || "Nueva conversación";
+  return t.length > 45 ? t.slice(0, 45) + "…" : t;
+};
+
 export const useChat = () => {
-  const { accessToken, refreshAccessToken } = useAuth();
+  const { accessToken, refreshAccessToken, forceLogout } = useAuth();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -20,7 +29,10 @@ export const useChat = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
   const [connectionReady, setConnectionReady] = useState(false);
-  const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
+  const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
+
+  const msgTimestampsRef = useRef<number[]>([]);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isLoadingMoreRef = useRef(false);
   const conversationsRef = useRef(conversations);
@@ -131,15 +143,39 @@ export const useChat = () => {
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || status === "loading" || !accessToken) return;
+    async (content: string, files?: File[]) => {
+      const file = files?.[0];
+      if (!content.trim() && !files?.length) return;
+      if (status === "loading" || !accessToken) return;
+
+      const now = Date.now();
+      msgTimestampsRef.current = msgTimestampsRef.current.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+      if (msgTimestampsRef.current.length >= RATE_LIMIT_MAX) {
+        const oldestExpiry = msgTimestampsRef.current[0] + RATE_LIMIT_WINDOW_MS;
+        const secondsLeft = Math.ceil((oldestExpiry - now) / 1000);
+        setRateLimitSecondsLeft(secondsLeft);
+        if (!rateLimitTimerRef.current) {
+          rateLimitTimerRef.current = setInterval(() => {
+            const remaining = Math.ceil((msgTimestampsRef.current[0] + RATE_LIMIT_WINDOW_MS - Date.now()) / 1000);
+            if (remaining <= 0) {
+              setRateLimitSecondsLeft(0);
+              clearInterval(rateLimitTimerRef.current!);
+              rateLimitTimerRef.current = null;
+            } else {
+              setRateLimitSecondsLeft(remaining);
+            }
+          }, 1000);
+        }
+        return;
+      }
+      msgTimestampsRef.current.push(now);
 
       let targetId = activeIdRef.current;
       let targetBackendId: number | undefined;
 
       if (!targetId) {
         targetId = crypto.randomUUID();
-        const title = content.length > 45 ? content.slice(0, 45) + "…" : content;
+        const title = deriveTitle(content, files);
         const newConv: Conversation = {
           id: targetId,
           title,
@@ -159,8 +195,9 @@ export const useChat = () => {
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: "user",
-        content: content.trim(),
+        content: content.trim() || "Analizá el documento adjunto.",
         timestamp: new Date(),
+        attachedFileName: files?.length ? files.map(f => f.name).join(", ") : undefined,
       };
 
       const aiMsgId = crypto.randomUUID();
@@ -180,9 +217,7 @@ export const useChat = () => {
                 updatedAt: new Date(),
                 title:
                   c.messages.length === 0
-                    ? content.length > 45
-                      ? content.slice(0, 45) + "…"
-                      : content
+                    ? deriveTitle(content, files)
                     : c.title,
               }
             : c
@@ -191,12 +226,66 @@ export const useChat = () => {
 
       setStatus("loading");
 
+      // Upload attached files before streaming so RAG can find them
+      let uploadedDocId: number | undefined;
+      if (files?.length) {
+        const doUpload = async (token: string) => uploadDocuments(files, token);
+        let uploadError: string | null = null;
+        try {
+          const results = await doUpload(accessToken).catch(async (err: Error) => {
+            if (err.message === "401") {
+              const fresh = await refreshAccessToken();
+              if (!fresh) throw new Error("session_expired");
+              return doUpload(fresh);
+            }
+            throw err;
+          });
+          uploadedDocId = results[0]?.document_id ?? undefined;
+          if (uploadedDocId) {
+            setConversations((prev) =>
+              prev.map((c) => c.id === capturedId ? { ...c, preferredDocumentId: uploadedDocId } : c)
+            );
+          }
+        } catch (err) {
+          const code = err instanceof Error ? err.message : "";
+          if (code === "401" || code === "session_expired" || code === "403") {
+            if (code === "403") forceLogout();
+            setStatus("idle");
+            return;
+          }
+          uploadError =
+            code === "422" ? "El archivo no es un PDF válido o está protegido." :
+            code === "413" ? "El archivo supera el tamaño máximo permitido (20 MB)." :
+            code.startsWith("Type") ? "No se pudo conectar con el servidor de documentos." :
+            "No se pudo procesar el documento adjunto. Intentá de nuevo.";
+        }
+        if (uploadError) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === aiMsgId ? { ...m, content: uploadError!, isError: true } : m
+                    ),
+                  }
+                : c
+            )
+          );
+          setStatus("idle");
+          return;
+        }
+      }
+
       let receivedContent = false;
 
       const isNewConversation = !targetBackendId;
 
+      const activeDocId = uploadedDocId
+        ?? conversationsRef.current.find((c) => c.id === capturedId)?.preferredDocumentId;
+
       const doStream = (token: string) =>
-        streamChatMessage(content.trim(), token, targetBackendId, async (event) => {
+        streamChatMessage(userMsg.content, token, targetBackendId, async (event) => {
           if (event.type === "meta") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -227,6 +316,19 @@ export const useChat = () => {
                   : c
               )
             );
+          } else if (event.type === "sources") {
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === aiMsgId ? { ...m, sources: event.files } : m
+                      ),
+                    }
+                  : c
+              )
+            );
           } else if (event.type === "error") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -247,14 +349,18 @@ export const useChat = () => {
               )
             );
           }
-        });
+        }, undefined, activeDocId);
 
       try {
         await doStream(accessToken).catch(async (err: Error) => {
           if (err.message === "401") {
             const fresh = await refreshAccessToken();
-            if (!fresh) throw err;
+            if (!fresh) return; // clearSession + redirect handled by refreshAccessToken
             return doStream(fresh);
+          }
+          if (err.message === "403") {
+            forceLogout();
+            return;
           }
           throw err;
         });
@@ -287,7 +393,7 @@ export const useChat = () => {
         setStatus("idle");
       }
     },
-    [accessToken, status, refreshAccessToken]
+    [accessToken, status, refreshAccessToken, forceLogout]
   );
 
   const regenerateLastMessage = useCallback(async () => {
@@ -372,8 +478,12 @@ export const useChat = () => {
       await doStream(accessToken).catch(async (err: Error) => {
         if (err.message === "401") {
           const fresh = await refreshAccessToken();
-          if (!fresh) throw err;
+          if (!fresh) return;
           return doStream(fresh);
+        }
+        if (err.message === "403") {
+          forceLogout();
+          return;
         }
         throw err;
       });
@@ -394,7 +504,7 @@ export const useChat = () => {
       }
       setStatus("idle");
     }
-  }, [accessToken, status, refreshAccessToken]);
+  }, [accessToken, status, refreshAccessToken, forceLogout]);
 
   const reloadData = useCallback(async (token: string) => {
     try {
@@ -522,7 +632,7 @@ export const useChat = () => {
     isOffline: hasConnectionError,
     connectionReady,
     isLoadingHistory,
-    isLoadingMoreMessages,
+    rateLimitSecondsLeft,
     newConversation,
     sendMessage,
     selectConversation,

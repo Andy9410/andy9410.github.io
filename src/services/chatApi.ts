@@ -5,6 +5,7 @@ const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "http://localhost:8080";
 interface ChatApiRequest {
   message: string;
   conversationId?: number;
+  preferredDocumentId?: number;
 }
 
 interface ChatApiResponse {
@@ -15,6 +16,7 @@ interface ChatApiResponse {
 type SseEvent =
   | { type: "meta"; conversationId: number }
   | { type: "chunk"; text: string }
+  | { type: "sources"; files: string[] }
   | { type: "done" }
   | { type: "error" };
 
@@ -37,10 +39,12 @@ export async function streamChatMessage(
   token: string,
   conversationId: number | undefined,
   onEvent: (event: SseEvent) => void | Promise<void>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  preferredDocumentId?: number
 ): Promise<void> {
   const body: ChatApiRequest = { message };
   if (conversationId !== undefined) body.conversationId = conversationId;
+  if (preferredDocumentId !== undefined) body.preferredDocumentId = preferredDocumentId;
 
   const res = await chatFetch("/chat/stream", token, {
     method: "POST",
