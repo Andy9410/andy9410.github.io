@@ -109,13 +109,14 @@ export const useChat = () => {
       if (!conv || conv.messagesLoaded || !conv.backendId || !accessToken) return;
 
       try {
-        const backendMessages = await fetchConversationMessages(conv.backendId, accessToken);
+        const { messages: backendMessages, hasMore } = await fetchConversationMessages(conv.backendId, accessToken);
         setConversations((prev) =>
           prev.map((c) =>
             c.id === id
               ? {
                   ...c,
                   messagesLoaded: true,
+                  hasMoreMessages: hasMore,
                   messages: backendMessages.map((m) => ({
                     id: String(m.id),
                     role: m.role,
@@ -522,13 +523,14 @@ export const useChat = () => {
     const activeConv = conversationsRef.current.find((c) => c.id === activeIdRef.current);
     if (activeConv?.backendId) {
       try {
-        const msgs = await fetchConversationMessages(activeConv.backendId, token);
+        const { messages: msgs, hasMore } = await fetchConversationMessages(activeConv.backendId, token);
         setConversations((prev) =>
           prev.map((c) =>
             c.id === activeIdRef.current
               ? {
                   ...c,
                   messagesLoaded: true,
+                  hasMoreMessages: hasMore,
                   messages: msgs.map((m) => ({
                     id: String(m.id),
                     role: m.role,
