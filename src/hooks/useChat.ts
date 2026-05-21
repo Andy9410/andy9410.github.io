@@ -9,6 +9,14 @@ const savePrefDoc = (backendId: number, docId: number) => {
 const loadPrefDoc = (backendId: number): number | undefined => {
   try { return Number(localStorage.getItem(`ls_pref_doc_${backendId}`)) || undefined; } catch { return undefined; }
 };
+
+const DEFAULT_LEVEL = 3;
+const loadLevel = (): number => {
+  try { return Number(localStorage.getItem("ls_explanation_level")) || DEFAULT_LEVEL; } catch { return DEFAULT_LEVEL; }
+};
+const saveLevel = (level: number) => {
+  try { localStorage.setItem("ls_explanation_level", String(level)); } catch {}
+};
 import type { Conversation, Message, ChatStatus } from "@/types/chat";
 import {
   streamChatMessage,
@@ -37,6 +45,12 @@ export const useChat = () => {
   const [hasConnectionError, setHasConnectionError] = useState(false);
   const [connectionReady, setConnectionReady] = useState(false);
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
+  const [explanationLevel, setExplanationLevelState] = useState<number>(loadLevel);
+
+  const setExplanationLevel = useCallback((level: number) => {
+    setExplanationLevelState(level);
+    saveLevel(level);
+  }, []);
 
   const msgTimestampsRef = useRef<number[]>([]);
   const rateLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -291,6 +305,8 @@ export const useChat = () => {
       const activeDocId = uploadedDocId
         ?? conversationsRef.current.find((c) => c.id === capturedId)?.preferredDocumentId;
 
+      const capturedLevel = explanationLevel;
+
       const doStream = (token: string) =>
         streamChatMessage(userMsg.content, token, targetBackendId, async (event) => {
           if (event.type === "meta") {
@@ -313,14 +329,13 @@ export const useChat = () => {
             }
           } else if (event.type === "chunk") {
             receivedContent = true;
-            await new Promise((r) => setTimeout(r, 40));
             setConversations((prev) =>
               prev.map((c) =>
                 c.id === capturedId
                   ? {
                       ...c,
                       messages: c.messages.map((m) =>
-                        m.id === aiMsgId ? { ...m, content: m.content + event.text } : m
+                        m.id === aiMsgId ? { ...m, content: (m.content ?? "") + event.text} : m
                       ),
                     }
                   : c
@@ -359,7 +374,7 @@ export const useChat = () => {
               )
             );
           }
-        }, undefined, activeDocId);
+        }, undefined, activeDocId, capturedLevel);
 
       try {
         await doStream(accessToken).catch(async (err: Error) => {
@@ -403,7 +418,7 @@ export const useChat = () => {
         setStatus("idle");
       }
     },
-    [accessToken, status, refreshAccessToken, forceLogout]
+    [accessToken, status, explanationLevel, refreshAccessToken, forceLogout]
   );
 
   const regenerateLastMessage = useCallback(async () => {
@@ -482,7 +497,7 @@ export const useChat = () => {
             )
           );
         }
-      });
+      }, undefined, undefined, explanationLevel);
 
     try {
       await doStream(accessToken).catch(async (err: Error) => {
@@ -514,7 +529,7 @@ export const useChat = () => {
       }
       setStatus("idle");
     }
-  }, [accessToken, status, refreshAccessToken, forceLogout]);
+  }, [accessToken, status, explanationLevel, refreshAccessToken, forceLogout]);
 
   const reloadData = useCallback(async (token: string) => {
     try {
@@ -603,6 +618,8 @@ export const useChat = () => {
     connectionReady,
     isLoadingHistory,
     rateLimitSecondsLeft,
+    explanationLevel,
+    setExplanationLevel,
     newConversation,
     sendMessage,
     selectConversation,

@@ -6,6 +6,7 @@ interface ChatApiRequest {
   message: string;
   conversationId?: number;
   preferredDocumentId?: number;
+  explanationLevel?: number;
 }
 
 interface ChatApiResponse {
@@ -40,11 +41,13 @@ export async function streamChatMessage(
   conversationId: number | undefined,
   onEvent: (event: SseEvent) => void | Promise<void>,
   signal?: AbortSignal,
-  preferredDocumentId?: number
+  preferredDocumentId?: number,
+  explanationLevel?: number
 ): Promise<void> {
   const body: ChatApiRequest = { message };
   if (conversationId !== undefined) body.conversationId = conversationId;
   if (preferredDocumentId !== undefined) body.preferredDocumentId = preferredDocumentId;
+  if (explanationLevel !== undefined) body.explanationLevel = explanationLevel;
 
   const res = await chatFetch("/chat/stream", token, {
     method: "POST",
