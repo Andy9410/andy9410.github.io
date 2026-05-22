@@ -7,6 +7,7 @@ interface ChatApiRequest {
   conversationId?: number;
   preferredDocumentId?: number;
   explanationLevel?: number;
+  includeFullHistory?: boolean;
 }
 
 interface ChatApiResponse {
@@ -44,12 +45,14 @@ export async function streamChatMessage(
   onEvent: (event: SseEvent) => void | Promise<void>,
   signal?: AbortSignal,
   preferredDocumentId?: number,
-  explanationLevel?: number
+  explanationLevel?: number,
+  includeFullHistory?: boolean
 ): Promise<void> {
   const body: ChatApiRequest = { message };
   if (conversationId !== undefined) body.conversationId = conversationId;
   if (preferredDocumentId !== undefined) body.preferredDocumentId = preferredDocumentId;
   if (explanationLevel !== undefined) body.explanationLevel = explanationLevel;
+  if (includeFullHistory) body.includeFullHistory = true;
 
   const res = await chatFetch("/chat/stream", token, {
     method: "POST",
