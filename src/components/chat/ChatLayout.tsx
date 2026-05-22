@@ -105,8 +105,6 @@ const ChatLayout = () => {
               ? "Cargando historial…"
               : undefined
           }
-          level={explanationLevel}
-          onLevelChange={setExplanationLevel}
         />
       </main>
     </SidebarProvider>

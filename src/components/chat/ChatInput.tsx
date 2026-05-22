@@ -4,20 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-const LEVELS = [
-  { value: 1, label: "Básico",      desc: "Lenguaje simple, analogías y paso a paso" },
-  { value: 2, label: "Simple",      desc: "Accesible con ejemplos claros" },
-  { value: 3, label: "Intermedio",  desc: "Balance entre teoría y práctica" },
-  { value: 4, label: "Avanzado",    desc: "Mayor profundidad técnica" },
-  { value: 5, label: "Experto",     desc: "Jerga técnica precisa y concisa" },
-] as const;
-
 interface Props {
   onSend: (message: string, files: File[]) => void;
   disabled?: boolean;
   placeholder?: string;
-  level?: number;
-  onLevelChange?: (level: number) => void;
 }
 
 interface AttachedFile {
@@ -73,7 +63,7 @@ function FileChip({
   );
 }
 
-const ChatInput = ({ onSend, disabled = false, placeholder, level = 3, onLevelChange }: Props) => {
+const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
   const [value, setValue] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [expanded, setExpanded] = useState(false);
@@ -197,34 +187,6 @@ const ChatInput = ({ onSend, disabled = false, placeholder, level = 3, onLevelCh
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Explanation level selector */}
-        <div className="mb-3 flex items-center gap-2 px-1">
-          <span className="shrink-0 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Explicación</span>
-          <div className="flex gap-1.5">
-            {LEVELS.map((lvl) => (
-              <Tooltip key={lvl.value}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => onLevelChange?.(lvl.value)}
-                    className={cn(
-                      "rounded-full px-3 py-1 text-xs font-semibold transition-all border",
-                      level === lvl.value
-                        ? "bg-cyan-400 text-white border-cyan-400 shadow-sm"
-                        : "bg-muted text-muted-foreground border-border hover:border-cyan-400/60 hover:text-foreground hover:bg-cyan-400/10"
-                    )}
-                  >
-                    {lvl.label}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  {lvl.desc}
-                </TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        </div>
 
         {/* Input bar */}
         <div
