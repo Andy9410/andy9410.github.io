@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SquareTerminal, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const LEVELS = [
+  { value: 5, label: "Experto" },
+  { value: 4, label: "Avanzado" },
+  { value: 3, label: "Intermedio" },
+  { value: 2, label: "Simple" },
+  { value: 1, label: "Básico" },
+] as const;
+
 interface Props {
   conversations: Conversation[];
   activeId: string | null;
@@ -41,6 +50,8 @@ interface Props {
   onNew: () => void;
   onDelete: (id: string) => void;
   isLoadingHistory: boolean;
+  level: number;
+  onLevelChange: (level: number) => void;
 }
 
 function relativeTime(date: Date): string {
@@ -85,8 +96,8 @@ function UserFooter() {
     <>
       {/* Expanded */}
       <div className="flex items-center gap-2 rounded-lg px-2 py-2 group-data-[collapsible=icon]:hidden">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
-          <User className="h-3.5 w-3.5" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <User className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.name ?? "User"}</p>
@@ -108,9 +119,9 @@ function UserFooter() {
           <PopoverTrigger asChild>
             <button
               aria-label="Cuenta"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-accent transition-colors hover:bg-accent/30"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 transition-colors hover:bg-emerald-200"
             >
-              <User className="h-3.5 w-3.5" />
+              <User className="h-4 w-4" />
             </button>
           </PopoverTrigger>
           <PopoverContent side="right" align="end" className="w-52 p-2">
@@ -133,7 +144,7 @@ function UserFooter() {
   );
 }
 
-const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoadingHistory }: Props) => {
+const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoadingHistory, level, onLevelChange }: Props) => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [logoHovered, setLogoHovered] = useState(false);
   const { state, setOpenMobile, toggleSidebar } = useSidebar();
@@ -192,7 +203,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
             <TooltipTrigger asChild>
               <button
                 onClick={handleNew}
-                className="flex w-full items-center gap-2 rounded-lg bg-accent px-3 py-2.5 text-sm font-semibold text-accent-foreground transition-all hover:bg-accent/90 active:scale-[0.98] group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md"
+                className="flex w-full items-center gap-2 rounded-lg bg-teal-400 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-500 active:scale-[0.98] group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md"
               >
                 <SquareTerminal className="h-4 w-4 shrink-0 group-data-[collapsible=icon]:h-[18px] group-data-[collapsible=icon]:w-[18px]" />
                 <span className="group-data-[collapsible=icon]:hidden">Nuevo chat</span>
@@ -268,6 +279,51 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
             </SidebarGroup>
           )}
         </SidebarContent>
+
+        {/* Nivel de Explicación — vertical slider */}
+        <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-5 group-data-[collapsible=icon]:hidden">
+          <div className="mb-4 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              Nivel de Explicación
+            </span>
+          </div>
+          <div className="flex items-stretch gap-4" style={{ height: "140px" }}>
+            {/* Labels */}
+            <div className="flex flex-col justify-between py-0.5">
+              {LEVELS.map((lvl) => (
+                <span
+                  key={lvl.value}
+                  className={cn(
+                    "cursor-pointer text-[10px] font-bold uppercase tracking-tighter transition-colors",
+                    level === lvl.value ? "text-teal-500" : "text-slate-400 hover:text-slate-600"
+                  )}
+                  onClick={() => onLevelChange(lvl.value)}
+                >
+                  {lvl.label}
+                </span>
+              ))}
+            </div>
+            {/* Vertical slider */}
+            <input
+              type="range"
+              min={1}
+              max={5}
+              step={1}
+              value={level}
+              onChange={(e) => onLevelChange(Number(e.target.value))}
+              style={{
+                writingMode: "vertical-lr" as React.CSSProperties["writingMode"],
+                direction: "rtl",
+                WebkitAppearance: "slider-vertical",
+                width: "8px",
+                height: "140px",
+                padding: "0 5px",
+                accentColor: "#2dd4bf",
+                cursor: "pointer",
+              }}
+            />
+          </div>
+        </div>
 
         <SidebarFooter className="mt-auto border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
           <UserFooter />

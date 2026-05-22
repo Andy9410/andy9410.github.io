@@ -28,7 +28,7 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) 
       {messages.length === 0 && !isTyping ? (
         <EmptyState onSuggestion={onSuggestion} />
       ) : (
-        <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-4">
+        <div className="mx-auto flex w-full max-w-5xl flex-col px-4 py-4">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <MessageBubble

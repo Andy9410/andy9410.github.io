@@ -126,7 +126,7 @@ const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
 
   return (
     <div className="bg-background py-3">
-      <div className="mx-auto w-full max-w-3xl px-4">
+      <div className="mx-auto w-full max-w-5xl px-4">
 
         {/* Attachment chips */}
         <AnimatePresence>
