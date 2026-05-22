@@ -65,6 +65,8 @@ const ChatLayout = () => {
         onNew={newConversation}
         onDelete={deleteConversation}
         isLoadingHistory={isLoadingHistory}
+        level={explanationLevel}
+        onLevelChange={setExplanationLevel}
       />
 
       <main className="flex min-w-0 flex-1 flex-col h-screen overflow-hidden">

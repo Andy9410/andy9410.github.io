@@ -64,22 +64,22 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
           isUser
-            ? "bg-primary ring-2 ring-primary/20"
+            ? "bg-slate-800"
             : isError
               ? "bg-destructive/15 ring-1 ring-destructive/30"
               : isRestored
-                ? "bg-emerald-500/15 ring-1 ring-emerald-500/30"
-                : "bg-accent/15 ring-1 ring-accent/20"
+                ? "bg-emerald-100"
+                : "bg-teal-50"
         )}
       >
         {isUser ? (
-          <User className="h-4 w-4 text-primary-foreground" />
+          <User className="h-4 w-4 text-white" />
         ) : isError ? (
           <WifiOff className="h-4 w-4 text-destructive" />
         ) : isRestored ? (
           <Wifi className="h-4 w-4 text-emerald-500" />
         ) : (
-          <Bot className="h-4 w-4 text-accent" />
+          <Bot className="h-4 w-4 text-teal-500" />
         )}
       </div>
 
@@ -87,15 +87,15 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
       <div className={cn("flex min-w-0 max-w-[85%] flex-col gap-1", isUser && "items-end")}>
         <div
           className={cn(
-            "relative rounded-2xl px-4 py-3",
+            "relative rounded-2xl px-5 py-3",
             !isUser && !isError && !isRestored && "pr-20",
             isUser
-              ? "rounded-br-none bg-primary text-primary-foreground"
+              ? "rounded-tr-none bg-slate-800 text-white"
               : isError
                 ? "rounded-bl-none border border-destructive/30 bg-destructive/10 text-destructive"
                 : isRestored
                   ? "rounded-bl-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : "rounded-bl-none bg-section-alt text-foreground"
+                  : "rounded-bl-none border border-slate-100 bg-slate-50/60 text-slate-700"
           )}
         >
           {!isError && !isRestored && !isUser && (
