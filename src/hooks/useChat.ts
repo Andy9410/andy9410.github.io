@@ -354,6 +354,16 @@ export const useChat = () => {
                   : c
               )
             );
+          } else if (event.type === "suggestions") {
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? { ...c, messages: c.messages.map((m) =>
+                      m.id === aiMsgId ? { ...m, suggestions: event.questions } : m
+                    )}
+                  : c
+              )
+            );
           } else if (event.type === "error") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -480,6 +490,16 @@ export const useChat = () => {
               c.id === capturedId
                 ? { ...c, messages: c.messages.map((m) =>
                     m.id === aiMsgId ? { ...m, content: m.content + event.text } : m
+                  )}
+                : c
+            )
+          );
+        } else if (event.type === "suggestions") {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? { ...c, messages: c.messages.map((m) =>
+                    m.id === aiMsgId ? { ...m, suggestions: event.questions } : m
                   )}
                 : c
             )

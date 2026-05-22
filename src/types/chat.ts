@@ -9,6 +9,7 @@ export interface Message {
   isRestored?: boolean;
   sources?: string[];
   attachedFileName?: string;
+  suggestions?: string[];
 }
 
 export interface Conversation {
