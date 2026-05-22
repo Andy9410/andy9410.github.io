@@ -42,7 +42,7 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) 
                   isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
                   onRegenerate={onRegenerate}
                 />
-                {!isTyping && i === lastAssistantIndex && userMessageCount >= 2 && msg.suggestions?.length ? (
+                {!isTyping && i === lastAssistantIndex && userMessageCount >= 1 && msg.suggestions?.length ? (
                   <SuggestionBubbles suggestions={msg.suggestions} onSelect={onSuggestion} />
                 ) : null}
               </React.Fragment>
