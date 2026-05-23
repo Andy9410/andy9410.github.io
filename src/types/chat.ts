@@ -8,6 +8,7 @@ export interface Message {
   isError?: boolean;
   isRestored?: boolean;
   sources?: string[];
+  suggestions?: string[];
   attachedFileName?: string;
 }
 

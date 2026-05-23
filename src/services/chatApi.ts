@@ -17,7 +17,9 @@ interface ChatApiResponse {
 type SseEvent =
   | { type: "meta"; conversationId: number }
   | { type: "chunk"; text: string }
+  | { type: "replace"; text: string }
   | { type: "sources"; files: string[] }
+  | { type: "suggestions"; questions: string[] }
   | { type: "done" }
   | { type: "error" };
 

@@ -38,6 +38,7 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) 
                 isLastAssistant={!isTyping && i === lastAssistantIndex}
                 isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
                 onRegenerate={onRegenerate}
+                onSuggestion={onSuggestion}
               />
             ))}
           </AnimatePresence>
