@@ -341,6 +341,19 @@ export const useChat = () => {
                   : c
               )
             );
+          } else if (event.type === "replace") {
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === aiMsgId ? { ...m, content: event.text } : m
+                      ),
+                    }
+                  : c
+              )
+            );
           } else if (event.type === "sources") {
             setConversations((prev) =>
               prev.map((c) =>
