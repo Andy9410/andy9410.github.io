@@ -74,7 +74,10 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const time = message.timestamp.toLocaleTimeString("es-AR", {
+  const time = message.timestamp.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
