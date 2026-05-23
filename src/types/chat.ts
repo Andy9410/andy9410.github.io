@@ -10,6 +10,7 @@ export interface Message {
   sources?: string[];
   suggestions?: string[];
   attachedFileName?: string;
+  suggestions?: string[];
 }
 
 export interface Conversation {

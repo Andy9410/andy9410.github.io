@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import MessageBubble from "./MessageBubble";
+import SuggestionBubbles from "./SuggestionBubbles";
 import EmptyState from "./EmptyState";
 import type { Message } from "@/types/chat";
 
@@ -23,6 +24,8 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) 
     -1
   );
 
+  const userMessageCount = messages.filter((m) => m.role === "user").length;
+
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
       {messages.length === 0 && !isTyping ? (
@@ -31,15 +34,18 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) 
         <div className="mx-auto flex w-full max-w-5xl flex-col px-4 py-4">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                isFirstInGroup={i === 0 || messages[i - 1].role !== msg.role}
-                isLastAssistant={!isTyping && i === lastAssistantIndex}
-                isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
-                onRegenerate={onRegenerate}
-                onSuggestion={onSuggestion}
-              />
+              <React.Fragment key={msg.id}>
+                <MessageBubble
+                  message={msg}
+                  isFirstInGroup={i === 0 || messages[i - 1].role !== msg.role}
+                  isLastAssistant={!isTyping && i === lastAssistantIndex}
+                  isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
+                  onRegenerate={onRegenerate}
+                />
+                {!isTyping && i === lastAssistantIndex && userMessageCount >= 1 && msg.suggestions?.length ? (
+                  <SuggestionBubbles suggestions={msg.suggestions} onSelect={onSuggestion} />
+                ) : null}
+              </React.Fragment>
             ))}
           </AnimatePresence>
         </div>
