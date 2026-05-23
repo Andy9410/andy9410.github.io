@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText } from "lucide-react";
 
@@ -34,6 +34,36 @@ interface Props {
 
 const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate, onSuggestion }: Props) => {
   const [copied, setCopied] = useState(false);
+
+  // Typewriter effect
+  const [displayed, setDisplayed] = useState(isStreaming ? "" : message.content);
+  const pendingRef = useRef("");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevContentRef = useRef(message.content);
+
+  useEffect(() => {
+    if (isStreaming) {
+      const newChars = message.content.slice(prevContentRef.current.length);
+      prevContentRef.current = message.content;
+      pendingRef.current += newChars;
+    } else {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      pendingRef.current = "";
+      prevContentRef.current = message.content;
+      setDisplayed(message.content);
+    }
+  }, [message.content, isStreaming]);
+
+  useEffect(() => {
+    if (!isStreaming) return;
+    timerRef.current = setInterval(() => {
+      if (pendingRef.current.length === 0) return;
+      const batch = pendingRef.current.length > 120 ? 2 : 1;
+      setDisplayed((prev) => prev + pendingRef.current.slice(0, batch));
+      pendingRef.current = pendingRef.current.slice(batch);
+    }, 70);
+    return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  }, [isStreaming]);
   const isUser = message.role === "user";
   const isError = message.isError === true;
   const isRestored = message.isRestored === true;
@@ -125,11 +155,11 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
             </div>
           )}
 
-          {isStreaming && !message.content ? (
+          {isStreaming && !displayed ? (
             <TypingDots />
           ) : (
-            <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>
-              <MessageContent content={message.content} isUser={isUser} isStreaming={isStreaming && !!message.content} />
+            <Suspense fallback={<span className="text-sm opacity-60">{displayed}</span>}>
+              <MessageContent content={displayed} isUser={isUser} isStreaming={isStreaming && !!displayed} />
             </Suspense>
           )}
 
