@@ -20,7 +20,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuAction,
-  SidebarRail,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -328,7 +327,6 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
         <SidebarFooter className="mt-auto border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
           <UserFooter />
         </SidebarFooter>
-        <SidebarRail />
       </Sidebar>
 
       <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
