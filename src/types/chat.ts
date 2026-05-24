@@ -10,7 +10,6 @@ export interface Message {
   sources?: string[];
   suggestions?: string[];
   attachedFileName?: string;
-  suggestions?: string[];
 }
 
 export interface Conversation {
@@ -38,6 +37,7 @@ export interface BackendMessage {
   role: MessageRole;
   content: string;
   createdAt: string;
+  suggestions?: string[];
 }
 
 export type ChatStatus = "idle" | "loading" | "error";
