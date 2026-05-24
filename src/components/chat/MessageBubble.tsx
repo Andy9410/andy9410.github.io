@@ -29,10 +29,9 @@ interface Props {
   isLastAssistant?: boolean;
   isStreaming?: boolean;
   onRegenerate?: () => void;
-  onSuggestion?: (text: string) => void;
 }
 
-const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate, onSuggestion }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate }: Props) => {
   const [copied, setCopied] = useState(false);
 
   // Typewriter effect
@@ -176,6 +175,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
 
+<<<<<<< Updated upstream
         {!isUser && !isStreaming && message.suggestions && message.suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2 px-1 pt-2">
             {message.suggestions.map((q) => (
@@ -190,6 +190,8 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
           </div>
         )}
 
+=======
+>>>>>>> Stashed changes
         {!isUser && message.sources && message.sources.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">
             <FileText className="h-3 w-3 shrink-0 text-cyan-400/70" />
