@@ -1,9 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+/// <reference types="vitest" />
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"],
+  },
   server: {
     host: "::",
     port: 5173,
