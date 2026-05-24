@@ -92,6 +92,7 @@ const ChatLayout = () => {
             isTyping={status === "loading"}
             onSuggestion={sendMessage}
             onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
+            isLoadingHistory={isLoadingHistory}
           />
         </ErrorBoundary>
 

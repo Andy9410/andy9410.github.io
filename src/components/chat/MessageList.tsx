@@ -10,9 +10,10 @@ interface Props {
   isTyping: boolean;
   onSuggestion: (text: string) => void;
   onRegenerate?: () => void;
+  isLoadingHistory?: boolean;
 }
 
-const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) => {
+const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, isLoadingHistory = false }: Props) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,7 +30,7 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate }: Props) 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
       {messages.length === 0 && !isTyping ? (
-        <EmptyState onSuggestion={onSuggestion} />
+        <EmptyState onSuggestion={onSuggestion} isLoadingHistory={isLoadingHistory} />
       ) : (
         <div className="mx-auto flex w-full max-w-5xl flex-col px-4 py-4">
           <AnimatePresence initial={false}>
