@@ -47,14 +47,6 @@ const MessageContent = ({ content, isUser = false, isStreaming = false }: Props)
   const html = useMemo(() => (isStreaming ? "" : md.render(content.trimStart())), [content, isStreaming]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  if (isStreaming) {
-    return (
-      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-        {content}
-      </p>
-    );
-  }
-
   useEffect(() => {
     const container = containerRef.current;
     if (!container || isUser) return;
@@ -100,6 +92,14 @@ const MessageContent = ({ content, isUser = false, isStreaming = false }: Props)
 
     return () => cleanups.forEach((fn) => fn());
   }, [html, isUser]);
+
+  if (isStreaming) {
+    return (
+      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+        {content}
+      </p>
+    );
+  }
 
   return (
     <div
