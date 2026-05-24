@@ -176,7 +176,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
 
-        {!isUser && !isStreaming && message.suggestions && message.suggestions.length > 0 && (
+        {!isUser && !isStreaming && isLastAssistant && message.suggestions && message.suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2 px-1 pt-2">
             {message.suggestions.map((q) => (
               <button
