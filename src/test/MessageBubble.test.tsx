@@ -26,9 +26,9 @@ const baseMessage = (overrides: Partial<Message> = {}): Message => ({
 });
 
 describe("MessageBubble — sugerencias", () => {
-  it("renderiza los botones de sugerencia cuando el mensaje las tiene y es el último", () => {
+  it("renderiza los botones de sugerencia cuando el mensaje las tiene", () => {
     const msg = baseMessage({ suggestions: ["¿Qué es POO?", "¿Qué es herencia?"] });
-    render(<MessageBubble message={msg} isLastAssistant />);
+    render(<MessageBubble message={msg} />);
 
     expect(screen.getByText("¿Qué es POO?")).toBeInTheDocument();
     expect(screen.getByText("¿Qué es herencia?")).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe("MessageBubble — sugerencias", () => {
   it("llama a onSuggestion con el texto correcto al hacer click", () => {
     const handler = vi.fn();
     const msg = baseMessage({ suggestions: ["¿Qué es herencia?"] });
-    render(<MessageBubble message={msg} isLastAssistant onSuggestion={handler} />);
+    render(<MessageBubble message={msg} onSuggestion={handler} />);
 
     fireEvent.click(screen.getByText("¿Qué es herencia?"));
     expect(handler).toHaveBeenCalledOnce();

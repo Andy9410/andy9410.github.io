@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
+import MarkdownIt from "markdown-it";
 import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText } from "lucide-react";
+
+const mdInline = new MarkdownIt({ html: false, typographer: true });
 
 const dot = { initial: { y: 0 }, animate: { y: -4 } };
 
@@ -74,7 +77,10 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const time = message.timestamp.toLocaleTimeString("es-AR", {
+  const time = message.timestamp.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -183,9 +189,8 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                 key={q}
                 onClick={() => onSuggestion?.(q)}
                 className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-2 text-xs font-medium text-teal-700 shadow-sm transition-colors hover:bg-teal-100 hover:text-teal-900"
-              >
-                {q}
-              </button>
+                dangerouslySetInnerHTML={{ __html: mdInline.renderInline(q) }}
+              />
             ))}
           </div>
         )}

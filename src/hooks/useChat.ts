@@ -144,6 +144,7 @@ export const useChat = () => {
                     role: m.role,
                     content: m.content,
                     timestamp: new Date(m.createdAt),
+                    suggestions: m.suggestions,
                   })),
                   messageCount: backendMessages.length,
                   updatedAt:
