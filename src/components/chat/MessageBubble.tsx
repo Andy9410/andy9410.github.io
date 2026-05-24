@@ -1,9 +1,6 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import MarkdownIt from "markdown-it";
 import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText } from "lucide-react";
-
-const mdInline = new MarkdownIt({ html: false, typographer: true });
 
 const dot = { initial: { y: 0 }, animate: { y: -4 } };
 
@@ -181,17 +178,19 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
 
-        {!isUser && !isStreaming && isLastAssistant && message.suggestions && message.suggestions.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-1 pt-2">
-            {message.suggestions.map((q) => (
-              <button
-                key={q}
-                onClick={() => onSuggestion?.(q)}
-                className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-2 text-xs font-medium text-teal-700 shadow-sm transition-colors hover:bg-teal-100 hover:text-teal-900"
-                dangerouslySetInnerHTML={{ __html: mdInline.renderInline(q) }}
-              />
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">
+            <FileText className="h-3 w-3 shrink-0 text-cyan-400/70" />
+            {message.sources.map((f) => (
+              <span
+                key={f}
+                className="rounded-md bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400/80"
+              >
+                {f}
+              </span>
             ))}
           </div>
+        )}
       </div>
     </motion.div>
   );
