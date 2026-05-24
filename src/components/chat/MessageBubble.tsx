@@ -32,10 +32,9 @@ interface Props {
   isLastAssistant?: boolean;
   isStreaming?: boolean;
   onRegenerate?: () => void;
-  onSuggestion?: (text: string) => void;
 }
 
-const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate, onSuggestion }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate }: Props) => {
   const [copied, setCopied] = useState(false);
 
   // Typewriter effect
@@ -193,21 +192,6 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
               />
             ))}
           </div>
-        )}
-
-        {!isUser && message.sources && message.sources.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">
-            <FileText className="h-3 w-3 shrink-0 text-cyan-400/70" />
-            {message.sources.map((f) => (
-              <span
-                key={f}
-                className="rounded-md bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400/80"
-              >
-                {f}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </motion.div>
   );
