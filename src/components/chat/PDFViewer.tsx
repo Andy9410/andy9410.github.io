@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Document, Page } from "react-pdf";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, BookOpen } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { cn } from "@/lib/utils";
+import { tokenStorage } from "@/auth/authService";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
 
@@ -26,6 +27,8 @@ export function PDFViewer({
   sidebarOpen,
   onToggleSidebar,
 }: Props) {
+  // Usar token de localStorage si el prop está expirado (pudo haber sido refrescado)
+  const effectiveToken = useMemo(() => tokenStorage.getAccess() || token, [token]);
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
@@ -57,7 +60,7 @@ export function PDFViewer({
 
   const pdfFile = {
     url: `${DOCUMENT_BASE}/documents/${documentId}/download`,
-    httpHeaders: { Authorization: `Bearer ${token}` },
+    httpHeaders: { Authorization: `Bearer ${effectiveToken}` },
   };
 
   const showBannerHighlight = activeExercise && !activeExercise.bbox;
@@ -150,6 +153,7 @@ export function PDFViewer({
         <div className="flex justify-center p-2">
           <div style={{ position: "relative", display: "inline-block", lineHeight: 0 }}>
             <Document
+              key={effectiveToken}
               file={pdfFile}
               onLoadSuccess={handleDocumentLoad}
               loading={
