@@ -26,6 +26,9 @@ export default defineConfig(() => ({
   },
   base: '/',
   plugins: [react()],
+  optimizeDeps: {
+    include: ['pdfjs-dist'],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

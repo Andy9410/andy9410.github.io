@@ -4,10 +4,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+interface ContextBadge {
+  docName: string;
+  exerciseNumber?: string;
+  onClear: () => void;
+}
+
 interface Props {
   onSend: (message: string, files: File[]) => void;
   disabled?: boolean;
   placeholder?: string;
+  contextBadge?: ContextBadge | null;
 }
 
 interface AttachedFile {
@@ -63,7 +70,7 @@ function FileChip({
   );
 }
 
-const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
+const ChatInput = ({ onSend, disabled = false, placeholder, contextBadge }: Props) => {
   const [value, setValue] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [expanded, setExpanded] = useState(false);
@@ -127,6 +134,38 @@ const ChatInput = ({ onSend, disabled = false, placeholder }: Props) => {
   return (
     <div className="bg-background py-3">
       <div className="mx-auto w-full max-w-5xl px-4">
+
+        {/* Context badge */}
+        <AnimatePresence>
+          {contextBadge && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.18 }}
+              className="mb-2 overflow-hidden px-1"
+            >
+              <div className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200 w-fit">
+                <FileText className="h-3 w-3 shrink-0" />
+                <span className="max-w-[160px] truncate">📄 {contextBadge.docName}</span>
+                {contextBadge.exerciseNumber && (
+                  <>
+                    <span className="text-amber-400">|</span>
+                    <span>Ejercicio {contextBadge.exerciseNumber}</span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={contextBadge.onClear}
+                  aria-label="Limpiar contexto"
+                  className="ml-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-amber-600 transition-colors hover:bg-amber-200 hover:text-amber-800"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Attachment chips */}
         <AnimatePresence>
