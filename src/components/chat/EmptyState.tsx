@@ -9,9 +9,10 @@ const suggestions = [
 
 interface Props {
   onSuggestion: (text: string) => void;
+  isLoadingHistory?: boolean;
 }
 
-const EmptyState = ({ onSuggestion }: Props) => (
+const EmptyState = ({ onSuggestion, isLoadingHistory = false }: Props) => (
   <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16 text-center">
     <div className="space-y-3">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 ring-1 ring-accent/20">
@@ -28,7 +29,8 @@ const EmptyState = ({ onSuggestion }: Props) => (
         <button
           key={text}
           onClick={() => onSuggestion(text)}
-          className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left text-sm font-medium text-foreground transition-all hover:border-accent/40 hover:bg-accent-soft hover:shadow-sm active:scale-[0.98]"
+          disabled={isLoadingHistory}
+          className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left text-sm font-medium text-foreground transition-all hover:border-accent/40 hover:bg-accent-soft hover:shadow-sm active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
         >
           <Icon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
           <span className="leading-snug">{text}</span>
