@@ -123,6 +123,20 @@ export const useChat = () => {
     setActiveId(id);
   }, []);
 
+  const setActiveDocument = useCallback((documentId: number) => {
+    const targetId = activeIdRef.current;
+    if (!targetId) return;
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === targetId ? { ...c, preferredDocumentId: documentId } : c
+      )
+    );
+    const backendId = conversationsRef.current.find((c) => c.id === targetId)?.backendId;
+    if (backendId) {
+      savePrefDoc(backendId, documentId);
+    }
+  }, []);
+
   const selectConversation = useCallback(
     async (id: string) => {
       setActiveId(id);
@@ -164,7 +178,7 @@ export const useChat = () => {
   );
 
   const sendMessage = useCallback(
-    async (content: string, files?: File[]) => {
+    async (content: string, files?: File[], exerciseNumber?: string, contextDocId?: number) => {
       const file = files?.[0];
       if (!content.trim() && !files?.length) return;
       if (status === "loading" || !accessToken) return;
@@ -303,9 +317,11 @@ export const useChat = () => {
       const isNewConversation = !targetBackendId;
 
       const activeDocId = uploadedDocId
-        ?? conversationsRef.current.find((c) => c.id === capturedId)?.preferredDocumentId;
+        ?? conversationsRef.current.find((c) => c.id === capturedId)?.preferredDocumentId
+        ?? contextDocId;
 
       const capturedLevel = explanationLevel;
+      const capturedExerciseNumber = exerciseNumber;
 
       const doStream = (token: string) =>
         streamChatMessage(userMsg.content, token, targetBackendId, async (event) => {
@@ -397,7 +413,7 @@ export const useChat = () => {
               )
             );
           }
-        }, undefined, activeDocId, capturedLevel);
+        }, undefined, activeDocId, capturedLevel, capturedExerciseNumber);
 
       try {
         await doStream(accessToken).catch(async (err: Error) => {
@@ -653,6 +669,7 @@ export const useChat = () => {
     rateLimitSecondsLeft,
     explanationLevel,
     setExplanationLevel,
+    setActiveDocument,
     newConversation,
     sendMessage,
     selectConversation,

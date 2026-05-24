@@ -1,10 +1,22 @@
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { WifiOff, ServerCrash, Clock } from "lucide-react";
 import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
+import { ExerciseSidebar } from "./ExerciseSidebar";
+import DocumentPanel from "./DocumentPanel";
+
+const PDFViewer = lazy(() =>
+  import("./PDFViewer").then((m) => ({ default: m.PDFViewer }))
+);
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useChat } from "@/hooks/useChat";
+import { usePDFViewer } from "@/hooks/usePDFViewer";
+import { useExerciseDetection } from "@/hooks/useExerciseDetection";
+import { useAuth } from "@/auth/useAuth";
+import { listExercises } from "@/services/documentApi";
+import type { ExerciseOut } from "@/services/documentApi";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const ChatLayout = () => {
@@ -21,10 +33,52 @@ const ChatLayout = () => {
     setExplanationLevel,
     newConversation,
     sendMessage,
+    setActiveDocument,
     selectConversation,
     deleteConversation,
     regenerateLastMessage,
   } = useChat();
+
+  const { accessToken } = useAuth();
+  const pdfViewer = usePDFViewer();
+  const { detectExercise, isClosing } = useExerciseDetection();
+  const [exercises, setExercises] = useState<ExerciseOut[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [docPanelOpen, setDocPanelOpen] = useState(false);
+  const [viewerRetryKey, setViewerRetryKey] = useState(0);
+
+  useEffect(() => {
+    if (!pdfViewer.activeDocId || !accessToken) {
+      setExercises([]);
+      return;
+    }
+    listExercises(pdfViewer.activeDocId, accessToken)
+      .then(setExercises)
+      .catch(() => setExercises([]));
+  }, [pdfViewer.activeDocId, accessToken]);
+
+  const handleSend = useCallback(
+    (content: string, files: File[]) => {
+      let exerciseNum = pdfViewer.activeExercise?.number;
+      if (pdfViewer.activeDocId) {
+        const detected = detectExercise(content);
+        if (detected) {
+          const ex = exercises.find((e) => e.number === detected);
+          pdfViewer.selectExercise({
+            number: detected,
+            page: ex?.page ?? 1,
+            bbox: ex?.bbox,
+          });
+          exerciseNum = detected;
+        } else if (isClosing(content)) {
+          pdfViewer.clearExercise();
+          exerciseNum = undefined;
+        }
+      }
+      sendMessage(content, files, exerciseNum, pdfViewer.activeDocId ?? undefined);
+    },
+    [pdfViewer, exercises, sendMessage, detectExercise, isClosing]
+  );
 
   if (!connectionReady && isOffline) {
     return (
@@ -56,6 +110,14 @@ const ChatLayout = () => {
 
   const messages = activeConversation?.messages ?? [];
 
+  const contextBadge = pdfViewer.activeDocId
+    ? {
+        docName: pdfViewer.activeDocName ?? "Documento",
+        exerciseNumber: pdfViewer.activeExercise?.number,
+        onClear: pdfViewer.clearAll,
+      }
+    : null;
+
   return (
     <SidebarProvider>
       <ChatSidebar
@@ -84,7 +146,10 @@ const ChatLayout = () => {
           </div>
         )}
 
-        <ChatHeader conversation={activeConversation} />
+        <ChatHeader
+          conversation={activeConversation}
+          onOpenDocuments={() => setDocPanelOpen(true)}
+        />
 
         <ErrorBoundary>
           <MessageList
@@ -96,8 +161,73 @@ const ChatLayout = () => {
           />
         </ErrorBoundary>
 
+        {pdfViewer.viewerOpen && pdfViewer.activeDocId && accessToken && (
+          <ErrorBoundary
+            key={`${viewerRetryKey}-${pdfViewer.activeDocId}`}
+            fallback={
+              <div className="flex h-[350px] shrink-0 flex-col items-center justify-center gap-3 border-t bg-muted/10 px-4 text-center">
+                <div className="text-xs text-destructive/80">Error al cargar el visor PDF</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setViewerRetryKey(k => k + 1)}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    Reintentar
+                  </button>
+                  <button
+                    onClick={() => pdfViewer.closeViewer()}
+                    className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Cerrar visor
+                  </button>
+                </div>
+              </div>
+            }
+          >
+          <div className="flex h-[350px] shrink-0 border-t">
+            <Suspense
+              fallback={
+                <div className="flex flex-1 items-center justify-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+              }
+            >
+              <PDFViewer
+                documentId={pdfViewer.activeDocId}
+                token={accessToken}
+                activeExercise={pdfViewer.activeExercise}
+                onClose={pdfViewer.closeViewer}
+                sidebarOpen={sidebarOpen}
+                onToggleSidebar={() => setSidebarOpen((v) => !v)}
+              />
+            </Suspense>
+            {sidebarOpen && (
+              <ExerciseSidebar
+                exercises={exercises}
+                activeExercise={pdfViewer.activeExercise}
+                onExerciseSelect={pdfViewer.selectExercise}
+                docName={pdfViewer.activeDocName}
+              />
+            )}
+          </div>
+          </ErrorBoundary>
+        )}
+
+        {accessToken && (
+          <DocumentPanel
+            isOpen={docPanelOpen}
+            onClose={() => setDocPanelOpen(false)}
+            token={accessToken}
+            onDocumentOpen={(id, name) => {
+              pdfViewer.openDocument(id, name);
+              setActiveDocument(id);
+              setDocPanelOpen(false);
+            }}
+          />
+        )}
+
         <ChatInput
-          onSend={sendMessage}
+          onSend={handleSend}
           disabled={status === "loading" || isOffline || isLoadingHistory || rateLimitSecondsLeft > 0}
           placeholder={
             rateLimitSecondsLeft > 0
@@ -106,6 +236,7 @@ const ChatLayout = () => {
               ? "Cargando historial…"
               : undefined
           }
+          contextBadge={contextBadge}
         />
       </main>
     </SidebarProvider>

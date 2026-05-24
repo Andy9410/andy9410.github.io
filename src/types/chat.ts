@@ -1,5 +1,18 @@
 export type MessageRole = "user" | "assistant";
 
+export interface BBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface ActiveExercise {
+  number: string;
+  page: number;
+  bbox?: BBox;
+}
+
 export interface Message {
   id: string;
   role: MessageRole;
@@ -10,7 +23,6 @@ export interface Message {
   sources?: string[];
   suggestions?: string[];
   attachedFileName?: string;
-  suggestions?: string[];
 }
 
 export interface Conversation {

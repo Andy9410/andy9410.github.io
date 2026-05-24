@@ -47,3 +47,15 @@ export async function listDocuments(token: string): Promise<DocumentOut[]> {
 export async function deleteDocumentApi(id: number, token: string): Promise<void> {
   await docFetch(`/documents/${id}`, token, { method: "DELETE" });
 }
+
+export interface ExerciseOut {
+  number: string;
+  page: number;
+  bbox?: { x0: number; y0: number; x1: number; y1: number };
+  title?: string;
+}
+
+export async function listExercises(documentId: number, token: string): Promise<ExerciseOut[]> {
+  const res = await docFetch(`/documents/${documentId}/exercises`, token);
+  return res.json() as Promise<ExerciseOut[]>;
+}

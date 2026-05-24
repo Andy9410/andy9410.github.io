@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { FilePlus, FileText, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { FilePlus, FileText, Trash2, Loader2, CheckCircle, AlertCircle, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +13,7 @@ interface Props {
   onClose: () => void;
   token: string;
   onUploadSuccess?: () => void;
+  onDocumentOpen?: (id: number, name: string) => void;
 }
 
 function formatDate(iso: string): string {
@@ -26,7 +27,7 @@ function formatDate(iso: string): string {
 const isSuccess = (r: UploadResult) =>
   r.status === "ok" || r.status === "ready" || r.status === "duplicate";
 
-const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess }: Props) => {
+const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen }: Props) => {
   const { documents, refresh: fetchDocs, loading } = useDocuments(token);
   const [uploading, setUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
@@ -232,18 +233,29 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess }: Props) => {
                           {doc.page_count ? ` · ${doc.page_count} págs` : ""}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleDelete(doc.id)}
-                        disabled={deletingId === doc.id}
-                        aria-label="Eliminar documento"
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
-                      >
-                        {deletingId === doc.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
+                      <div className="flex items-center gap-1">
+                        {onDocumentOpen && (
+                          <button
+                            onClick={() => { onDocumentOpen(doc.id, doc.filename); onClose(); }}
+                            aria-label="Ver en visor"
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-cyan-400/10 hover:text-cyan-500"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </button>
                         )}
-                      </button>
+                        <button
+                          onClick={() => handleDelete(doc.id)}
+                          disabled={deletingId === doc.id}
+                          aria-label="Eliminar documento"
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
+                        >
+                          {deletingId === doc.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
