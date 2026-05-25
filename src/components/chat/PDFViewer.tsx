@@ -1,3 +1,11 @@
+// ===================================================================
+//  PDFViewer.tsx — Visor de PDF con descarga manual via fetch()
+//  
+//  🛠️ FIX: ahora usa fetch() + Blob en vez de react-pdf httpHeaders
+//  para evitar problemas de CORS con pdfjs worker en producción.
+//  ⚡ Incluye: reintento automático y safety reload si falla.
+// ===================================================================
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Document, Page } from "react-pdf";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, BookOpen } from "lucide-react";
@@ -33,7 +41,10 @@ export function PDFViewer({
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadAttempts, setLoadAttempts] = useState(0);
+  const MAX_RETRIES = 3;
 
+  // Descarga el PDF manualmente con fetch() y token Bearer
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
@@ -44,7 +55,6 @@ export function PDFViewer({
       setCurrentPage(1);
       setNumPages(0);
       setPageHeight(0);
-
       if (!token) {
         setFetchError("No hay sesión activa");
         setIsLoading(false);
@@ -56,7 +66,6 @@ export function PDFViewer({
             `${DOCUMENT_BASE}/documents/${documentId}/download`,
             {
               headers: { Authorization: `Bearer ${token}` },
-              // NO credentials: 'include' — el Bearer token ya autentica
             }
         );
 
@@ -89,7 +98,27 @@ export function PDFViewer({
 
     loadPdf();
     return () => { cancelled = true; };
-  }, [documentId, token]);
+  }, [documentId, token, loadAttempts]);
+
+  // Reintento automático si falla
+  useEffect(() => {
+    if (fetchError && loadAttempts < MAX_RETRIES) {
+      const timer = setTimeout(() => {
+        setLoadAttempts((prev) => prev + 1);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [fetchError, loadAttempts]);
+
+  // Safety: reload si no se pudo cargar después de N reintentos
+  useEffect(() => {
+    if (loadAttempts >= MAX_RETRIES && fetchError) {
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 15000);
+      return () => clearTimeout(timer);
+    }
+  }, [loadAttempts, fetchError]);
 
   const handleDocumentLoad = useCallback(({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
