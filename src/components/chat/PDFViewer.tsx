@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Document, Page } from "react-pdf";
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,14 +15,6 @@ import "react-pdf/dist/Page/TextLayer.css";
 import { cn } from "@/lib/utils";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
-
-// ======================================================
-// FIX PRODUCCIÓN FLY.IO + VITE
-// ======================================================
-
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-
-// ======================================================
 
 const DOCUMENT_BASE =
     import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
@@ -48,6 +40,9 @@ export function PDFViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [pageHeight, setPageHeight] = useState(0);
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   // ======================================================
   // Reset cuando cambia documento
@@ -58,6 +53,58 @@ export function PDFViewer({
     setNumPages(0);
     setPageHeight(0);
   }, [documentId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setPdfData(null);
+    setLoadError(null);
+    setRenderError(null);
+
+    const loadPdf = async () => {
+      try {
+        const response = await fetch(
+          `${DOCUMENT_BASE}/documents/${documentId}/download`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        if (buffer.byteLength === 0) {
+          throw new Error("El documento está vacío.");
+        }
+
+        const bytes = new Uint8Array(buffer);
+        const header = new TextDecoder("ascii").decode(bytes.slice(0, 5));
+        if (header !== "%PDF-") {
+          throw new Error(`Respuesta inválida (${header || "sin cabecera PDF"})`);
+        }
+
+        setPdfData(bytes);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "No se pudo cargar el documento.";
+        setLoadError(message);
+      }
+    };
+
+    loadPdf();
+
+    return () => {
+      controller.abort();
+    };
+  }, [documentId, token]);
 
   // ======================================================
   // Navegar automáticamente al ejercicio
@@ -97,19 +144,6 @@ export function PDFViewer({
       []
   );
 
-  // ======================================================
-  // Archivo PDF autenticado
-  // ======================================================
-
-  const pdfFile = {
-    url: `${DOCUMENT_BASE}/documents/${documentId}/download`,
-    httpHeaders: {
-      Authorization: `Bearer ${token}`,
-    },
-  };
-
-  // ======================================================
-
   const showBannerHighlight =
       activeExercise && !activeExercise.bbox;
 
@@ -117,6 +151,14 @@ export function PDFViewer({
       activeExercise?.bbox &&
       pageHeight > 0 &&
       activeExercise.page === currentPage;
+
+  const pdfFile = useMemo(() => {
+    if (!pdfData) return null;
+
+    return {
+      data: pdfData.slice(),
+    };
+  }, [pdfData]);
 
   // ======================================================
 
@@ -256,44 +298,59 @@ export function PDFViewer({
                   lineHeight: 0,
                 }}
             >
-              <Document
-                  file={pdfFile}
-                  onLoadSuccess={handleDocumentLoad}
-                  onLoadError={(error) => {
-                    console.error(
-                        "[PDFViewer] Error cargando PDF:",
-                        error
-                    );
+              {loadError ? (
+                  <div className="flex h-48 w-64 items-center justify-center text-center text-xs text-destructive">
+                    Error al cargar el PDF: {loadError}
+                  </div>
+              ) : !pdfFile ? (
+                  <div className="flex h-48 w-48 items-center justify-center">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
+              ) : (
+                  <Document
+                      file={pdfFile}
+                      onLoadSuccess={handleDocumentLoad}
+                      onLoadError={(error) => {
+                        const message =
+                            error instanceof Error
+                                ? error.message
+                                : "No se pudo interpretar el PDF.";
+                        setRenderError(message);
+                        console.error(
+                            "[PDFViewer] Error cargando PDF:",
+                            error
+                        );
 
-                    console.error(
-                        "[PDFViewer] Details:",
-                        {
-                          documentId,
-                          currentPage,
-                          scale,
-                          pdfUrl: pdfFile.url,
-                        }
-                    );
-                  }}
-                  loading={
-                    <div className="flex h-48 w-48 items-center justify-center">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    </div>
-                  }
-                  error={
-                    <div className="flex h-48 w-48 items-center justify-center text-center text-xs text-destructive">
-                      Error al renderizar el PDF.
-                    </div>
-                  }
-              >
-                <Page
-                    pageNumber={currentPage}
-                    scale={scale}
-                    onLoadSuccess={handlePageLoad}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                />
-              </Document>
+                        console.error(
+                            "[PDFViewer] Details:",
+                            {
+                              documentId,
+                              currentPage,
+                              scale,
+                              pdfUrl: `${DOCUMENT_BASE}/documents/${documentId}/download`,
+                            }
+                        );
+                      }}
+                      loading={
+                        <div className="flex h-48 w-48 items-center justify-center">
+                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        </div>
+                      }
+                      error={
+                        <div className="flex h-48 w-72 items-center justify-center text-center text-xs text-destructive">
+                          Error al renderizar el PDF{renderError ? `: ${renderError}` : "."}
+                        </div>
+                      }
+                  >
+                    <Page
+                        pageNumber={currentPage}
+                        scale={scale}
+                        onLoadSuccess={handlePageLoad}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                    />
+                  </Document>
+              )}
 
               {/* Highlight */}
 

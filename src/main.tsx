@@ -7,7 +7,7 @@ import "./index.css";
 // Worker de pdf.js: import local por Vite para evitar CDNs externos.
 // Debe estar en el entry point (no en componentes lazy) para evitar
 // race conditions con React.lazy.
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import workerUrl from "react-pdf/node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 Sentry.init({
