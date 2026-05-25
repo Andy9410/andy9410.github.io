@@ -3,12 +3,25 @@ import { Document, Page } from "react-pdf";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, BookOpen } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+
 import { cn } from "@/lib/utils";
 import { tokenStorage } from "@/auth/authService";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
 
-const DOCUMENT_BASE = import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
+// ======================================================
+// PDF.js Worker FIX
+// ======================================================
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+).toString();
+
+// ======================================================
+
+const DOCUMENT_BASE =
+    import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
 
 interface Props {
   documentId: number;
@@ -115,9 +128,16 @@ export function PDFViewer({
     }
   }, [loadAttempts, fetchError]);
 
-  const handleDocumentLoad = useCallback(({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-  }, []);
+  // ======================================================
+  // PDF callbacks
+  // ======================================================
+
+  const handleDocumentLoad = useCallback(
+      ({ numPages }: { numPages: number }) => {
+        setNumPages(numPages);
+      },
+      []
+  );
 
   const handlePageLoad = useCallback(
       (page: { getViewport: (opts: { scale: number }) => { height: number } }) => {
@@ -132,7 +152,6 @@ export function PDFViewer({
   );
 
 
-  const showBannerHighlight = activeExercise && !activeExercise.bbox;
   const showBboxHighlight =
       activeExercise?.bbox && pageHeight > 0 && activeExercise.page === currentPage;
 
