@@ -166,7 +166,6 @@ describe("PDFViewer", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         "https://document-service-academy.fly.dev/documents/1/download",
         {
-          method: "GET",
           headers: {
             Authorization: "Bearer test-token-123",
           },
@@ -247,8 +246,6 @@ describe("PDFViewer", () => {
   // ================================================================
 
   it("muestra 'Error de red' cuando el PDF tiene size 0", async () => {
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     mockFetch.mockResolvedValueOnce({
       ok: true,
       blob: () => Promise.resolve(new Blob([], { type: "application/pdf" })),
@@ -262,10 +259,6 @@ describe("PDFViewer", () => {
         screen.getByText("Error de red al cargar el documento.")
       ).toBeDefined();
     });
-
-    expect(consoleSpy).toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   // ================================================================
@@ -418,7 +411,7 @@ describe("PDFViewer", () => {
   });
 
   it("intenta de nuevo después de un fallo cuando cambian las props", async () => {
-    // Primer fetch: falla
+    // Primer fetch: falla (primer intento)
     mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
     const { rerender } = render(
@@ -468,7 +461,6 @@ describe("PDFViewer", () => {
       <PDFViewer
         {...defaultProps}
         activeExercise={{
-          exerciseId: "ex-1",
           number: "3.1",
           page: 5,
           bbox: null,

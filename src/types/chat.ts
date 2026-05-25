@@ -50,6 +50,7 @@ export interface BackendMessage {
   role: MessageRole;
   content: string;
   createdAt: string;
+  suggestions?: string[];
 }
 
 export type ChatStatus = "idle" | "loading" | "error";
