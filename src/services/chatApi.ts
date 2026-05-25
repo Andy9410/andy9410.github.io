@@ -5,11 +5,22 @@ const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "http://localhost:8080";
 interface ChatApiRequest {
   message: string;
   conversationId?: number;
+  preferredDocumentId?: number;
+  exerciseNumber?: string;
+  explanationLevel?: number;
+}
+
+interface ChatApiResponse {
+  response: string;
+  conversationId: number;
 }
 
 type SseEvent =
   | { type: "meta"; conversationId: number }
   | { type: "chunk"; text: string }
+  | { type: "replace"; text: string }
+  | { type: "sources"; files: string[] }
+  | { type: "suggestions"; questions: string[] }
   | { type: "done" }
   | { type: "error" };
 
@@ -32,10 +43,16 @@ export async function streamChatMessage(
   token: string,
   conversationId: number | undefined,
   onEvent: (event: SseEvent) => void | Promise<void>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  preferredDocumentId?: number,
+  explanationLevel?: number,
+  exerciseNumber?: string
 ): Promise<void> {
   const body: ChatApiRequest = { message };
   if (conversationId !== undefined) body.conversationId = conversationId;
+  if (preferredDocumentId !== undefined) body.preferredDocumentId = preferredDocumentId;
+  if (explanationLevel !== undefined) body.explanationLevel = explanationLevel;
+  if (exerciseNumber !== undefined) body.exerciseNumber = exerciseNumber;
 
   const res = await chatFetch("/chat/stream", token, {
     method: "POST",
@@ -86,13 +103,27 @@ export async function fetchMyConversations(token: string): Promise<ConversationS
   return res.json() as Promise<ConversationSummary[]>;
 }
 
-export async function fetchConversationMessages(id: number, token: string): Promise<BackendMessage[]> {
-  const res = await chatFetch(`/api/conversations/${id}/messages`, token);
-  return res.json() as Promise<BackendMessage[]>;
+export async function fetchConversationMessages(
+  id: number,
+  token: string,
+  options?: { limit?: number; before?: number }
+): Promise<{ messages: BackendMessage[]; hasMore: boolean }> {
+  const params = new URLSearchParams();
+  if (options?.limit !== undefined) params.set("limit", String(options.limit));
+  if (options?.before !== undefined) params.set("before", String(options.before));
+  const query = params.toString() ? `?${params}` : "";
+  const res = await chatFetch(`/api/conversations/${id}/messages${query}`, token);
+  return res.json() as Promise<{ messages: BackendMessage[]; hasMore: boolean }>;
 }
 
 export async function deleteConversationApi(id: number, token: string): Promise<void> {
   await chatFetch(`/api/conversations/${id}`, token, { method: "DELETE" });
+}
+
+export async function generateConversationTitle(id: number, token: string): Promise<string> {
+  const res = await chatFetch(`/api/conversations/${id}/title`, token, { method: "POST" });
+  const data = await res.json() as { title: string };
+  return data.title;
 }
 
 export async function checkHealth(): Promise<boolean> {

@@ -82,8 +82,12 @@ export async function refreshTokens(refreshToken: string): Promise<AuthResponse>
   return post<AuthResponse>('/auth/refresh', { refreshToken })
 }
 
-export async function logout(accessToken: string): Promise<void> {
-  await post<void>('/auth/logout', {}, accessToken).catch(() => {})
+export async function logout(accessToken: string | null, refreshToken: string | null): Promise<void> {
+  await post<void>(
+    '/auth/logout',
+    refreshToken ? { refreshToken } : {},
+    accessToken ?? undefined,
+  ).catch(() => {})
 }
 
 export async function getMe(accessToken: string): Promise<User> {

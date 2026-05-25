@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -27,7 +27,13 @@ export default function LoginPage() {
   const { login }    = useAuth()
   const navigate     = useNavigate()
   const location     = useLocation()
-  const from         = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/chat'
+  const from           = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/chat'
+  const sessionExpired = sessionStorage.getItem('sessionExpired') === 'true'
+
+  useEffect(() => {
+    if (sessionExpired) sessionStorage.removeItem('sessionExpired')
+  }, [sessionExpired])
+
   const [show, setShow]         = useState(false)
   const [serverErr, setServerErr] = useState<string | null>(null)
 
@@ -43,19 +49,35 @@ export default function LoginPage() {
       await login({ email: v.email, password: v.password })
       navigate(from, { replace: true })
     } catch (e) {
-      setServerErr(e instanceof Error ? e.message : 'Error inesperado')
+      const msg = e instanceof Error ? e.message : 'Error inesperado'
+      setServerErr(msg === 'Invalid email or password' ? 'Email o contraseña incorrectos' : msg)
     }
   }
 
   return (
     <AuthLayout mode="login">
 
+      {/* Session expired banner */}
+      <AnimatePresence>
+        {sessionExpired && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-5 overflow-hidden rounded-xl border px-4 py-2.5 text-sm"
+            style={{ borderColor: 'rgba(234,179,8,0.3)', background: 'rgba(234,179,8,0.08)', color: '#CA8A04' }}
+          >
+            Tu sesión expiró. Ingresá nuevamente.
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="mb-7 text-center">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(170,80%,50%)' }}>
-          Bienvenido de vuelta
+          Bienvenido
         </p>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Ingresá a tu cuenta</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Ingrese cuenta</h2>
       </div>
 
       <Form {...form}>
@@ -67,7 +89,7 @@ export default function LoginPage() {
                 Email
               </FormLabel>
               <FormControl>
-                <input type="email" placeholder="vos@ejemplo.com" autoComplete="email"
+                <input type="email" placeholder="test@ejemplo.com" autoComplete="email"
                   className={inputClass} {...field} />
               </FormControl>
               <FormMessage className="text-xs text-red-400 mt-1" />
@@ -132,7 +154,7 @@ export default function LoginPage() {
 
       <div className="mt-6 flex items-center gap-3">
         <div className="h-px flex-1" style={{ background: 'rgba(0,0,0,0.06)' }} />
-        <span className="text-xs" style={{ color: '#94A3B8' }}>¿nuevo acá?</span>
+        <span className="text-xs" style={{ color: '#94A3B8' }}>¿nuevo?</span>
         <div className="h-px flex-1" style={{ background: 'rgba(0,0,0,0.06)' }} />
       </div>
 

@@ -21,6 +21,7 @@ interface AuthContextValue extends AuthState {
   login: (data: LoginData) => Promise<void>
   register: (data: RegisterData) => Promise<void>
   logout: () => Promise<void>
+  forceLogout: () => void
   refreshAccessToken: () => Promise<string | null>
 }
 
@@ -95,13 +96,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
-    if (accessToken) await apiLogout(accessToken)
+    await apiLogout(accessToken, tokenStorage.getRefresh())
     clearSession()
   }, [accessToken, clearSession])
+
+  const forceLogout = useCallback(() => {
+    sessionStorage.setItem('sessionExpired', 'true')
+    clearSession()
+  }, [clearSession])
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     const rt = tokenStorage.getRefresh()
     if (!rt) {
+      sessionStorage.setItem('sessionExpired', 'true')
       clearSession()
       return null
     }
@@ -111,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       applyTokens(resp.accessToken, resp.refreshToken, resp.user)
       return resp.accessToken
     } catch {
+      sessionStorage.setItem('sessionExpired', 'true')
       clearSession()
       return null
     }
@@ -126,9 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      forceLogout,
       refreshAccessToken,
     }),
-    [user, accessToken, refreshToken, isLoading, login, register, logout, refreshAccessToken],
+    [user, accessToken, refreshToken, isLoading, login, register, logout, forceLogout, refreshAccessToken],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

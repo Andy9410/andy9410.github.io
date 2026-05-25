@@ -1,41 +1,125 @@
-import { useState } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
+import { WifiOff, ServerCrash, Clock } from "lucide-react";
 import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
+import { ExerciseSidebar } from "./ExerciseSidebar";
+import DocumentPanel from "./DocumentPanel";
+
+const PDFViewer = lazy(() =>
+  import("./PDFViewer").then((m) => ({ default: m.PDFViewer }))
+);
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { useChat } from "@/hooks/useChat";
+import { usePDFViewer } from "@/hooks/usePDFViewer";
+import { useExerciseDetection } from "@/hooks/useExerciseDetection";
+import { useAuth } from "@/auth/useAuth";
+import { listExercises } from "@/services/documentApi";
+import type { ExerciseOut } from "@/services/documentApi";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 const ChatLayout = () => {
-  const isMobile = useIsMobile();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   const {
     conversations,
     activeConversation,
     activeId,
     status,
+    isOffline,
+    connectionReady,
     isLoadingHistory,
-    sidebarOpen,
-    setSidebarOpen,
+    rateLimitSecondsLeft,
+    explanationLevel,
+    setExplanationLevel,
     newConversation,
     sendMessage,
+    setActiveDocument,
     selectConversation,
     deleteConversation,
+    regenerateLastMessage,
   } = useChat();
+
+  const { accessToken } = useAuth();
+  const pdfViewer = usePDFViewer();
+  const { detectExercise, isClosing } = useExerciseDetection();
+  const [exercises, setExercises] = useState<ExerciseOut[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [docPanelOpen, setDocPanelOpen] = useState(false);
+  const [viewerRetryKey, setViewerRetryKey] = useState(0);
+
+  useEffect(() => {
+    if (!pdfViewer.activeDocId || !accessToken) {
+      setExercises([]);
+      return;
+    }
+    listExercises(pdfViewer.activeDocId, accessToken)
+      .then(setExercises)
+      .catch(() => setExercises([]));
+  }, [pdfViewer.activeDocId, accessToken]);
+
+  const handleSend = useCallback(
+    (content: string, files: File[]) => {
+      let exerciseNum = pdfViewer.activeExercise?.number;
+      if (pdfViewer.activeDocId) {
+        const detected = detectExercise(content);
+        if (detected) {
+          const ex = exercises.find((e) => e.number === detected);
+          pdfViewer.selectExercise({
+            number: detected,
+            page: ex?.page ?? 1,
+            bbox: ex?.bbox,
+          });
+          exerciseNum = detected;
+        } else if (isClosing(content)) {
+          pdfViewer.clearExercise();
+          exerciseNum = undefined;
+        }
+      }
+      sendMessage(content, files, exerciseNum, pdfViewer.activeDocId ?? undefined);
+    },
+    [pdfViewer, exercises, sendMessage, detectExercise, isClosing]
+  );
+
+  if (!connectionReady && isOffline) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-background text-center px-6">
+        <ServerCrash className="h-12 w-12 text-destructive/60" />
+        <div>
+          <p className="text-lg font-semibold text-foreground">Servicio no disponible</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            No se puede conectar con el servidor del chat.<br />Verificá tu conexión o intentá más tarde.
+          </p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  if (!connectionReady) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   const messages = activeConversation?.messages ?? [];
 
-  const toggleSidebar = () => {
-    if (isMobile) {
-      setSidebarOpen(true);
-    } else {
-      setSidebarCollapsed((v) => !v);
-    }
-  };
+  const contextBadge = pdfViewer.activeDocId
+    ? {
+        docName: pdfViewer.activeDocName ?? "Documento",
+        exerciseNumber: pdfViewer.activeExercise?.number,
+        onClear: pdfViewer.clearAll,
+      }
+    : null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <SidebarProvider>
       <ChatSidebar
         conversations={conversations}
         activeId={activeId}
@@ -43,29 +127,119 @@ const ChatLayout = () => {
         onNew={newConversation}
         onDelete={deleteConversation}
         isLoadingHistory={isLoadingHistory}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        isMobile={isMobile}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        level={explanationLevel}
+        onLevelChange={setExplanationLevel}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="flex min-w-0 flex-1 flex-col h-screen overflow-hidden">
+        {isOffline && (
+          <div className="flex items-center justify-center gap-2 bg-destructive/10 px-4 py-2 text-xs font-medium text-destructive">
+            <WifiOff className="h-3.5 w-3.5" />
+            Sin conexión con el servidor — reconectando…
+          </div>
+        )}
+
+        {rateLimitSecondsLeft > 0 && (
+          <div className="flex items-center justify-center gap-2 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <Clock className="h-3.5 w-3.5" />
+            Límite de mensajes alcanzado — podés enviar más en {rateLimitSecondsLeft}s
+          </div>
+        )}
+
         <ChatHeader
           conversation={activeConversation}
-          onToggleSidebar={toggleSidebar}
-          isMobile={isMobile}
+          onOpenDocuments={() => setDocPanelOpen(true)}
         />
 
-        <MessageList
-          messages={messages}
-          isTyping={status === "loading"}
-          onSuggestion={sendMessage}
-        />
+        <ErrorBoundary>
+          <MessageList
+            messages={messages}
+            isTyping={status === "loading"}
+            onSuggestion={sendMessage}
+            onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
+            isLoadingHistory={isLoadingHistory}
+          />
+        </ErrorBoundary>
 
-        <ChatInput onSend={sendMessage} disabled={status === "loading"} />
-      </div>
-    </div>
+        {pdfViewer.viewerOpen && pdfViewer.activeDocId && accessToken && (
+          <ErrorBoundary
+            key={`${viewerRetryKey}-${pdfViewer.activeDocId}`}
+            fallback={
+              <div className="flex h-[350px] shrink-0 flex-col items-center justify-center gap-3 border-t bg-muted/10 px-4 text-center">
+                <div className="text-xs text-destructive/80">Error al cargar el visor PDF</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setViewerRetryKey(k => k + 1)}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    Reintentar
+                  </button>
+                  <button
+                    onClick={() => pdfViewer.closeViewer()}
+                    className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Cerrar visor
+                  </button>
+                </div>
+              </div>
+            }
+          >
+          <div className="flex h-[350px] shrink-0 border-t">
+            <Suspense
+              fallback={
+                <div className="flex flex-1 items-center justify-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+              }
+            >
+              <PDFViewer
+                documentId={pdfViewer.activeDocId}
+                token={accessToken}
+                activeExercise={pdfViewer.activeExercise}
+                onClose={pdfViewer.closeViewer}
+                sidebarOpen={sidebarOpen}
+                onToggleSidebar={() => setSidebarOpen((v) => !v)}
+              />
+            </Suspense>
+            {sidebarOpen && (
+              <ExerciseSidebar
+                exercises={exercises}
+                activeExercise={pdfViewer.activeExercise}
+                onExerciseSelect={pdfViewer.selectExercise}
+                docName={pdfViewer.activeDocName}
+              />
+            )}
+          </div>
+          </ErrorBoundary>
+        )}
+
+        {accessToken && (
+          <DocumentPanel
+            isOpen={docPanelOpen}
+            onClose={() => setDocPanelOpen(false)}
+            token={accessToken}
+            onDocumentOpen={(id, name) => {
+              pdfViewer.openDocument(id, name);
+              setActiveDocument(id);
+              setDocPanelOpen(false);
+            }}
+          />
+        )}
+
+        <ChatInput
+          onSend={handleSend}
+          disabled={status === "loading" || isOffline || isLoadingHistory || rateLimitSecondsLeft > 0}
+          placeholder={
+            rateLimitSecondsLeft > 0
+              ? `Esperá ${rateLimitSecondsLeft}s para seguir enviando…`
+              : isLoadingHistory
+              ? "Cargando historial…"
+              : undefined
+          }
+          contextBadge={contextBadge}
+        />
+      </main>
+    </SidebarProvider>
   );
 };
 

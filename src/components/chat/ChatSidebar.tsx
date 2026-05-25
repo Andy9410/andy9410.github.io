@@ -1,10 +1,28 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, Code2, X, LogOut, User, Loader2, ChevronLeft } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useState } from "react";
+import type React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { SquareTerminal, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/auth/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import type { Conversation } from "@/types/chat";
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuAction,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +34,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const LEVELS = [
+  { value: 5, label: "Experto" },
+  { value: 4, label: "Avanzado" },
+  { value: 3, label: "Intermedio" },
+  { value: 2, label: "Simple" },
+  { value: 1, label: "Básico" },
+] as const;
+
 interface Props {
   conversations: Conversation[];
   activeId: string | null;
@@ -23,11 +49,8 @@ interface Props {
   onNew: () => void;
   onDelete: (id: string) => void;
   isLoadingHistory: boolean;
-  open: boolean;
-  onClose: () => void;
-  isMobile: boolean;
-  collapsed?: boolean;
-  onToggleCollapse?: () => void;
+  level: number;
+  onLevelChange: (level: number) => void;
 }
 
 function relativeTime(date: Date): string {
@@ -54,168 +77,6 @@ function ConversationSkeleton() {
   );
 }
 
-const SidebarContent = ({
-  conversations,
-  activeId,
-  onSelect,
-  onNew,
-  onDelete,
-  isLoadingHistory,
-  onClose,
-  isMobile,
-  onToggleCollapse,
-}: Omit<Props, "open" | "collapsed">) => {
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-
-  return (
-  <>
-  <div className="flex h-full flex-col bg-sidebar">
-    {/* Brand + close */}
-    <div className="flex h-14 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
-      <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <Code2 className="h-4 w-4 text-primary-foreground" />
-        </div>
-        <span className="text-sm font-bold text-primary">LearnSoft</span>
-      </Link>
-      {isMobile ? (
-        <button
-          onClick={onClose}
-          aria-label="Cerrar menú"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      ) : (
-        <button
-          onClick={onToggleCollapse}
-          aria-label="Colapsar barra lateral"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-
-    {/* New chat button */}
-    <div className="px-3 pt-3">
-      <button
-        onClick={onNew}
-        className="flex w-full items-center gap-2 rounded-lg bg-accent px-3 py-2.5 text-sm font-semibold text-accent-foreground transition-all hover:bg-accent/90 active:scale-[0.98]"
-      >
-        <Plus className="h-4 w-4" />
-        Nuevo chat
-      </button>
-    </div>
-
-    {/* Conversations */}
-    <div className="mt-3 flex-1 overflow-y-auto px-2 pb-4">
-      {isLoadingHistory ? (
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 px-3 pb-1">
-            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/50" />
-            <p className="text-[11px] text-muted-foreground/50">Cargando historial…</p>
-          </div>
-          <ConversationSkeleton />
-        </div>
-      ) : conversations.length === 0 ? (
-        <div className="px-3 py-8 text-center text-xs text-muted-foreground">
-          <MessageSquare className="mx-auto mb-2 h-6 w-6 opacity-30" />
-          Sin conversaciones
-        </div>
-      ) : (
-        <>
-          <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-            Recientes
-          </p>
-          <AnimatePresence initial={false}>
-            {conversations.map((conv) => {
-              const isActive = conv.id === activeId;
-              return (
-                <motion.div
-                  key={conv.id}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="group relative mb-0.5"
-                >
-                  <button
-                    onClick={() => onSelect(conv.id)}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors",
-                      isActive
-                        ? "bg-accent-soft text-primary"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent"
-                    )}
-                  >
-                    <MessageSquare
-                      className={cn(
-                        "h-3.5 w-3.5 shrink-0",
-                        isActive ? "text-accent" : "text-muted-foreground/60"
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium">{conv.title}</p>
-                      <p className="text-[10px] text-muted-foreground/70">
-                        {relativeTime(conv.updatedAt)} · {conv.messages.length > 0 ? `${conv.messages.length} msgs` : "sin cargar"}
-                      </p>
-                    </div>
-
-                    {isActive && (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                    )}
-                  </button>
-
-                  {/* Delete button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPendingDeleteId(conv.id);
-                    }}
-                    aria-label="Eliminar conversación"
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded opacity-0 text-muted-foreground/50 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </>
-      )}
-    </div>
-
-    {/* Footer — user profile + logout */}
-    <UserFooter />
-  </div>
-
-  <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
-        <AlertDialogDescription>
-          Esta acción no se puede deshacer. La conversación será eliminada del historial.
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-        <AlertDialogAction
-          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          onClick={() => {
-            if (pendingDeleteId) onDelete(pendingDeleteId);
-            setPendingDeleteId(null);
-          }}
-        >
-          Eliminar
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-  </>
-  );
-};
-
 function UserFooter() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -226,17 +87,16 @@ function UserFooter() {
     setLoggingOut(true);
     try {
       await logout();
-    } catch {
-      // navigate to login even if the API call fails
-    }
+    } catch {}
     navigate("/login", { replace: true });
   };
 
   return (
-    <div className="shrink-0 border-t border-sidebar-border px-3 py-3">
-      <div className="flex items-center gap-2 rounded-lg px-2 py-2">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
-          <User className="h-3.5 w-3.5" />
+    <>
+      {/* Expanded */}
+      <div className="flex items-center gap-2 rounded-lg px-2 py-2 group-data-[collapsible=icon]:hidden">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <User className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.name ?? "User"}</p>
@@ -245,60 +105,253 @@ function UserFooter() {
         <button
           onClick={handleLogout}
           disabled={loggingOut}
-          aria-label="Sign out"
+          aria-label="Cerrar sesión"
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
         </button>
       </div>
-    </div>
+
+      {/* Collapsed */}
+      <div className="hidden flex-col items-center group-data-[collapsible=icon]:flex">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              aria-label="Cuenta"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 transition-colors hover:bg-emerald-200"
+            >
+              <User className="h-4 w-4" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent side="right" align="end" className="w-52 p-2">
+            <div className="mb-2 px-2 py-1.5">
+              <p className="truncate text-xs font-medium text-foreground">{user?.name ?? "User"}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+              Cerrar sesión
+            </button>
+          </PopoverContent>
+        </Popover>
+      </div>
+    </>
   );
 }
 
-const ChatSidebar = (props: Props) => {
-  const { open, onClose, isMobile, collapsed, onToggleCollapse, ...rest } = props;
+const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoadingHistory, level, onLevelChange }: Props) => {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [logoHovered, setLogoHovered] = useState(false);
+  const { state, setOpenMobile, toggleSidebar } = useSidebar();
 
-  if (!isMobile) {
-    return (
-      <motion.aside
-        animate={{ width: collapsed ? 0 : 256 }}
-        transition={{ type: "spring", damping: 30, stiffness: 300 }}
-        className="hidden shrink-0 overflow-hidden border-r border-sidebar-border md:flex md:flex-col"
-      >
-        <div className="w-64">
-          <SidebarContent {...rest} onClose={onClose} isMobile={false} onToggleCollapse={onToggleCollapse} />
-        </div>
-      </motion.aside>
-    );
-  }
+  const handleSelect = (id: string) => {
+    onSelect(id);
+    setOpenMobile(false);
+  };
+
+  const handleNew = () => {
+    onNew();
+    setOpenMobile(false);
+  };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            className="fixed inset-0 z-30 bg-black/40 md:hidden"
-          />
-
-          {/* Drawer */}
-          <motion.aside
-            initial={{ x: -280 }}
-            animate={{ x: 0 }}
-            exit={{ x: -280 }}
-            transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed inset-y-0 left-0 z-40 w-64 md:hidden"
+    <>
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="border-b border-sidebar-border flex-row items-center px-4 py-0 h-14 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
+          {/* Logo ↔ Trigger swap — same 32×32 box, no layout shift */}
+          <div
+            className="relative flex h-8 w-8 shrink-0"
+            onMouseEnter={() => setLogoHovered(true)}
+            onMouseLeave={() => setLogoHovered(false)}
           >
-            <SidebarContent {...rest} onClose={onClose} isMobile={true} />
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
+            {/* Logo face */}
+            <Link
+              to="/"
+              tabIndex={-1}
+              aria-hidden
+              className={cn(
+                "absolute inset-0 flex items-center justify-center rounded-lg bg-primary transition-opacity duration-200",
+                logoHovered ? "opacity-0 pointer-events-none" : "opacity-100"
+              )}
+            >
+              <Code2 className="h-4 w-4 text-primary-foreground" />
+            </Link>
+            {/* Trigger face */}
+            <button
+              onClick={toggleSidebar}
+              aria-label="Toggle sidebar"
+              className={cn(
+                "absolute inset-0 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-slate-600 shadow-sm transition-opacity duration-200 hover:bg-slate-50",
+                logoHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+          </div>
+
+          <span className="ml-2 text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
+          <SidebarTrigger className="ml-auto text-muted-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:hidden" />
+        </SidebarHeader>
+
+        <div className="px-3 pt-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleNew}
+                className="flex w-full items-center gap-2 rounded-lg bg-teal-400 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-500 active:scale-[0.98] group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md"
+              >
+                <SquareTerminal className="h-4 w-4 shrink-0 group-data-[collapsible=icon]:h-[18px] group-data-[collapsible=icon]:w-[18px]" />
+                <span className="group-data-[collapsible=icon]:hidden">Nuevo chat</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" hidden={state !== "collapsed"}>
+              Nuevo chat
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        <SidebarContent className="mt-1 group-data-[collapsible=icon]:hidden">
+          {isLoadingHistory ? (
+            <div className="mt-2 space-y-1">
+              <div className="flex items-center gap-1.5 px-5 pb-1">
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/50" />
+                <p className="text-[11px] text-muted-foreground/50">Cargando historial…</p>
+              </div>
+              <ConversationSkeleton />
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="px-3 py-8 text-center text-xs text-muted-foreground">
+              <MessageSquare className="mx-auto mb-2 h-6 w-6 opacity-30" />
+              Sin conversaciones
+            </div>
+          ) : (
+            <SidebarGroup>
+              <SidebarGroupLabel>Recientes</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <AnimatePresence initial={false}>
+                    {conversations.map((conv) => {
+                      const isActive = conv.id === activeId;
+                      return (
+                        <motion.div
+                          key={conv.id}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <SidebarMenuItem>
+                            <SidebarMenuButton
+                              isActive={isActive}
+                              size="lg"
+                              onClick={() => handleSelect(conv.id)}
+                              tooltip={conv.title}
+                              className="h-auto py-2"
+                            >
+                              <MessageSquare className={cn("h-3.5 w-3.5 shrink-0", isActive ? "text-accent" : "text-muted-foreground/60")} />
+                              <div className="min-w-0 flex-1 pr-1">
+                                <p className="truncate text-xs font-medium">{conv.title}</p>
+                                <p className="text-[10px] text-muted-foreground/70">
+                                  {relativeTime(conv.updatedAt)} · {conv.messageCount ?? conv.messages.length} mensajes
+                                </p>
+                              </div>
+                            </SidebarMenuButton>
+                            <SidebarMenuAction
+                              showOnHover
+                              onClick={(e) => { e.stopPropagation(); setPendingDeleteId(conv.id); }}
+                              aria-label="Eliminar conversación"
+                              className="text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </SidebarMenuAction>
+                          </SidebarMenuItem>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+        </SidebarContent>
+
+        {/* Nivel de Explicación — vertical slider */}
+        <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-5 group-data-[collapsible=icon]:hidden">
+          <div className="mb-4 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              Nivel de Explicación
+            </span>
+          </div>
+          <div className="flex items-stretch gap-4" style={{ height: "140px" }}>
+            {/* Labels */}
+            <div className="flex flex-col justify-between py-0.5">
+              {LEVELS.map((lvl) => (
+                <span
+                  key={lvl.value}
+                  className={cn(
+                    "cursor-pointer text-[10px] font-bold uppercase tracking-tighter transition-colors",
+                    level === lvl.value ? "text-teal-500" : "text-slate-400 hover:text-slate-600"
+                  )}
+                  onClick={() => onLevelChange(lvl.value)}
+                >
+                  {lvl.label}
+                </span>
+              ))}
+            </div>
+            {/* Vertical slider */}
+            <input
+              type="range"
+              min={1}
+              max={5}
+              step={1}
+              value={level}
+              onChange={(e) => onLevelChange(Number(e.target.value))}
+              style={{
+                writingMode: "vertical-lr" as React.CSSProperties["writingMode"],
+                direction: "rtl",
+                WebkitAppearance: "slider-vertical",
+                width: "8px",
+                height: "140px",
+                padding: "0 5px",
+                accentColor: "#2dd4bf",
+                cursor: "pointer",
+              }}
+            />
+          </div>
+        </div>
+
+        <SidebarFooter className="mt-auto border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
+          <UserFooter />
+        </SidebarFooter>
+      </Sidebar>
+
+      <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. La conversación será eliminada del historial.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingDeleteId) onDelete(pendingDeleteId);
+                setPendingDeleteId(null);
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

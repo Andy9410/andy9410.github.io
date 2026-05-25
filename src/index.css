@@ -4,6 +4,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Sidebar scrollbar — wider and easier to grab */
+[data-sidebar="content"]::-webkit-scrollbar {
+  width: 6px;
+}
+[data-sidebar="content"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-sidebar="content"]::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+}
+[data-sidebar="content"]::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes text-shimmer {
+  0%   { background-position: 100% center; }
+  100% { background-position: -100% center; }
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--foreground)) 30%,
+    hsl(var(--accent)) 50%,
+    hsl(var(--foreground)) 70%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shimmer 1.5s linear infinite;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

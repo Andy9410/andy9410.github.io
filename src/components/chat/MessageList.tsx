@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import MessageBubble from "./MessageBubble";
-import TypingIndicator from "./TypingIndicator";
+import SuggestionBubbles from "./SuggestionBubbles";
 import EmptyState from "./EmptyState";
 import type { Message } from "@/types/chat";
 
@@ -9,28 +9,46 @@ interface Props {
   messages: Message[];
   isTyping: boolean;
   onSuggestion: (text: string) => void;
+  onRegenerate?: () => void;
+  isLoadingHistory?: boolean;
 }
 
-const MessageList = ({ messages, isTyping, onSuggestion }: Props) => {
+const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, isLoadingHistory = false }: Props) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, isTyping]);
 
+  const lastAssistantIndex = messages.reduceRight(
+    (found, msg, i) => (found === -1 && msg.role === "assistant" ? i : found),
+    -1
+  );
+
+  const userMessageCount = messages.filter((m) => m.role === "user").length;
+
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto">
+    <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
       {messages.length === 0 && !isTyping ? (
-        <EmptyState onSuggestion={onSuggestion} />
+        <EmptyState onSuggestion={onSuggestion} isLoadingHistory={isLoadingHistory} />
       ) : (
-        <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-4">
+        <div className="mx-auto flex w-full max-w-5xl flex-col px-4 py-4">
           <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+            {messages.map((msg, i) => (
+              <React.Fragment key={msg.id}>
+                <MessageBubble
+                  message={msg}
+                  isFirstInGroup={i === 0 || messages[i - 1].role !== msg.role}
+                  isLastAssistant={!isTyping && i === lastAssistantIndex}
+                  isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
+                  onRegenerate={onRegenerate}
+                />
+                {!isTyping && i === lastAssistantIndex && userMessageCount >= 1 && msg.suggestions?.length ? (
+                  <SuggestionBubbles suggestions={msg.suggestions} onSelect={onSuggestion} />
+                ) : null}
+              </React.Fragment>
             ))}
           </AnimatePresence>
-
-          {isTyping && <TypingIndicator />}
         </div>
       )}
       <div ref={bottomRef} />
