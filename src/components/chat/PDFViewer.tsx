@@ -8,6 +8,7 @@ import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
 
 const DOCUMENT_BASE = import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
+alert(DOCUMENT_BASE);
 
 interface Props {
   documentId: number;
