@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Document, Page } from "react-pdf";
+import { Document, Page, pdfjs } from "react-pdf";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, BookOpen } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { cn } from "@/lib/utils";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
+
+// IMPORTANTE: Configurar worker si no lo hiciste en main.tsx
+// pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const DOCUMENT_BASE = import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
 
@@ -30,15 +33,17 @@ export function PDFViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [pageHeight, setPageHeight] = useState(0);
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Descargar el PDF manualmente con fetch()
+  // Descargar el PDF como Blob (más estable que Uint8Array)
   useEffect(() => {
     let cancelled = false;
+    setIsLoading(true);
 
     async function loadPdf() {
-      setPdfData(null);
+      setPdfBlob(null);
       setFetchError(null);
       setCurrentPage(1);
       setNumPages(0);
@@ -46,13 +51,18 @@ export function PDFViewer({
 
       if (!token) {
         setFetchError("No hay sesión activa");
+        setIsLoading(false);
         return;
       }
 
       try {
         const res = await fetch(
             `${DOCUMENT_BASE}/documents/${documentId}/download`,
-            { headers: { Authorization: `Bearer ${token}` } }
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              // Importante para CORS si el backend está en otro dominio
+              credentials: 'include'
+            }
         );
 
         if (!res.ok) {
@@ -61,17 +71,24 @@ export function PDFViewer({
               : res.status === 404
                   ? "Documento no encontrado."
                   : `Error del servidor (${res.status})`;
-          if (!cancelled) setFetchError(detail);
+          if (!cancelled) {
+            setFetchError(detail);
+            setIsLoading(false);
+          }
           return;
         }
 
-        const buffer = await res.arrayBuffer();
+        // Obtener el blob directamente - EVITA el problema de ArrayBuffer detached
+        const blob = await res.blob();
+
         if (!cancelled) {
-          setPdfData(new Uint8Array(buffer));
+          setPdfBlob(blob);
+          setIsLoading(false);
         }
       } catch (err) {
         if (!cancelled) {
           setFetchError("Error de red al cargar el documento.");
+          setIsLoading(false);
         }
       }
     }
@@ -91,10 +108,20 @@ export function PDFViewer({
       []
   );
 
-  const pdfFile = useMemo(
-      () => (pdfData ? { data: pdfData } : null),
-      [pdfData]
-  );
+  // Crear URL del blob para react-pdf
+  const pdfFile = useMemo(() => {
+    if (!pdfBlob) return null;
+    return { url: URL.createObjectURL(pdfBlob) };
+  }, [pdfBlob]);
+
+  // Limpiar URL del blob al desmontar
+  useEffect(() => {
+    return () => {
+      if (pdfFile?.url) {
+        URL.revokeObjectURL(pdfFile.url);
+      }
+    };
+  }, [pdfFile]);
 
   const showBannerHighlight = activeExercise && !activeExercise.bbox;
   const showBboxHighlight =
@@ -108,7 +135,7 @@ export function PDFViewer({
             <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage <= 1}
+                disabled={currentPage <= 1 || isLoading}
                 aria-label="Página anterior"
                 className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-40"
             >
@@ -120,7 +147,7 @@ export function PDFViewer({
             <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
-                disabled={currentPage >= numPages}
+                disabled={currentPage >= numPages || isLoading}
                 aria-label="Página siguiente"
                 className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-40"
             >
@@ -132,8 +159,9 @@ export function PDFViewer({
             <button
                 type="button"
                 onClick={() => setScale((s) => Math.max(0.5, parseFloat((s - 0.25).toFixed(2))))}
+                disabled={isLoading}
                 aria-label="Reducir zoom"
-                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-40"
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
@@ -143,8 +171,9 @@ export function PDFViewer({
             <button
                 type="button"
                 onClick={() => setScale((s) => Math.min(3, parseFloat((s + 0.25).toFixed(2))))}
+                disabled={isLoading}
                 aria-label="Aumentar zoom"
-                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-40"
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </button>
@@ -189,15 +218,18 @@ export function PDFViewer({
                   <div className="flex h-48 w-48 items-center justify-center text-center text-xs text-destructive">
                     {fetchError}
                   </div>
-              ) : !pdfFile ? (
+              ) : isLoading || !pdfFile ? (
                   <div className="flex h-48 w-48 items-center justify-center">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   </div>
               ) : (
                   <Document
-                      key={token}
                       file={pdfFile}
                       onLoadSuccess={handleDocumentLoad}
+                      onLoadError={(error) => {
+                        console.error("Error cargando PDF:", error);
+                        setFetchError("Error al renderizar el PDF.");
+                      }}
                       loading={
                         <div className="flex h-48 w-48 items-center justify-center">
                           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
