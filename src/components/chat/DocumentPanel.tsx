@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { uploadDocuments, deleteDocumentApi } from "@/services/documentApi";
 import type { UploadResult } from "@/services/documentApi";
+import { tokenStorage, refreshTokens } from "@/auth/authService";
 import { useDocuments } from "@/hooks/useDocuments";
 
 interface Props {
@@ -43,21 +44,50 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
     }
   }, [isOpen, fetchDocs]);
 
+  const refreshTokenIfNeeded = useCallback(async (currentToken: string): Promise<string> => {
+    const rt = tokenStorage.getRefresh();
+    if (tokenStorage.isExpired() && rt) {
+      try {
+        const resp = await refreshTokens(rt);
+        tokenStorage.save(resp);
+        return resp.accessToken;
+      } catch {
+        return currentToken;
+      }
+    }
+    return currentToken;
+  }, []);
+
   const handleFiles = useCallback(
     async (files: FileList | null) => {
       if (!files || files.length === 0) return;
       const arr = Array.from(files);
       setUploading(true);
       setUploadResults([]);
+
+      // Refrescar token si está por expirar antes de intentar la subida
+      const freshToken = await refreshTokenIfNeeded(token);
+
+      const doUpload = (t: string) => uploadDocuments(arr, t);
+
       try {
-        const results = await uploadDocuments(arr, token);
+        const results = await doUpload(freshToken).catch(async (err: Error) => {
+          if (err.message === "401") {
+            const rt = tokenStorage.getRefresh();
+            if (!rt) throw err;
+            const resp = await refreshTokens(rt);
+            tokenStorage.save(resp);
+            return doUpload(resp.accessToken);
+          }
+          throw err;
+        });
         setUploadResults(results);
         await fetchDocs();
         if (results.some(isSuccess)) onUploadSuccess?.();
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error desconocido";
         const label =
-          msg === "401" ? "No autorizado — token inválido." :
+          msg === "401" ? "Sesión expirada — recargá la página o volvé a iniciar sesión." :
           msg === "422" ? "Formato de archivo no aceptado." :
           msg === "500" ? "Error interno del servidor." :
           msg.startsWith("TypeError") ? "No se pudo conectar con el servidor." :
@@ -78,7 +108,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [token, fetchDocs]
+    [token, fetchDocs, refreshTokenIfNeeded]
   );
 
   const handleDrop = useCallback(

@@ -1,17 +1,10 @@
-// ===================================================================
-//  PDFViewer.tsx — Visor de PDF con descarga manual via fetch()
-//  
-//  🛠️ FIX: ahora usa fetch() + Blob en vez de react-pdf httpHeaders
-//  para evitar problemas de CORS con pdfjs worker en producción.
-//  ⚡ Incluye: reintento automático y safety reload si falla.
-// ===================================================================
-
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Document, Page } from "react-pdf";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, BookOpen } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { cn } from "@/lib/utils";
+import { tokenStorage } from "@/auth/authService";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
 
@@ -27,13 +20,15 @@ interface Props {
 }
 
 export function PDFViewer({
-                            documentId,
-                            token,
-                            activeExercise,
-                            onClose,
-                            sidebarOpen,
-                            onToggleSidebar,
-                          }: Props) {
+  documentId,
+  token,
+  activeExercise,
+  onClose,
+  sidebarOpen,
+  onToggleSidebar,
+}: Props) {
+  // Usar token de localStorage si el prop está expirado (pudo haber sido refrescado)
+  const effectiveToken = useMemo(() => tokenStorage.getAccess() || token, [token]);
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
@@ -131,18 +126,11 @@ export function PDFViewer({
       []
   );
 
-  const pdfFile = useMemo(() => {
-    if (!pdfBlob) return null;
-    return { url: URL.createObjectURL(pdfBlob) };
-  }, [pdfBlob]);
+  const pdfFile = useMemo(
+    () => (pdfData ? { data: pdfData } : null),
+    [pdfData]
+  );
 
-  useEffect(() => {
-    return () => {
-      if (pdfFile?.url) {
-        URL.revokeObjectURL(pdfFile.url);
-      }
-    };
-  }, [pdfFile]);
 
   const showBannerHighlight = activeExercise && !activeExercise.bbox;
   const showBboxHighlight =
@@ -231,15 +219,53 @@ export function PDFViewer({
             </div>
         )}
 
-        {/* PDF content */}
-        <div className="flex-1 overflow-auto bg-muted/20">
-          <div className="flex justify-center p-2">
-            <div style={{ position: "relative", display: "inline-block", lineHeight: 0 }}>
-              {fetchError ? (
-                  <div className="flex h-48 w-48 items-center justify-center text-center text-xs text-destructive">
-                    {fetchError}
-                  </div>
-              ) : isLoading || !pdfFile ? (
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          aria-label="Lista de ejercicios"
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted",
+            sidebarOpen && "bg-muted text-foreground"
+          )}
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar visor"
+          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Banner for exercises without bbox */}
+      {showBannerHighlight && (
+        <div className="sticky top-0 z-10 shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+          Ejercicio {activeExercise.number} — Página {activeExercise.page}
+        </div>
+      )}
+
+      {/* PDF content */}
+      <div className="flex-1 overflow-auto bg-muted/20">
+        <div className="flex justify-center p-2">
+          <div style={{ position: "relative", display: "inline-block", lineHeight: 0 }}>
+            {fetchError ? (
+              <div className="flex h-48 w-48 items-center justify-center text-center text-xs text-destructive">
+                {fetchError}
+              </div>
+            ) : !pdfFile ? (
+              <div className="flex h-48 w-48 items-center justify-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            ) : (
+              <Document
+                key={effectiveToken}
+                file={pdfFile}
+                onLoadSuccess={handleDocumentLoad}
+                loading={
                   <div className="flex h-48 w-48 items-center justify-center">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   </div>
