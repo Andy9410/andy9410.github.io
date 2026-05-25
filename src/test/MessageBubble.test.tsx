@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import type { Message } from "@/types/chat";
 
 // Mock lazy-loaded MessageContent to avoid dynamic import complexity
@@ -26,12 +26,12 @@ const baseMessage = (overrides: Partial<Message> = {}): Message => ({
 });
 
 describe("MessageBubble — sugerencias", () => {
-  it("renderiza los botones de sugerencia cuando el mensaje las tiene", () => {
+  it("no renderiza sugerencias dentro de la burbuja", () => {
     const msg = baseMessage({ suggestions: ["¿Qué es POO?", "¿Qué es herencia?"] });
     render(<MessageBubble message={msg} />);
 
-    expect(screen.getByText("¿Qué es POO?")).toBeInTheDocument();
-    expect(screen.getByText("¿Qué es herencia?")).toBeInTheDocument();
+    expect(screen.queryByText("¿Qué es POO?")).not.toBeInTheDocument();
+    expect(screen.queryByText("¿Qué es herencia?")).not.toBeInTheDocument();
   });
 
   it("no renderiza sugerencias cuando la lista está vacía", () => {
@@ -47,16 +47,6 @@ describe("MessageBubble — sugerencias", () => {
     render(<MessageBubble message={msg} isStreaming />);
 
     expect(screen.queryByText("¿Qué es POO?")).not.toBeInTheDocument();
-  });
-
-  it("llama a onSuggestion con el texto correcto al hacer click", () => {
-    const handler = vi.fn();
-    const msg = baseMessage({ suggestions: ["¿Qué es herencia?"] });
-    render(<MessageBubble message={msg} onSuggestion={handler} />);
-
-    fireEvent.click(screen.getByText("¿Qué es herencia?"));
-    expect(handler).toHaveBeenCalledOnce();
-    expect(handler).toHaveBeenCalledWith("¿Qué es herencia?");
   });
 
   it("no renderiza sugerencias en mensajes de usuario", () => {
