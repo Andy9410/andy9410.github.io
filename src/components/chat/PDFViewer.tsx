@@ -1,6 +1,24 @@
+// ===================================================================
+// PDFViewer.tsx — Visor de PDF con descarga manual via fetch()
+//
+// 🛠️ FIXES:
+// - Descarga manual del PDF usando fetch + Bearer token (evita CORS de pdfjs)
+// - Worker de pdf.js via CDN en vez de import local (evita MIME type incorrecto en Fly.io)
+// - Reintentos automáticos y safety reload si falla persistentemente
+// - Cleanup correcto de blob URLs
+// - onLoadError con logging detallado para debugging
+// ===================================================================
+
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Document, Page } from "react-pdf";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, BookOpen } from "lucide-react";
+import { Document, Page, pdfjs } from "react-pdf";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  X,
+  BookOpen,
+} from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -19,6 +37,8 @@ pdfjs.GlobalWorkerOptions.workerSrc =
 
 const DOCUMENT_BASE =
     import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
+
+console.log(DOCUMENT_BASE);
 
 interface Props {
   documentId: number;
@@ -60,6 +80,7 @@ export function PDFViewer({
       setCurrentPage(1);
       setNumPages(0);
       setPageHeight(0);
+
       if (!token) {
         setFetchError("No hay sesión activa");
         setIsLoading(false);
@@ -89,12 +110,21 @@ export function PDFViewer({
 
         const blob = await res.blob();
 
+        if (blob.size === 0) {
+          if (!cancelled) {
+            setFetchError("Error de red al cargar el documento.");
+            setIsLoading(false);
+          }
+          return;
+        }
+
         if (!cancelled) {
           setPdfBlob(blob);
           setIsLoading(false);
         }
       } catch (err) {
         if (!cancelled) {
+          console.error("[PDFViewer] Error en fetch:", err);
           setFetchError("Error de red al cargar el documento.");
           setIsLoading(false);
         }
@@ -105,7 +135,7 @@ export function PDFViewer({
     return () => { cancelled = true; };
   }, [documentId, token, loadAttempts]);
 
-  // Reintento automático si falla
+  // Reintento automático si falla — espera 3s y vuelve a intentar
   useEffect(() => {
     if (fetchError && loadAttempts < MAX_RETRIES) {
       const timer = setTimeout(() => {
@@ -115,7 +145,7 @@ export function PDFViewer({
     }
   }, [fetchError, loadAttempts]);
 
-  // Safety: reload si no se pudo cargar después de N reintentos
+  // Safety reload: si después de N reintentos sigue sin cargar, recarga la página
   useEffect(() => {
     if (loadAttempts >= MAX_RETRIES && fetchError) {
       const timer = setTimeout(() => {
@@ -143,14 +173,29 @@ export function PDFViewer({
       []
   );
 
-  const pdfFile = useMemo(
-    () => (pdfData ? { data: pdfData } : null),
-    [pdfData]
-  );
+  // ======================================================
+  // Blob URL para react-pdf
+  // ======================================================
 
+  const pdfUrl = useMemo(() => {
+    if (!pdfBlob) return null;
+    return URL.createObjectURL(pdfBlob);
+  }, [pdfBlob]);
+
+  // Cleanup del blob URL al desmontar o cambiar
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
 
   const showBboxHighlight =
       activeExercise?.bbox && pageHeight > 0 && activeExercise.page === currentPage;
+
+  const showBannerHighlight =
+      activeExercise && !activeExercise.bbox;
 
   return (
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -235,63 +280,43 @@ export function PDFViewer({
             </div>
         )}
 
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          aria-label="Lista de ejercicios"
-          className={cn(
-            "flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted",
-            sidebarOpen && "bg-muted text-foreground"
-          )}
-        >
-          <BookOpen className="h-3.5 w-3.5" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar visor"
-          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {/* Banner for exercises without bbox */}
-      {showBannerHighlight && (
-        <div className="sticky top-0 z-10 shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
-          Ejercicio {activeExercise.number} — Página {activeExercise.page}
-        </div>
-      )}
-
-      {/* PDF content */}
-      <div className="flex-1 overflow-auto bg-muted/20">
-        <div className="flex justify-center p-2">
-          <div style={{ position: "relative", display: "inline-block", lineHeight: 0 }}>
-            {fetchError ? (
-              <div className="flex h-48 w-48 items-center justify-center text-center text-xs text-destructive">
-                {fetchError}
-              </div>
-            ) : !pdfFile ? (
-              <div className="flex h-48 w-48 items-center justify-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              </div>
-            ) : (
-              <Document
-                key={effectiveToken}
-                file={pdfFile}
-                onLoadSuccess={handleDocumentLoad}
-                loading={
+        {/* PDF content */}
+        <div className="flex-1 overflow-auto bg-muted/20">
+          <div className="flex justify-center p-2">
+            <div className="relative inline-block" style={{ lineHeight: 0 }}>
+              {fetchError ? (
+                  <div className="flex h-48 w-48 items-center justify-center text-center text-xs text-destructive">
+                    {fetchError}
+                  </div>
+              ) : !pdfUrl ? (
                   <div className="flex h-48 w-48 items-center justify-center">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   </div>
               ) : (
                   <Document
-                      file={pdfFile}
+                      key={effectiveToken}
+                      file={{ url: pdfUrl }}
                       onLoadSuccess={handleDocumentLoad}
                       onLoadError={(error) => {
-                        console.error("Error cargando PDF:", error);
-                        setFetchError("Error al renderizar el PDF.");
+                        console.error(
+                            "[PDFViewer] Error al renderizar PDF:",
+                            error
+                        );
+
+                        console.error(
+                            "[PDFViewer] Detalles:",
+                            JSON.stringify({
+                              documentId,
+                              numPages,
+                              currentPage,
+                              scale,
+                              pdfUrl: pdfUrl?.substring(0, 50),
+                            }, null, 2)
+                        );
+
+                        setFetchError(
+                            "Error al renderizar el PDF."
+                        );
                       }}
                       loading={
                         <div className="flex h-48 w-48 items-center justify-center">
