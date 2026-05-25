@@ -10,13 +10,10 @@ import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
 
 // ======================================================
-// PDF.js Worker FIX
+// Worker de pdf.js vía CDN (evita MIME type incorrecto en Fly.io)
 // ======================================================
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc =
+  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 // ======================================================
 
