@@ -63,6 +63,10 @@ export function PDFViewer({
 
     const loadPdf = async () => {
       try {
+        if (!token) {
+          throw new Error("No hay sesión activa");
+        }
+
         const response = await fetch(
           `${DOCUMENT_BASE}/documents/${documentId}/download`,
           {
