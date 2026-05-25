@@ -27,18 +27,8 @@ import { tokenStorage } from "@/auth/authService";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
 
-// ======================================================
-// Worker de pdf.js vía CDN (evita MIME type incorrecto en Fly.io)
-// ======================================================
-pdfjs.GlobalWorkerOptions.workerSrc =
-  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-
-// ======================================================
-
-const DOCUMENT_BASE =
-    import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
-
-console.log(DOCUMENT_BASE);
+const DOCUMENT_BASE = import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
+alert(DOCUMENT_BASE);
 
 interface Props {
   documentId: number;
