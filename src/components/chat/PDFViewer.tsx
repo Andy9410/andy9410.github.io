@@ -12,9 +12,12 @@ import {
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
+import { configurePdfWorker } from "@/lib/pdfWorker";
 import { cn } from "@/lib/utils";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
+
+configurePdfWorker();
 
 const DOCUMENT_BASE =
     import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
