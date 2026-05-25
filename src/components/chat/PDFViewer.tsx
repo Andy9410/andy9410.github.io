@@ -2,12 +2,14 @@
 // PDFViewer.tsx
 //
 // ✅ FIXES:
-// - Configuración correcta del worker de pdfjs
 // - Descarga manual del PDF usando fetch + Bearer token
 // - Uso estable de Blob URL
 // - Cleanup correcto de object URLs
-// - Mejor manejo de errores
+// - Mejor manejo de errores con logging detallado
 // - Reintentos automáticos
+//
+// ⚠️ El worker de pdf.js se configura via CDN para evitar
+//    problemas de MIME type en producción (Fly.io).
 // ===================================================================
 
 import { useState, useEffect, useCallback } from "react";
@@ -29,13 +31,10 @@ import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
 
 // ======================================================
-// PDF.js Worker FIX
+// Worker de pdf.js vía CDN (evita MIME type incorrecto en Fly.io)
 // ======================================================
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc =
+  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 // ======================================================
 
@@ -384,8 +383,19 @@ export function PDFViewer({
                       onLoadSuccess={handleDocumentLoad}
                       onLoadError={(error) => {
                         console.error(
-                            "Error cargando PDF:",
+                            "[PDFViewer] Error al renderizar PDF:",
                             error
+                        );
+
+                        console.error(
+                            "[PDFViewer] Detalles:",
+                            JSON.stringify({
+                                documentId,
+                                numPages,
+                                currentPage,
+                                scale,
+                                pdfUrl: pdfUrl?.substring(0, 50),
+                            }, null, 2)
                         );
 
                         setFetchError(
