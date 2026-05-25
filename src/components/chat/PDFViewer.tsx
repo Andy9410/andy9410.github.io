@@ -30,19 +30,56 @@ export function PDFViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [pageHeight, setPageHeight] = useState(0);
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Descargar el PDF manualmente con fetch() en lugar de delegar a pdfjs
   useEffect(() => {
-    setCurrentPage(1);
-    setNumPages(0);
-    setPageHeight(0);
-  }, [documentId]);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (activeExercise?.page && activeExercise.page !== currentPage) {
-      setCurrentPage(activeExercise.page);
+    async function loadPdf() {
+      setPdfData(null);
+      setFetchError(null);
+      setCurrentPage(1);
+      setNumPages(0);
+      setPageHeight(0);
+
+      const token = effectiveToken;
+      if (!token) {
+        setFetchError("No hay sesión activa");
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `${DOCUMENT_BASE}/documents/${documentId}/download`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (!res.ok) {
+          const detail = res.status === 401
+            ? "Sesión expirada. Recargá la página."
+            : res.status === 404
+              ? "Documento no encontrado."
+              : `Error del servidor (${res.status})`;
+          if (!cancelled) setFetchError(detail);
+          return;
+        }
+
+        const buffer = await res.arrayBuffer();
+        if (!cancelled) {
+          setPdfData(new Uint8Array(buffer));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setFetchError("Error de red al cargar el documento.");
+        }
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeExercise?.page]);
+
+    loadPdf();
+    return () => { cancelled = true; };
+  }, [documentId, effectiveToken]);
 
   const handleDocumentLoad = useCallback(({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -55,10 +92,17 @@ export function PDFViewer({
     []
   );
 
+<<<<<<< Updated upstream
   const pdfFile = {
     url: `${DOCUMENT_BASE}/documents/${documentId}/download`,
     httpHeaders: { Authorization: `Bearer ${token}` },
   };
+=======
+  const pdfFile = useMemo(
+    () => (pdfData ? { data: pdfData } : null),
+    [pdfData]
+  );
+>>>>>>> Stashed changes
 
   const showBannerHighlight = activeExercise && !activeExercise.bbox;
   const showBboxHighlight =
@@ -149,6 +193,7 @@ export function PDFViewer({
       <div className="flex-1 overflow-auto bg-muted/20">
         <div className="flex justify-center p-2">
           <div style={{ position: "relative", display: "inline-block", lineHeight: 0 }}>
+<<<<<<< Updated upstream
             <Document
               file={pdfFile}
               onLoadSuccess={handleDocumentLoad}
@@ -171,6 +216,41 @@ export function PDFViewer({
                 renderAnnotationLayer={false}
               />
             </Document>
+=======
+            {fetchError ? (
+              <div className="flex h-48 w-48 items-center justify-center text-center text-xs text-destructive">
+                {fetchError}
+              </div>
+            ) : !pdfFile ? (
+              <div className="flex h-48 w-48 items-center justify-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            ) : (
+              <Document
+                key={effectiveToken}
+                file={pdfFile}
+                onLoadSuccess={handleDocumentLoad}
+                loading={
+                  <div className="flex h-48 w-48 items-center justify-center">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
+                }
+                error={
+                  <div className="flex h-48 w-48 items-center justify-center text-center text-xs text-destructive">
+                    No se pudo renderizar el documento. Probá descargándolo.
+                  </div>
+                }
+              >
+                <Page
+                  pageNumber={currentPage}
+                  scale={scale}
+                  onLoadSuccess={handlePageLoad}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                />
+              </Document>
+            )}
+>>>>>>> Stashed changes
             {showBboxHighlight && (
               <ExerciseHighlighter
                 bbox={activeExercise.bbox!}
