@@ -1,14 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
+import { Document, Page } from "react-pdf";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, BookOpen } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { cn } from "@/lib/utils";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import type { ActiveExercise } from "@/types/chat";
-
-// IMPORTANTE: Configurar worker si no lo hiciste en main.tsx
-// pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const DOCUMENT_BASE = import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
 
@@ -37,7 +34,6 @@ export function PDFViewer({
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Descargar el PDF como Blob (más estable que Uint8Array)
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
@@ -60,8 +56,7 @@ export function PDFViewer({
             `${DOCUMENT_BASE}/documents/${documentId}/download`,
             {
               headers: { Authorization: `Bearer ${token}` },
-              // Importante para CORS si el backend está en otro dominio
-              credentials: 'include'
+              // NO credentials: 'include' — el Bearer token ya autentica
             }
         );
 
@@ -78,7 +73,6 @@ export function PDFViewer({
           return;
         }
 
-        // Obtener el blob directamente - EVITA el problema de ArrayBuffer detached
         const blob = await res.blob();
 
         if (!cancelled) {
@@ -108,13 +102,11 @@ export function PDFViewer({
       []
   );
 
-  // Crear URL del blob para react-pdf
   const pdfFile = useMemo(() => {
     if (!pdfBlob) return null;
     return { url: URL.createObjectURL(pdfBlob) };
   }, [pdfBlob]);
 
-  // Limpiar URL del blob al desmontar
   useEffect(() => {
     return () => {
       if (pdfFile?.url) {
