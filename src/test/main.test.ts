@@ -1,36 +1,32 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
-describe("Worker de pdf.js — URL de cdnjs", () => {
-  it("configura workerSrc correctamente con CDN y la versión exacta", () => {
-    const version = "5.6.205";
-    const workerSrc =
-      `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+const mockWorkerOptions = vi.hoisted(() => ({
+  workerSrc: "",
+}));
 
-    expect(workerSrc).toBe(
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.6.205/pdf.worker.min.js"
-    );
+vi.mock("react-pdf", () => ({
+  pdfjs: {
+    GlobalWorkerOptions: mockWorkerOptions,
+  },
+}));
+
+import { pdfWorkerSrc } from "@/lib/pdfWorker";
+
+describe("Worker de pdf.js", () => {
+  it("usa el worker local resuelto por Vite", () => {
+    expect(pdfWorkerSrc).toContain("pdf.worker.min");
+    expect(pdfWorkerSrc).toContain(".mjs");
   });
 
-  it("NO contiene .mjs, solo .js", () => {
-    const version = "5.6.205";
-    const workerSrc =
-      `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
-
-    expect(workerSrc).not.toContain(".mjs");
-    expect(workerSrc).toContain(".js");
+  it("no depende del specifier default de pdf.js", () => {
+    expect(pdfWorkerSrc).not.toBe("pdf.worker.mjs");
   });
 
-  it("funciona con diferentes versiones de pdfjs", () => {
-    const versions = ["4.9.155", "5.0.379", "5.6.205"];
+  it("no usa CDN externo", () => {
+    expect(pdfWorkerSrc).not.toContain("cdnjs.cloudflare.com");
+  });
 
-    for (const version of versions) {
-      const workerSrc =
-        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
-
-      expect(workerSrc).toBe(
-        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`
-      );
-      expect(workerSrc).not.toContain(".mjs");
-    }
+  it("configura GlobalWorkerOptions con el worker resuelto", () => {
+    expect(mockWorkerOptions.workerSrc).toBe(pdfWorkerSrc);
   });
 });

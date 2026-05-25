@@ -10,6 +10,11 @@ const pdfMockState = vi.hoisted(() => ({
 vi.stubGlobal("fetch", mockFetch);
 
 vi.mock("react-pdf", () => ({
+  pdfjs: {
+    GlobalWorkerOptions: {
+      workerSrc: "",
+    },
+  },
   Document: ({
     children,
     file,
