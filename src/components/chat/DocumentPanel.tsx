@@ -270,7 +270,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
                       key={doc.id}
                       onClick={() => { if (canOpen) { onDocumentOpen(doc.id, doc.filename); onClose(); } }}
                       className={cn(
-                        "flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-xs transition-colors",
+                        "flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-xs transition-colors",
                         canOpen && "cursor-pointer hover:border-cyan-400/40 hover:bg-cyan-400/5"
                       )}
                     >
@@ -286,7 +286,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
                         onClick={(e) => { e.stopPropagation(); setPendingDeleteId(doc.id); }}
                         disabled={deletingId === doc.id}
                         aria-label="Eliminar documento"
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-destructive/60 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-40"
                       >
                         {deletingId === doc.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
