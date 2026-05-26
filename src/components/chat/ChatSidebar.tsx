@@ -154,6 +154,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
   };
 
   const handleNew = () => {
+    if (state === "collapsed") toggleSidebar();
     onNew();
     setOpenMobile(false);
   };
