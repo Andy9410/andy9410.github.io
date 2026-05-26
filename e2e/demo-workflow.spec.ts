@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // ─── Credenciales de demo ────────────────────────────────────────────────────
-const DEMO_EMAIL    = "learnsoft@edu.uy";
+const DEMO_EMAIL    = "learnsoftuy@edu.uy";
 const DEMO_PASSWORD = "learnsoftuy1234";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -29,8 +29,9 @@ async function slowScrollToBottom(page: Page, durationMs = 10_000) {
  * y luego vuelve a habilitarse (respuesta completa).
  */
 async function waitForAIResponse(page: Page, timeout = 90_000) {
-  await expect(page.getByLabel("Enviar mensaje")).toBeDisabled({ timeout: 10_000 });
-  await expect(page.getByLabel("Enviar mensaje")).toBeEnabled({ timeout });
+  const input = page.getByLabel("Mensaje", { exact: true });
+  await expect(input).toBeDisabled({ timeout: 10_000 });
+  await expect(input).toBeEnabled({ timeout });
 }
 
 // ─── Demo workflow ────────────────────────────────────────────────────────────
@@ -55,12 +56,15 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
 
   // ── 5. Iniciar sesión ─────────────────────────────────────────────────────
   await page.waitForURL("**/login**", { timeout: 10_000 });
-  await page.getByPlaceholder("test@ejemplo.com").fill(DEMO_EMAIL);
-  await page.locator("input[type='password']").fill(DEMO_PASSWORD);
+  await page.getByPlaceholder("test@ejemplo.com").click();
+  await page.getByPlaceholder("test@ejemplo.com").pressSequentially(DEMO_EMAIL, { delay: 50 });
+  await page.locator("input[type='password']").click();
+  await page.locator("input[type='password']").pressSequentially(DEMO_PASSWORD, { delay: 50 });
+  await page.waitForTimeout(500);
   await page.getByRole("button", { name: "Ingresar" }).click();
 
-  await page.waitForURL("**/chat**", { timeout: 15_000 });
-  await expect(page.getByLabel("Mensaje")).toBeVisible({ timeout: 10_000 });
+  await page.waitForURL("**/chat**", { timeout: 30_000 });
+  await expect(page.getByLabel("Mensaje", { exact: true })).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(1_000);
 
   // ── 6. Abrir nuevo chat ───────────────────────────────────────────────────
@@ -68,7 +72,7 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
   await page.waitForTimeout(800);
 
   // ── 7. Enviar pregunta sobre Pascal ───────────────────────────────────────
-  await page.getByLabel("Mensaje").fill(
+  await page.getByLabel("Mensaje", { exact: true }).fill(
     "Explícame qué es una variable en Pascal y dame un ejemplo simple."
   );
   await page.getByLabel("Enviar mensaje").click();
@@ -92,7 +96,7 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
   await page.waitForTimeout(2_000);
 
   // ── 12. Preguntar sobre el ejercicio 2 del documento ──────────────────────
-  await page.getByLabel("Mensaje").fill(
+  await page.getByLabel("Mensaje", { exact: true }).fill(
     "Explícame el ejercicio 2 de este documento paso a paso."
   );
   await page.getByLabel("Enviar mensaje").click();
