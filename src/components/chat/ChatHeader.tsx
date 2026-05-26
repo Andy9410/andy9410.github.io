@@ -1,4 +1,4 @@
-import { Bot, FolderOpen } from "lucide-react";
+import { Bot, FolderOpen, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Conversation } from "@/types/chat";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -43,9 +43,10 @@ const ChatHeader = ({ conversation, onOpenDocuments }: Props) => (
       )}
       <Link
         to="/"
-        className="hidden rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground sm:inline-flex"
+        className="hidden items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground sm:inline-flex"
       >
-        Volver al sitio
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Volver
       </Link>
     </div>
   </header>
