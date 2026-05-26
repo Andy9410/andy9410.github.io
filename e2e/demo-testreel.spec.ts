@@ -1,8 +1,13 @@
 import { test, expect } from "testreel/playwright";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
-const DEMO_EMAIL    = "learnsoftuy@edu.uy";
+const DEMO_EMAIL = "learnsoftuy@edu.uy";
 const DEMO_PASSWORD = "learnsoftuy1234";
+
+const PASCAL_MESSAGE =
+  "Explícame qué es una variable en Pascal y dame un ejemplo simple.";
+const DOCUMENT_MESSAGE =
+  "Explícame el ejercicio 2 de este documento paso a paso.";
 
 test.use({
   testreelOptions: {
@@ -29,93 +34,140 @@ test.use({
   },
 });
 
-async function waitForAIResponse(page: Page, timeout = 90_000) {
-  const input = page.getByLabel("Mensaje", { exact: true });
-  await expect(input).toBeDisabled({ timeout: 10_000 });
-  await expect(input).toBeEnabled({ timeout });
+async function briefHold(page: Page, ms = 700) {
+  await page.waitForTimeout(ms);
 }
 
-test("LearnSoft — Demo Video", async ({ page, testreelPage }) => {
+async function naturalLandingScroll(page: Page) {
+  const steps = 80;
+  const duration = 10_000;
+  const delay = duration / steps;
 
-  // ── 1. Landing page ───────────────────────────────────────────────────────
+  await page.mouse.move(1180, 520, { steps: 20 });
+
+  for (let i = 0; i < steps; i += 1) {
+    const easing = Math.sin((i / steps) * Math.PI);
+    const delta = 80 + Math.round(easing * 95);
+    await page.mouse.wheel(0, delta);
+    await page.waitForTimeout(delay);
+  }
+}
+
+async function quickBackToTop(page: Page) {
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  await page.waitForTimeout(850);
+}
+
+async function waitForChatReady(page: Page) {
+  const input = page.getByLabel("Mensaje", { exact: true });
+  await expect(input).toBeVisible({ timeout: 20_000 });
+  await expect(input).toBeEnabled({ timeout: 20_000 });
+  return input;
+}
+
+async function waitForAIResponse(page: Page, timeout = 120_000) {
+  const input = page.getByLabel("Mensaje", { exact: true });
+
+  await expect(input).toBeDisabled({ timeout: 12_000 });
+  await expect(input).toBeEnabled({ timeout });
+
+  await expect(page.getByLabel("Regenerar respuesta").last()).toBeAttached({
+    timeout: 15_000,
+  });
+
+  await page.evaluate(() => {
+    const scrollers = Array.from(document.querySelectorAll("main .overflow-y-auto"));
+    const chatScroller = scrollers.find((el) => el.scrollHeight > el.clientHeight);
+    chatScroller?.scrollTo({ top: chatScroller.scrollHeight, behavior: "smooth" });
+  });
+}
+
+async function firstOpenableDocument(page: Page) {
+  const openPdfButton = page.getByLabel("Ver en visor").first();
+
+  if (await openPdfButton.isVisible().catch(() => false)) {
+    return openPdfButton;
+  }
+
+  await page.waitForTimeout(2_000);
+
+  return null;
+}
+
+async function sendChatMessage(
+  page: Page,
+  testreelPage: {
+    click: (target: string | Locator, options?: Record<string, unknown>) => Promise<void>;
+    type: (target: string, text: string, options?: Record<string, unknown>) => Promise<void>;
+    wait: (ms: number) => Promise<void>;
+  },
+  message: string,
+  timeout = 120_000
+) {
+  await waitForChatReady(page);
+  await testreelPage.click("[aria-label='Mensaje']");
+  await testreelPage.type("[aria-label='Mensaje']", message, { delay: 38 });
+  await briefHold(page, 250);
+  await testreelPage.click("[aria-label='Enviar mensaje']");
+  await waitForAIResponse(page, timeout);
+  await testreelPage.wait(3_500);
+}
+
+test("LearnSoft - Demo Video", async ({ page, testreelPage }) => {
   await testreelPage.navigate("https://learnsoft.uy");
-  await testreelPage.wait(2_000);
+  await expect(page).toHaveTitle(/LearnSoft/i);
+  await briefHold(page, 900);
 
-  // ── 2. Ir al Tutor IA ─────────────────────────────────────────────────────
-  await testreelPage.click("a[href='/chat']");
+  await naturalLandingScroll(page);
+  await quickBackToTop(page);
 
-  // ── 3. Iniciar sesión ─────────────────────────────────────────────────────
-  await page.waitForURL("**/login**", { timeout: 10_000 });
-  await testreelPage.click("[placeholder='test@ejemplo.com']");
-  await testreelPage.type("[placeholder='test@ejemplo.com']", DEMO_EMAIL, { delay: 60 });
-  await testreelPage.click("input[type='password']");
-  await testreelPage.type("input[type='password']", DEMO_PASSWORD, { delay: 60 });
-  await testreelPage.wait(400);
-  await testreelPage.click("role=button[name='Ingresar']");
+  await testreelPage.click("role=link[name='TutorIA']");
+  await briefHold(page, 500);
 
-  await page.waitForURL("**/chat**", { timeout: 30_000 });
-  await expect(page.getByLabel("Mensaje", { exact: true })).toBeVisible({ timeout: 10_000 });
-  await testreelPage.wait(1_000);
+  if (page.url().includes("/login")) {
+    await expect(page.getByPlaceholder("test@ejemplo.com")).toBeVisible({
+      timeout: 10_000,
+    });
+    await testreelPage.click("[placeholder='test@ejemplo.com']");
+    await testreelPage.type("[placeholder='test@ejemplo.com']", DEMO_EMAIL, {
+      delay: 42,
+    });
+    await testreelPage.click("input[type='password']");
+    await testreelPage.type("input[type='password']", DEMO_PASSWORD, {
+      delay: 42,
+    });
+    await briefHold(page, 250);
+    await testreelPage.click("role=button[name='Ingresar']");
+  }
 
-  // ── 4. Seleccionar nivel Básico ───────────────────────────────────────────
-  await testreelPage.click('text="Básico"', { zoom: 1.4 });
-  await testreelPage.wait(600);
+  await page.waitForURL("**/chat**", { timeout: 35_000 });
+  await waitForChatReady(page);
+  await briefHold(page, 900);
 
-  // ── 5. Nuevo chat y pregunta sobre Pascal (nivel básico) ──────────────────
   await testreelPage.click("role=button[name='Nuevo chat']");
-  await testreelPage.wait(800);
-  await testreelPage.click("[aria-label='Mensaje']");
-  await testreelPage.type(
-    "[aria-label='Mensaje']",
-    "¿Qué es una variable en Pascal?",
-    { delay: 55 }
-  );
-  await testreelPage.click("[aria-label='Enviar mensaje']");
-  await waitForAIResponse(page);
-  await testreelPage.wait(2_000);
+  await briefHold(page, 450);
+  await sendChatMessage(page, testreelPage, PASCAL_MESSAGE, 120_000);
 
-  // ── 6. Cambiar nivel a Experto ────────────────────────────────────────────
-  await testreelPage.click('text="Experto"', { zoom: 1.4 });
-  await testreelPage.wait(600);
-
-  // ── 7. Nuevo chat y misma pregunta (nivel experto) ────────────────────────
-  await testreelPage.click("role=button[name='Nuevo chat']");
-  await testreelPage.wait(800);
-  await testreelPage.click("[aria-label='Mensaje']");
-  await testreelPage.type(
-    "[aria-label='Mensaje']",
-    "¿Qué es una variable en Pascal?",
-    { delay: 55 }
-  );
-  await testreelPage.click("[aria-label='Enviar mensaje']");
-  await waitForAIResponse(page);
-  await testreelPage.wait(2_000);
-
-  // ── 8. Abrir panel "Mis documentos" ──────────────────────────────────────
   await testreelPage.click("[aria-label='Mis documentos']");
+  const firstDocumentButton = await firstOpenableDocument(page);
 
-  // ── 9. Abrir el primer documento disponible ───────────────────────────────
-  await expect(page.getByText("fragmentos").first()).toBeVisible({ timeout: 10_000 });
-  await testreelPage.wait(2_000);
-  await testreelPage.click(page.getByText("fragmentos").first());
+  if (firstDocumentButton) {
+    await testreelPage.click(firstDocumentButton);
 
-  // ── 10. Verificar visor PDF y hacer scroll ────────────────────────────────
-  await expect(page.getByLabel("Cerrar visor")).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator(".animate-spin").first()).not.toBeVisible({ timeout: 20_000 });
-  await testreelPage.wait(700);
-  await testreelPage.scroll({ y: 800, scrollSpeed: 200 });
-  await testreelPage.wait(1_000);
-  await testreelPage.scroll({ y: -800, scrollSpeed: 400 });
-  await testreelPage.wait(1_000);
+    await expect(page.getByLabel("Cerrar visor")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(".react-pdf__Document canvas").first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await briefHold(page, 1_400);
 
-  // ── 11. Preguntar sobre el ejercicio 2 del documento ──────────────────────
-  await testreelPage.click("[aria-label='Mensaje']");
-  await testreelPage.type(
-    "[aria-label='Mensaje']",
-    "Explícame el ejercicio 2 de este documento paso a paso.",
-    { delay: 55 }
-  );
-  await testreelPage.click("[aria-label='Enviar mensaje']");
-  await waitForAIResponse(page, 120_000);
-  await testreelPage.wait(2_000);
+    await page.mouse.wheel(0, 500);
+    await page.waitForTimeout(650);
+    await page.mouse.wheel(0, -360);
+    await page.waitForTimeout(650);
+  } else {
+    await testreelPage.click("role=button[name='Close']");
+    await briefHold(page, 700);
+  }
+
+  await sendChatMessage(page, testreelPage, DOCUMENT_MESSAGE, 150_000);
 });
