@@ -13,7 +13,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   token: string;
-  onUploadSuccess?: () => void;
+  onUploadSuccess?: (documentId: number) => void;
   onDocumentOpen?: (id: number, name: string) => void;
 }
 
@@ -83,7 +83,8 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
         });
         setUploadResults(results);
         await fetchDocs();
-        if (results.some(isSuccess)) onUploadSuccess?.();
+        const firstSuccess = results.find(isSuccess);
+        if (firstSuccess?.document_id) onUploadSuccess?.(firstSuccess.document_id);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error desconocido";
         const label =

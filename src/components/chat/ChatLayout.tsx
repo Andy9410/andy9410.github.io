@@ -218,6 +218,7 @@ const ChatLayout = () => {
             isOpen={docPanelOpen}
             onClose={() => setDocPanelOpen(false)}
             token={accessToken}
+            onUploadSuccess={(docId) => setActiveDocument(docId)}
             onDocumentOpen={(id, name) => {
               pdfViewer.openDocument(id, name);
               setActiveDocument(id);
