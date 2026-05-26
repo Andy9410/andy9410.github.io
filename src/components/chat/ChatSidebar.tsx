@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SquareTerminal, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft } from "lucide-react";
+import { MessageSquarePlus, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -204,7 +204,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
                 onClick={handleNew}
                 className="flex w-full items-center gap-2 rounded-lg bg-teal-400 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-500 active:scale-[0.98] group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md"
               >
-                <SquareTerminal className="h-4 w-4 shrink-0 group-data-[collapsible=icon]:h-[18px] group-data-[collapsible=icon]:w-[18px]" />
+                <MessageSquarePlus className="h-4 w-4 shrink-0 group-data-[collapsible=icon]:h-[18px] group-data-[collapsible=icon]:w-[18px]" />
                 <span className="group-data-[collapsible=icon]:hidden">Nuevo chat</span>
               </button>
             </TooltipTrigger>
