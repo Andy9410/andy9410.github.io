@@ -53,7 +53,7 @@ test("LearnSoft — Demo Video", async ({ page, testreelPage }) => {
   await testreelPage.wait(1_200);
 
   // ── 4. Ir al Mentor IA ────────────────────────────────────────────────────
-  await testreelPage.click("role=link[name='Probar Chat IA']");
+  await testreelPage.click("role=link[name='Tutor IA']");
 
   // ── 5. Iniciar sesión ─────────────────────────────────────────────────────
   await page.waitForURL("**/login**", { timeout: 10_000 });

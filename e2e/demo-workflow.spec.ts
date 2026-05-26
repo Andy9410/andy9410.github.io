@@ -52,7 +52,7 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
   await page.waitForTimeout(1_200);
 
   // ── 4. Ir al Mentor IA ────────────────────────────────────────────────────
-  await page.getByRole("link", { name: "Probar Chat IA" }).click();
+  await page.getByRole("link", { name: "Tutor IA" }).click();
 
   // ── 5. Iniciar sesión ─────────────────────────────────────────────────────
   await page.waitForURL("**/login**", { timeout: 10_000 });
