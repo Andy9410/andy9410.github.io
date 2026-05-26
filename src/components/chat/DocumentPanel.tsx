@@ -270,12 +270,12 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
                       key={doc.id}
                       onClick={() => { if (canOpen) { onDocumentOpen(doc.id, doc.filename); onClose(); } }}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-xs transition-colors",
+                        "flex w-full items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-xs transition-colors",
                         canOpen && "cursor-pointer hover:border-cyan-400/40 hover:bg-cyan-400/5"
                       )}
                     >
                       <FileText className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400/70" />
-                      <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className="w-0 flex-1 overflow-hidden">
                         <p className="truncate font-medium text-foreground">{doc.filename}</p>
                         <p className="truncate mt-0.5 text-[10px] text-muted-foreground/60">
                           {formatDate(doc.upload_date)} · {doc.chunk_count} fragmentos
