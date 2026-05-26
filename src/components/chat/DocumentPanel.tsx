@@ -286,7 +286,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
                         onClick={(e) => { e.stopPropagation(); setPendingDeleteId(doc.id); }}
                         disabled={deletingId === doc.id}
                         aria-label="Eliminar documento"
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
                       >
                         {deletingId === doc.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
