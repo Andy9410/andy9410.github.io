@@ -18,7 +18,7 @@ test.use({
     chrome: {
       enabled: true,
       titleBarColor: "#f8fafc",
-      url: "andy9410.github.io",
+      url: "learnsoft.uy",
     },
     background: {
       gradient: { from: "#0d9488", to: "#0f172a" },
@@ -38,7 +38,7 @@ async function waitForAIResponse(page: Page, timeout = 90_000) {
 test("LearnSoft — Demo Video", async ({ page, testreelPage }) => {
 
   // ── 1. Landing page ───────────────────────────────────────────────────────
-  await testreelPage.navigate("https://andy9410.github.io");
+  await testreelPage.navigate("https://learnsoft.uy");
   await testreelPage.wait(2_000);
 
   // ── 2. Ir al Tutor IA ─────────────────────────────────────────────────────

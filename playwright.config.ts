@@ -7,7 +7,7 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
 
   use: {
-    baseURL: "https://andy9410.github.io",
+    baseURL: "https://learnsoft.uy",
     headless: false,
     slowMo: 40,
     viewport: { width: 1440, height: 900 },

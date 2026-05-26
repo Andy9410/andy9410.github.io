@@ -7,23 +7,6 @@ const DEMO_PASSWORD = "learnsoftuy1234";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Scroll lento y fluido hacia abajo durante `durationMs` milisegundos.
- */
-async function slowScrollToBottom(page: Page, durationMs = 10_000) {
-  const totalHeight = await page.evaluate(
-    () => document.documentElement.scrollHeight - window.innerHeight
-  );
-  const steps     = 80;
-  const stepDelay = Math.floor(durationMs / steps);
-  const stepSize  = totalHeight / steps;
-
-  for (let i = 0; i < steps; i++) {
-    await page.mouse.wheel(0, stepSize);
-    await page.waitForTimeout(stepDelay);
-  }
-}
-
-/**
  * Espera a que el Mentor IA termine de responder:
  * detecta que el botón de enviar se deshabilita (IA procesando)
  * y luego vuelve a habilitarse (respuesta completa).
@@ -43,15 +26,7 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
   await expect(page).toHaveTitle(/LearnSoft/i);
   await page.waitForTimeout(1_500);
 
-  // ── 2. Scroll lento hasta el final (~20 segundos) ─────────────────────────
-  await slowScrollToBottom(page, 20_000);
-  await page.waitForTimeout(1_000);
-
-  // ── 3. Volver rápido al inicio ────────────────────────────────────────────
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
-  await page.waitForTimeout(1_200);
-
-  // ── 4. Ir al Mentor IA ────────────────────────────────────────────────────
+  // ── 2. Ir al Tutor IA ────────────────────────────────────────────────────
   await page.getByRole("link", { name: "Tutor IA" }).click();
 
   // ── 5. Iniciar sesión ─────────────────────────────────────────────────────
@@ -67,17 +42,27 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
   await expect(page.getByLabel("Mensaje", { exact: true })).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(1_000);
 
-  // ── 6. Abrir nuevo chat ───────────────────────────────────────────────────
+  // ── 3. Seleccionar nivel Básico ──────────────────────────────────────────
+  await page.getByText("Básico", { exact: true }).click();
+  await page.waitForTimeout(600);
+
+  // ── 4. Nuevo chat y pregunta (nivel básico) ───────────────────────────────
   await page.getByRole("button", { name: "Nuevo chat" }).click();
   await page.waitForTimeout(800);
-
-  // ── 7. Enviar pregunta sobre Pascal ───────────────────────────────────────
-  await page.getByLabel("Mensaje", { exact: true }).fill(
-    "Explícame qué es una variable en Pascal y dame un ejemplo simple."
-  );
+  await page.getByLabel("Mensaje", { exact: true }).fill("¿Qué es una variable en Pascal?");
   await page.getByLabel("Enviar mensaje").click();
+  await waitForAIResponse(page);
+  await page.waitForTimeout(2_000);
 
-  // ── 8. Esperar respuesta del Mentor IA ───────────────────────────────────
+  // ── 5. Cambiar nivel a Experto ────────────────────────────────────────────
+  await page.getByText("Experto", { exact: true }).click();
+  await page.waitForTimeout(600);
+
+  // ── 6. Nuevo chat y misma pregunta (nivel experto) ────────────────────────
+  await page.getByRole("button", { name: "Nuevo chat" }).click();
+  await page.waitForTimeout(800);
+  await page.getByLabel("Mensaje", { exact: true }).fill("¿Qué es una variable en Pascal?");
+  await page.getByLabel("Enviar mensaje").click();
   await waitForAIResponse(page);
   await page.waitForTimeout(1_500);
 
