@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "demo": "playwright test e2e/demo-workflow.spec.ts",
-    "demo:headed": "playwright test e2e/demo-workflow.spec.ts --headed"
+    "demo:headed": "playwright test e2e/demo-workflow.spec.ts --headed",
+    "demo:video": "playwright test e2e/demo-testreel.spec.ts --config playwright.testreel.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -70,6 +71,7 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "testreel": "^0.2.0",
     "vaul": "^0.9.9",
     "zod": "^3.25.76"
   },
