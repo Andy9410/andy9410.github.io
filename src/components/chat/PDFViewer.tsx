@@ -184,7 +184,7 @@ export function PDFViewer({
         {/* Toolbar */}
         {/* ====================================================== */}
 
-        <div className="flex shrink-0 items-center gap-2 border-b bg-muted/30 px-3 py-1.5">
+        <div className="relative flex shrink-0 items-center gap-2 border-b bg-muted/30 px-3 py-1.5">
           {/* Navegación */}
 
           <div className="flex items-center gap-0.5">
@@ -260,6 +260,12 @@ export function PDFViewer({
               <ZoomIn className="h-3.5 w-3.5" />
             </button>
           </div>
+
+          {docName && (
+            <p className="pointer-events-none absolute inset-x-0 text-center text-xs font-medium text-muted-foreground truncate px-28">
+              {docName}
+            </p>
+          )}
 
           <div className="flex-1" />
 

@@ -95,13 +95,7 @@ const ChatLayout = () => {
 
   const messages = activeConversation?.messages ?? [];
 
-  const contextBadge = pdfViewer.activeDocId
-    ? {
-        docName: pdfViewer.activeDocName ?? "Documento",
-        exerciseNumber: pdfViewer.activeExercise?.number,
-        onClear: pdfViewer.clearAll,
-      }
-    : null;
+  const contextBadge = null;
 
   return (
     <SidebarProvider>

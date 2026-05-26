@@ -115,7 +115,6 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
               )}
               <button
                 onClick={copyToClipboard}
-                aria-label="Copiar mensaje"
                 className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
               >
                 {copied ? (
