@@ -1,9 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { FilePlus, FileText, Trash2, Loader2, CheckCircle, AlertCircle, Eye } from "lucide-react";
+import { FilePlus, FileText, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { uploadDocuments, deleteDocumentApi } from "@/services/documentApi";
 import type { UploadResult } from "@/services/documentApi";
 import { tokenStorage, refreshTokens } from "@/auth/authService";
@@ -34,6 +44,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -137,6 +148,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
   );
 
   return (
+    <>
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
@@ -251,10 +263,16 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
             ) : (
               <ScrollArea className="flex-1 px-5">
                 <div className="space-y-1.5 pb-6">
-                  {documents.map((doc) => (
+                  {documents.map((doc) => {
+                    const canOpen = onDocumentOpen && doc.download_available !== false;
+                    return (
                     <div
                       key={doc.id}
-                      className="flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-xs"
+                      onClick={() => { if (canOpen) { onDocumentOpen(doc.id, doc.filename); onClose(); } }}
+                      className={cn(
+                        "flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-xs transition-colors",
+                        canOpen && "cursor-pointer hover:border-cyan-400/40 hover:bg-cyan-400/5"
+                      )}
                     >
                       <FileText className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400/70" />
                       <div className="min-w-0 flex-1">
@@ -264,31 +282,21 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
                           {doc.page_count ? ` · ${doc.page_count} págs` : ""}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {onDocumentOpen && doc.download_available !== false && (
-                          <button
-                            onClick={() => { onDocumentOpen(doc.id, doc.filename); onClose(); }}
-                            aria-label="Ver en visor"
-                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-cyan-400/10 hover:text-cyan-500"
-                          >
-                            <Eye className="h-3 w-3" />
-                          </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setPendingDeleteId(doc.id); }}
+                        disabled={deletingId === doc.id}
+                        aria-label="Eliminar documento"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
+                      >
+                        {deletingId === doc.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
                         )}
-                        <button
-                          onClick={() => handleDelete(doc.id)}
-                          disabled={deletingId === doc.id}
-                          aria-label="Eliminar documento"
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
-                        >
-                          {deletingId === doc.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3 w-3" />
-                          )}
-                        </button>
-                      </div>
+                      </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             )}
@@ -296,6 +304,30 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
         </div>
       </SheetContent>
     </Sheet>
+
+      <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar documento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El documento será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingDeleteId !== null) handleDelete(pendingDeleteId);
+                setPendingDeleteId(null);
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

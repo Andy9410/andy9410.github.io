@@ -281,12 +281,12 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
 
         {/* Nivel de Explicación — vertical slider */}
         <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-5 group-data-[collapsible=icon]:hidden">
-          <div className="mb-4 flex items-center gap-1.5">
+          <div className="mb-4 flex items-center justify-center gap-1.5">
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Nivel de Explicación
             </span>
           </div>
-          <div className="flex items-stretch gap-4" style={{ height: "140px" }}>
+          <div className="flex items-stretch justify-center gap-4" style={{ height: "140px" }}>
             {/* Labels */}
             <div className="flex flex-col justify-between py-0.5">
               {LEVELS.map((lvl) => (
