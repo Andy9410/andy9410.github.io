@@ -43,8 +43,8 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
   await expect(page).toHaveTitle(/LearnSoft/i);
   await page.waitForTimeout(1_500);
 
-  // ── 2. Scroll lento hasta el final (~10 segundos) ─────────────────────────
-  await slowScrollToBottom(page, 10_000);
+  // ── 2. Scroll lento hasta el final (~20 segundos) ─────────────────────────
+  await slowScrollToBottom(page, 20_000);
   await page.waitForTimeout(1_000);
 
   // ── 3. Volver rápido al inicio ────────────────────────────────────────────
@@ -88,6 +88,7 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
   // TODO: agregar data-testid="doc-row" en DocumentPanel para un selector
   //       más estable en caso de cambios de texto o formato de fecha.
   await expect(page.getByText("fragmentos").first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(2_000);
   await page.getByText("fragmentos").first().click();
 
   // ── 11. Verificar que el visor PDF abrió y cargó ──────────────────────────
