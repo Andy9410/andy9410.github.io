@@ -43,7 +43,6 @@ export function PDFViewer({
                             onExerciseSelect,
                             docName,
                           }: Props) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
@@ -264,21 +263,6 @@ export function PDFViewer({
 
           <div className="flex-1" />
 
-          {/* Sidebar */}
-
-          <button
-              type="button"
-              onClick={() => setSidebarOpen((v) => !v)}
-              aria-label="Lista de ejercicios"
-              className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted",
-                  sidebarOpen &&
-                  "bg-muted text-foreground"
-              )}
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-          </button>
-
           {/* Close */}
 
           <button
@@ -382,14 +366,6 @@ export function PDFViewer({
           </div>
         </div>
       </div>
-      {sidebarOpen && (
-        <ExerciseSidebar
-          exercises={exercises}
-          activeExercise={activeExercise}
-          onExerciseSelect={onExerciseSelect}
-          docName={docName ?? null}
-        />
-      )}
       </div>
   );
 }
