@@ -26,8 +26,8 @@ test("LearnSoft — Demo Workflow Completo", async ({ page }) => {
   await expect(page).toHaveTitle(/LearnSoft/i);
   await page.waitForTimeout(1_500);
 
-  // ── 2. Ir al Tutor IA ────────────────────────────────────────────────────
-  await page.getByRole("link", { name: "Tutor IA" }).click();
+  // ── 2. Ir al TutorIA ────────────────────────────────────────────────────
+  await page.getByRole("link", { name: "TutorIA" }).click();
 
   // ── 5. Iniciar sesión ─────────────────────────────────────────────────────
   await page.waitForURL("**/login**", { timeout: 10_000 });
