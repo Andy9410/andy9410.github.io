@@ -15,7 +15,9 @@ import "react-pdf/dist/Page/TextLayer.css";
 import { configurePdfWorker } from "@/lib/pdfWorker";
 import { cn } from "@/lib/utils";
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
+import { ExerciseSidebar } from "./ExerciseSidebar";
 import type { ActiveExercise } from "@/types/chat";
+import type { ExerciseOut } from "@/services/documentApi";
 
 configurePdfWorker();
 
@@ -27,8 +29,9 @@ interface Props {
   token: string;
   activeExercise: ActiveExercise | null;
   onClose: () => void;
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
+  exercises: ExerciseOut[];
+  onExerciseSelect: (exercise: ActiveExercise) => void;
+  docName?: string;
 }
 
 export function PDFViewer({
@@ -36,9 +39,11 @@ export function PDFViewer({
                             token,
                             activeExercise,
                             onClose,
-                            sidebarOpen,
-                            onToggleSidebar,
+                            exercises,
+                            onExerciseSelect,
+                            docName,
                           }: Props) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
@@ -174,6 +179,7 @@ export function PDFViewer({
   // ======================================================
 
   return (
+      <div className="flex min-w-0 flex-1 overflow-hidden">
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* ====================================================== */}
         {/* Toolbar */}
@@ -262,7 +268,7 @@ export function PDFViewer({
 
           <button
               type="button"
-              onClick={onToggleSidebar}
+              onClick={() => setSidebarOpen((v) => !v)}
               aria-label="Lista de ejercicios"
               className={cn(
                   "flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted",
@@ -375,6 +381,15 @@ export function PDFViewer({
             </div>
           </div>
         </div>
+      </div>
+      {sidebarOpen && (
+        <ExerciseSidebar
+          exercises={exercises}
+          activeExercise={activeExercise}
+          onExerciseSelect={onExerciseSelect}
+          docName={docName ?? null}
+        />
+      )}
       </div>
   );
 }

@@ -55,6 +55,10 @@ vi.mock("@/components/chat/ExerciseHighlighter", () => ({
   ExerciseHighlighter: () => <div data-testid="mock-highlighter" />,
 }));
 
+vi.mock("@/components/chat/ExerciseSidebar", () => ({
+  ExerciseSidebar: () => <div data-testid="mock-exercise-sidebar" />,
+}));
+
 vi.mock("lucide-react", () => ({
   ChevronLeft: () => <span data-testid="icon-chevron-left" />,
   ChevronRight: () => <span data-testid="icon-chevron-right" />,
@@ -69,8 +73,8 @@ const defaultProps = {
   token: "test-token-123",
   activeExercise: null,
   onClose: vi.fn(),
-  sidebarOpen: false,
-  onToggleSidebar: vi.fn(),
+  exercises: [],
+  onExerciseSelect: vi.fn(),
 };
 
 const pdfBuffer = (content = "%PDF-1.4 mock content") =>
@@ -88,7 +92,7 @@ describe("PDFViewer", () => {
     mockFetch.mockReset();
     pdfMockState.failDocument = false;
     defaultProps.onClose.mockReset();
-    defaultProps.onToggleSidebar.mockReset();
+    defaultProps.onExerciseSelect.mockReset();
   });
 
   afterEach(() => {

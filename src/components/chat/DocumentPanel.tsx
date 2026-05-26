@@ -127,14 +127,13 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
       try {
         await deleteDocumentApi(id, token);
         await fetchDocs();
-        onUploadSuccess?.();
       } catch (error) {
         console.error("[DocumentPanel] Error eliminando documento:", error);
       } finally {
         setDeletingId(null);
       }
     },
-    [token, fetchDocs, onUploadSuccess]
+    [token, fetchDocs]
   );
 
   return (
