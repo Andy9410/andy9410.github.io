@@ -37,75 +37,78 @@ async function waitForAIResponse(page: Page, timeout = 90_000) {
 
 test("LearnSoft — Demo Video", async ({ page, testreelPage }) => {
 
-  // ── 1. Entrar a la página principal ──────────────────────────────────────
+  // ── 1. Landing page ───────────────────────────────────────────────────────
   await testreelPage.navigate("https://andy9410.github.io");
-  await testreelPage.wait(1_500);
+  await testreelPage.wait(2_000);
 
-  // ── 2. Scroll lento hasta el final ───────────────────────────────────────
-  const totalHeight = await page.evaluate(
-    () => document.documentElement.scrollHeight - window.innerHeight
-  );
-  await testreelPage.scroll({ y: totalHeight, scrollSpeed: 250 });
-  await testreelPage.wait(1_000);
+  // ── 2. Ir al Tutor IA ─────────────────────────────────────────────────────
+  await testreelPage.click("a[href='/chat']");
 
-  // ── 3. Volver rápido al inicio ────────────────────────────────────────────
-  await testreelPage.scroll({ y: -totalHeight, scrollSpeed: 2_500 });
-  await testreelPage.wait(1_200);
-
-  // ── 4. Ir al Mentor IA ────────────────────────────────────────────────────
-  await testreelPage.click("role=link[name='Tutor IA']");
-
-  // ── 5. Iniciar sesión ─────────────────────────────────────────────────────
+  // ── 3. Iniciar sesión ─────────────────────────────────────────────────────
   await page.waitForURL("**/login**", { timeout: 10_000 });
   await testreelPage.click("[placeholder='test@ejemplo.com']");
   await testreelPage.type("[placeholder='test@ejemplo.com']", DEMO_EMAIL, { delay: 60 });
   await testreelPage.click("input[type='password']");
   await testreelPage.type("input[type='password']", DEMO_PASSWORD, { delay: 60 });
-  await testreelPage.wait(500);
+  await testreelPage.wait(400);
   await testreelPage.click("role=button[name='Ingresar']");
 
   await page.waitForURL("**/chat**", { timeout: 30_000 });
   await expect(page.getByLabel("Mensaje", { exact: true })).toBeVisible({ timeout: 10_000 });
   await testreelPage.wait(1_000);
 
-  // ── 6. Abrir nuevo chat ───────────────────────────────────────────────────
+  // ── 4. Seleccionar nivel Básico ───────────────────────────────────────────
+  await testreelPage.click('text="Básico"', { zoom: 1.4 });
+  await testreelPage.wait(600);
+
+  // ── 5. Nuevo chat y pregunta sobre Pascal (nivel básico) ──────────────────
   await testreelPage.click("role=button[name='Nuevo chat']");
   await testreelPage.wait(800);
-
-  // ── 7. Enviar pregunta sobre Pascal ───────────────────────────────────────
   await testreelPage.click("[aria-label='Mensaje']");
   await testreelPage.type(
     "[aria-label='Mensaje']",
-    "Explícame qué es una variable en Pascal y dame un ejemplo simple.",
+    "¿Qué es una variable en Pascal?",
     { delay: 55 }
   );
   await testreelPage.click("[aria-label='Enviar mensaje']");
-
-  // ── 8. Esperar respuesta del Mentor IA ────────────────────────────────────
   await waitForAIResponse(page);
-  await testreelPage.wait(1_500);
+  await testreelPage.wait(2_000);
 
-  // ── 9. Abrir panel "Mis documentos" ──────────────────────────────────────
+  // ── 6. Cambiar nivel a Experto ────────────────────────────────────────────
+  await testreelPage.click('text="Experto"', { zoom: 1.4 });
+  await testreelPage.wait(600);
+
+  // ── 7. Nuevo chat y misma pregunta (nivel experto) ────────────────────────
+  await testreelPage.click("role=button[name='Nuevo chat']");
+  await testreelPage.wait(800);
+  await testreelPage.click("[aria-label='Mensaje']");
+  await testreelPage.type(
+    "[aria-label='Mensaje']",
+    "¿Qué es una variable en Pascal?",
+    { delay: 55 }
+  );
+  await testreelPage.click("[aria-label='Enviar mensaje']");
+  await waitForAIResponse(page);
+  await testreelPage.wait(2_000);
+
+  // ── 8. Abrir panel "Mis documentos" ──────────────────────────────────────
   await testreelPage.click("[aria-label='Mis documentos']");
 
-  // ── 10. Abrir el primer documento disponible ──────────────────────────────
+  // ── 9. Abrir el primer documento disponible ───────────────────────────────
   await expect(page.getByText("fragmentos").first()).toBeVisible({ timeout: 10_000 });
   await testreelPage.wait(2_000);
   await testreelPage.click(page.getByText("fragmentos").first());
 
-  // ── 11. Verificar que el visor PDF abrió y cargó ──────────────────────────
+  // ── 10. Verificar visor PDF y hacer scroll ────────────────────────────────
   await expect(page.getByLabel("Cerrar visor")).toBeVisible({ timeout: 10_000 });
   await expect(page.locator(".animate-spin").first()).not.toBeVisible({ timeout: 20_000 });
   await testreelPage.wait(2_000);
-
-  // ── 11b. Scroll dentro del PDF ────────────────────────────────────────────
-  await testreelPage.hover("[aria-label='Cerrar visor']");
   await testreelPage.scroll({ y: 800, scrollSpeed: 200 });
   await testreelPage.wait(1_000);
   await testreelPage.scroll({ y: -800, scrollSpeed: 400 });
   await testreelPage.wait(1_000);
 
-  // ── 12. Preguntar sobre el ejercicio 2 del documento ──────────────────────
+  // ── 11. Preguntar sobre el ejercicio 2 del documento ──────────────────────
   await testreelPage.click("[aria-label='Mensaje']");
   await testreelPage.type(
     "[aria-label='Mensaje']",
@@ -113,8 +116,6 @@ test("LearnSoft — Demo Video", async ({ page, testreelPage }) => {
     { delay: 55 }
   );
   await testreelPage.click("[aria-label='Enviar mensaje']");
-
-  // ── 13. Esperar respuesta con contexto del documento ──────────────────────
   await waitForAIResponse(page, 120_000);
   await testreelPage.wait(2_000);
 });
