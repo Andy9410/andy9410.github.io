@@ -102,7 +102,7 @@ test("LearnSoft — Demo Video", async ({ page, testreelPage }) => {
   // ── 10. Verificar visor PDF y hacer scroll ────────────────────────────────
   await expect(page.getByLabel("Cerrar visor")).toBeVisible({ timeout: 10_000 });
   await expect(page.locator(".animate-spin").first()).not.toBeVisible({ timeout: 20_000 });
-  await testreelPage.wait(2_000);
+  await testreelPage.wait(700);
   await testreelPage.scroll({ y: 800, scrollSpeed: 200 });
   await testreelPage.wait(1_000);
   await testreelPage.scroll({ y: -800, scrollSpeed: 400 });
