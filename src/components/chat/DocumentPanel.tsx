@@ -108,7 +108,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [token, fetchDocs, refreshTokenIfNeeded]
+    [token, fetchDocs, refreshTokenIfNeeded, onUploadSuccess]
   );
 
   const handleDrop = useCallback(
@@ -127,12 +127,13 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
         await deleteDocumentApi(id, token);
         await fetchDocs();
         onUploadSuccess?.();
-      } catch {}
-      finally {
+      } catch (error) {
+        console.error("[DocumentPanel] Error eliminando documento:", error);
+      } finally {
         setDeletingId(null);
       }
     },
-    [token, fetchDocs]
+    [token, fetchDocs, onUploadSuccess]
   );
 
   return (
@@ -264,7 +265,7 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
-                        {onDocumentOpen && (
+                        {onDocumentOpen && doc.download_available !== false && (
                           <button
                             onClick={() => { onDocumentOpen(doc.id, doc.filename); onClose(); }}
                             aria-label="Ver en visor"

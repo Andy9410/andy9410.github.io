@@ -7,6 +7,7 @@ export interface DocumentOut {
   upload_date: string;
   page_count: number | null;
   chunk_count: number;
+  download_available?: boolean;
 }
 
 export interface UploadResult {

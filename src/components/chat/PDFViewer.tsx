@@ -80,6 +80,10 @@ export function PDFViewer({
           }
         );
 
+        if (response.status === 404) {
+          throw new Error("Documento no encontrado. Puede haber sido eliminado o no tener archivo PDF disponible.");
+        }
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
