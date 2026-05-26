@@ -275,9 +275,9 @@ const DocumentPanel = ({ isOpen, onClose, token, onUploadSuccess, onDocumentOpen
                       )}
                     >
                       <FileText className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400/70" />
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 overflow-hidden">
                         <p className="truncate font-medium text-foreground">{doc.filename}</p>
-                        <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                        <p className="truncate mt-0.5 text-[10px] text-muted-foreground/60">
                           {formatDate(doc.upload_date)} · {doc.chunk_count} fragmentos
                           {doc.page_count ? ` · ${doc.page_count} págs` : ""}
                         </p>
