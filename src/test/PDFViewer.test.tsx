@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import React from "react";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { PDFViewer } from "@/components/chat/PDFViewer";
 
@@ -18,14 +19,20 @@ vi.mock("react-pdf", () => ({
   Document: ({
     children,
     file,
+    onLoadSuccess,
     onLoadError,
     error,
   }: {
     children: React.ReactNode;
     file?: { data?: Uint8Array };
+    onLoadSuccess?: (data: { numPages: number }) => void;
     onLoadError?: (error: Error) => void;
     error?: React.ReactNode;
   }) => {
+    React.useEffect(() => {
+      onLoadSuccess?.({ numPages: 1 });
+    }, [onLoadSuccess]);
+
     if (pdfMockState.failDocument) {
       onLoadError?.(new Error("Invalid PDF structure"));
       return <div data-testid="mock-document-error">{error}</div>;
@@ -55,6 +62,14 @@ vi.mock("@/components/chat/ExerciseHighlighter", () => ({
   ExerciseHighlighter: () => <div data-testid="mock-highlighter" />,
 }));
 
+vi.mock("@/lib/pdfExerciseDetection", () => ({
+  detectExercisesFromPdf: () => Promise.resolve([]),
+  mergeDetectedExercises: (primary: unknown[], secondary: unknown[]) => [
+    ...secondary,
+    ...primary,
+  ],
+}));
+
 vi.mock("lucide-react", () => ({
   ChevronLeft: () => <span data-testid="icon-chevron-left" />,
   ChevronRight: () => <span data-testid="icon-chevron-right" />,
@@ -69,8 +84,8 @@ const defaultProps = {
   token: "test-token-123",
   activeExercise: null,
   onClose: vi.fn(),
-  sidebarOpen: false,
-  onToggleSidebar: vi.fn(),
+  exercises: [],
+  onExerciseSelect: vi.fn(),
 };
 
 const pdfBuffer = (content = "%PDF-1.4 mock content") =>
@@ -88,7 +103,7 @@ describe("PDFViewer", () => {
     mockFetch.mockReset();
     pdfMockState.failDocument = false;
     defaultProps.onClose.mockReset();
-    defaultProps.onToggleSidebar.mockReset();
+    defaultProps.onExerciseSelect.mockReset();
   });
 
   afterEach(() => {
