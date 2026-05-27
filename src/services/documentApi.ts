@@ -1,3 +1,5 @@
+import type { DetectedExercise } from "@/types/pdfExercises";
+
 const BASE_URL = import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
 
 export interface DocumentOut {
@@ -59,4 +61,14 @@ export interface ExerciseOut {
 export async function listExercises(documentId: number, token: string): Promise<ExerciseOut[]> {
   const res = await docFetch(`/documents/${documentId}/exercises`, token);
   return res.json() as Promise<ExerciseOut[]>;
+}
+
+export function exerciseOutToDetected(exercise: ExerciseOut): DetectedExercise {
+  return {
+    id: exercise.number,
+    title: exercise.title || `Ejercicio ${exercise.number}`,
+    pageNumber: exercise.page,
+    text: exercise.title || `Ejercicio ${exercise.number}`,
+    boundingBox: exercise.bbox,
+  };
 }
