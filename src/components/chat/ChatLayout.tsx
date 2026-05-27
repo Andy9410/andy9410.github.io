@@ -14,7 +14,17 @@ import { useChat } from "@/hooks/useChat";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { SidebarProvider } from "@/components/ui/sidebar";
+
+type PdfLayoutMode = "side" | "bottom";
+
+const PDF_LAYOUT_STORAGE_KEY = "learnsoft.pdfLayout";
+const NARROW_LAYOUT_QUERY = "(max-width: 900px)";
 
 const ChatLayout = () => {
   const {
@@ -41,6 +51,33 @@ const ChatLayout = () => {
   const { detectExercise, isClosing } = useExerciseDetection();
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
+  const [preferredPdfLayout, setPreferredPdfLayout] = useState<PdfLayoutMode>(() => {
+    const saved = window.localStorage.getItem(PDF_LAYOUT_STORAGE_KEY);
+    return saved === "bottom" ? "bottom" : "side";
+  });
+  const [isNarrowLayout, setIsNarrowLayout] = useState(() =>
+    window.matchMedia(NARROW_LAYOUT_QUERY).matches
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia(NARROW_LAYOUT_QUERY);
+    const updateLayout = () => setIsNarrowLayout(media.matches);
+
+    updateLayout();
+    media.addEventListener("change", updateLayout);
+
+    return () => media.removeEventListener("change", updateLayout);
+  }, []);
+
+  const effectivePdfLayout: PdfLayoutMode = isNarrowLayout ? "bottom" : preferredPdfLayout;
+
+  const togglePdfLayout = useCallback(() => {
+    setPreferredPdfLayout((current) => {
+      const next = current === "side" ? "bottom" : "side";
+      window.localStorage.setItem(PDF_LAYOUT_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
 
   const handleSend = useCallback(
     (content: string, files: File[]) => {
@@ -121,6 +158,79 @@ const ChatLayout = () => {
   const messages = activeConversation?.messages ?? [];
 
   const contextBadge = null;
+  const pdfVisible = pdfViewer.viewerOpen && pdfViewer.activeDocId && accessToken;
+
+  const chatPanel = (
+    <div className="flex h-full min-h-0 flex-col">
+      <ErrorBoundary>
+        <MessageList
+          messages={messages}
+          isTyping={status === "loading"}
+          onSuggestion={sendMessage}
+          onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
+          isLoadingHistory={isLoadingHistory}
+        />
+      </ErrorBoundary>
+
+      <ChatInput
+        onSend={handleSend}
+        disabled={status === "loading" || isOffline || isLoadingHistory || rateLimitSecondsLeft > 0}
+        placeholder={
+          rateLimitSecondsLeft > 0
+            ? `Esperá ${rateLimitSecondsLeft}s para seguir enviando…`
+            : isLoadingHistory
+            ? "Cargando historial…"
+            : undefined
+        }
+        contextBadge={contextBadge}
+      />
+    </div>
+  );
+
+  const pdfPanel = pdfVisible ? (
+    <ErrorBoundary
+      key={`${viewerRetryKey}-${pdfViewer.activeDocId}`}
+      fallback={
+        <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-3 bg-muted/10 px-4 text-center">
+          <div className="text-xs text-destructive/80">Error al cargar el visor PDF</div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewerRetryKey(k => k + 1)}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Reintentar
+            </button>
+            <button
+              onClick={() => pdfViewer.closeViewer()}
+              className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cerrar visor
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <Suspense
+        fallback={
+          <div className="flex h-full min-h-[220px] flex-1 items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        }
+      >
+        <PDFViewer
+          documentId={pdfViewer.activeDocId!}
+          token={accessToken!}
+          activeExercise={pdfViewer.activeExercise}
+          onClose={pdfViewer.closeViewer}
+          exercises={pdfViewer.exercises}
+          loadingExercises={pdfViewer.loadingExercises}
+          onExerciseSelect={pdfViewer.selectExercise}
+          onExercisesDetected={pdfViewer.syncDetectedExercises}
+          docName={pdfViewer.activeDocName ?? undefined}
+        />
+      </Suspense>
+    </ErrorBoundary>
+  ) : null;
 
   return (
     <SidebarProvider>
@@ -153,63 +263,46 @@ const ChatLayout = () => {
         <ChatHeader
           conversation={activeConversation}
           onOpenDocuments={() => setDocPanelOpen(true)}
+          pdfLayout={pdfVisible ? effectivePdfLayout : undefined}
+          onTogglePdfLayout={pdfVisible ? togglePdfLayout : undefined}
+          pdfLayoutLocked={isNarrowLayout}
         />
 
-        <ErrorBoundary>
-          <MessageList
-            messages={messages}
-            isTyping={status === "loading"}
-            onSuggestion={sendMessage}
-            onRegenerate={status === "loading" || isOffline ? undefined : regenerateLastMessage}
-            isLoadingHistory={isLoadingHistory}
-          />
-        </ErrorBoundary>
-
-        {pdfViewer.viewerOpen && pdfViewer.activeDocId && accessToken && (
-          <ErrorBoundary
-            key={`${viewerRetryKey}-${pdfViewer.activeDocId}`}
-            fallback={
-              <div className="flex h-[350px] shrink-0 flex-col items-center justify-center gap-3 border-t bg-muted/10 px-4 text-center">
-                <div className="text-xs text-destructive/80">Error al cargar el visor PDF</div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setViewerRetryKey(k => k + 1)}
-                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    Reintentar
-                  </button>
-                  <button
-                    onClick={() => pdfViewer.closeViewer()}
-                    className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Cerrar visor
-                  </button>
-                </div>
-              </div>
-            }
-          >
-          <div className="flex h-[350px] shrink-0 border-t">
-            <Suspense
-              fallback={
-                <div className="flex flex-1 items-center justify-center">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                </div>
-              }
+        <div className="min-h-0 flex-1">
+          {pdfPanel ? (
+            <ResizablePanelGroup
+              key={effectivePdfLayout}
+              direction={effectivePdfLayout === "side" ? "horizontal" : "vertical"}
+              autoSaveId={`learnsoft-chat-pdf-${effectivePdfLayout}`}
+              className="h-full"
             >
-              <PDFViewer
-                documentId={pdfViewer.activeDocId}
-                token={accessToken}
-                activeExercise={pdfViewer.activeExercise}
-                onClose={pdfViewer.closeViewer}
-                exercises={pdfViewer.exercises}
-                loadingExercises={pdfViewer.loadingExercises}
-                onExerciseSelect={pdfViewer.selectExercise}
-                onExercisesDetected={pdfViewer.syncDetectedExercises}
-                docName={pdfViewer.activeDocName ?? undefined}
-              />
-            </Suspense>
+              <ResizablePanel
+                defaultSize={effectivePdfLayout === "side" ? 56 : 58}
+                minSize={effectivePdfLayout === "side" ? 34 : 28}
+                className="min-h-0 min-w-0"
+              >
+                {chatPanel}
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel
+                defaultSize={effectivePdfLayout === "side" ? 44 : 42}
+                minSize={effectivePdfLayout === "side" ? 28 : 24}
+                className={`min-h-0 min-w-0 border-border ${
+                  effectivePdfLayout === "side" ? "border-l" : "border-t"
+                }`}
+              >
+                {pdfPanel}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          ) : (
+            chatPanel
+          )}
+        </div>
+
+        {pdfVisible && (
+          <div className="sr-only" aria-live="polite">
+            Vista de PDF en modo {effectivePdfLayout === "side" ? "lateral" : "inferior"}
           </div>
-          </ErrorBoundary>
         )}
 
         {accessToken && (
@@ -217,7 +310,6 @@ const ChatLayout = () => {
             isOpen={docPanelOpen}
             onClose={() => setDocPanelOpen(false)}
             token={accessToken}
-            onUploadSuccess={(docId) => setActiveDocument(docId)}
             onDocumentOpen={(id, name) => {
               pdfViewer.openDocument(id, name);
               setActiveDocument(id);
@@ -225,19 +317,6 @@ const ChatLayout = () => {
             }}
           />
         )}
-
-        <ChatInput
-          onSend={handleSend}
-          disabled={status === "loading" || isOffline || isLoadingHistory || rateLimitSecondsLeft > 0}
-          placeholder={
-            rateLimitSecondsLeft > 0
-              ? `Esperá ${rateLimitSecondsLeft}s para seguir enviando…`
-              : isLoadingHistory
-              ? "Cargando historial…"
-              : undefined
-          }
-          contextBadge={contextBadge}
-        />
       </main>
     </SidebarProvider>
   );
