@@ -24,7 +24,15 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
       </div>
 
       {/* ─── Right: panel formulario ────────────────────────── */}
-      <div className="relative flex w-full flex-col items-center justify-center px-4 py-6 lg:w-1/3 lg:bg-white lg:px-6 lg:py-12">
+      <div className="relative flex w-full flex-col items-center justify-center overflow-hidden bg-slate-50 px-4 py-6 lg:w-1/3 lg:px-6 lg:py-12">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 hidden lg:block"
+          style={{
+            background:
+              'radial-gradient(circle at 20% 20%, rgba(45,212,191,0.12), transparent 32%), radial-gradient(circle at 80% 10%, rgba(37,99,235,0.1), transparent 30%), linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+          }}
+        />
 
         {/* Imagen de fondo solo en mobile */}
         <img

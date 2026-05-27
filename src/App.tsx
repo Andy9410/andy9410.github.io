@@ -20,8 +20,14 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
+const AppFallback = () => (
+  <div className="flex min-h-screen items-center justify-center bg-slate-50">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-teal-500" />
+  </div>
+);
+
 const App = () => (
-  <Sentry.ErrorBoundary fallback={null} showDialog={false}>
+  <Sentry.ErrorBoundary fallback={<AppFallback />} showDialog={false}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
@@ -29,7 +35,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <ScrollToTop />
-            <Suspense fallback={null}>
+            <Suspense fallback={<AppFallback />}>
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
