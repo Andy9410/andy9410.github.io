@@ -375,7 +375,7 @@ export function PDFViewer({
         />
 
         <div ref={scrollRef} onScroll={handleScroll} className="absolute inset-0 overflow-auto">
-        <div className="flex justify-center p-3 pr-64 max-lg:pr-3">
+        <div className="flex min-w-max justify-start p-3">
           {loadError ? (
             <div className="flex h-48 w-64 items-center justify-center text-center text-xs text-destructive">
               Error al cargar el PDF: {loadError}
