@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import React from "react";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { PDFViewer } from "@/components/chat/PDFViewer";
 
@@ -8,6 +9,32 @@ const pdfMockState = vi.hoisted(() => ({
 }));
 
 vi.stubGlobal("fetch", mockFetch);
+vi.stubGlobal(
+  "ResizeObserver",
+  class ResizeObserverMock {
+    private callback: ResizeObserverCallback;
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+
+    observe(target: Element) {
+      this.callback(
+        [
+          {
+            target,
+            contentRect: { width: 960 },
+          } as ResizeObserverEntry,
+        ],
+        this as ResizeObserver
+      );
+    }
+
+    unobserve() {}
+
+    disconnect() {}
+  }
+);
 
 vi.mock("react-pdf", () => ({
   pdfjs: {
@@ -18,17 +45,32 @@ vi.mock("react-pdf", () => ({
   Document: ({
     children,
     file,
+    onLoadSuccess,
     onLoadError,
     error,
   }: {
     children: React.ReactNode;
     file?: { data?: Uint8Array };
+    onLoadSuccess?: (data: { numPages: number }) => void;
     onLoadError?: (error: Error) => void;
     error?: React.ReactNode;
   }) => {
+    React.useEffect(() => {
+      if (pdfMockState.failDocument) {
+        onLoadError?.(new Error("Invalid PDF structure"));
+        return;
+      }
+
+      onLoadSuccess?.({ numPages: 1 });
+    }, [onLoadError, onLoadSuccess]);
+
     if (pdfMockState.failDocument) {
-      onLoadError?.(new Error("Invalid PDF structure"));
-      return <div data-testid="mock-document-error">{error}</div>;
+      return (
+        <div data-testid="mock-document-error">
+          {error}
+          Invalid PDF structure
+        </div>
+      );
     }
 
     return (
@@ -55,8 +97,12 @@ vi.mock("@/components/chat/ExerciseHighlighter", () => ({
   ExerciseHighlighter: () => <div data-testid="mock-highlighter" />,
 }));
 
-vi.mock("@/components/chat/ExerciseSidebar", () => ({
-  ExerciseSidebar: () => <div data-testid="mock-exercise-sidebar" />,
+vi.mock("@/lib/pdfExerciseDetection", () => ({
+  detectExercisesFromPdf: () => Promise.resolve([]),
+  mergeDetectedExercises: (primary: unknown[], secondary: unknown[]) => [
+    ...secondary,
+    ...primary,
+  ],
 }));
 
 vi.mock("lucide-react", () => ({
@@ -66,6 +112,8 @@ vi.mock("lucide-react", () => ({
   ZoomOut: () => <span data-testid="icon-zoom-out" />,
   X: () => <span data-testid="icon-x" />,
   BookOpen: () => <span data-testid="icon-book-open" />,
+  PanelBottom: () => <span data-testid="icon-panel-bottom" />,
+  PanelRight: () => <span data-testid="icon-panel-right" />,
 }));
 
 const defaultProps = {

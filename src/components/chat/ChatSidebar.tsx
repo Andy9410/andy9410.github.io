@@ -87,7 +87,9 @@ function UserFooter() {
     setLoggingOut(true);
     try {
       await logout();
-    } catch {}
+    } catch {
+      // Continue navigation even if the logout request has already expired.
+    }
     navigate("/login", { replace: true });
   };
 
@@ -193,8 +195,12 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete, isLoa
               <PanelLeft className="h-4 w-4" />
             </button>
           </div>
-
-          <span className="ml-2 text-sm font-bold text-primary group-data-[collapsible=icon]:hidden">LearnSoft</span>
+          <Link
+              to="/"
+              className="ml-2 text-sm font-bold text-primary transition-opacity hover:opacity-80 group-data-[collapsible=icon]:hidden"
+          >
+            LearnSoft
+          </Link>
           <SidebarTrigger className="ml-auto text-muted-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:hidden" />
         </SidebarHeader>
 

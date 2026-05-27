@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Document, Page } from "react-pdf";
 import {
   ChevronLeft,
@@ -7,31 +7,66 @@ import {
   ZoomOut,
   X,
   BookOpen,
+  PanelBottom,
+  PanelRight,
 } from "lucide-react";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group";
+
 import { configurePdfWorker } from "@/lib/pdfWorker";
+import {
+  mergeDetectedExercises,
+  detectExercisesFromPdf,
+} from "@/lib/pdfExerciseDetection";
+
 import { cn } from "@/lib/utils";
+
 import { ExerciseHighlighter } from "./ExerciseHighlighter";
 import { ExerciseSidebar } from "./ExerciseSidebar";
+
 import type { ActiveExercise } from "@/types/chat";
-import type { ExerciseOut } from "@/services/documentApi";
+import type { DetectedExercise } from "@/types/pdfExercises";
 
 configurePdfWorker();
 
 const DOCUMENT_BASE =
     import.meta.env.VITE_DOCUMENT_API_URL ?? "http://localhost:8083";
 
+type PdfLayoutMode = "horizontal" | "vertical";
+
 interface Props {
   documentId: number;
   token: string;
   activeExercise: ActiveExercise | null;
   onClose: () => void;
-  exercises: ExerciseOut[];
+
+  exercises: DetectedExercise[];
+  loadingExercises?: boolean;
+
   onExerciseSelect: (exercise: ActiveExercise) => void;
+  onExercisesDetected?: (exercises: DetectedExercise[]) => void;
+
   docName?: string;
+
+  pdfLayoutMode?: PdfLayoutMode;
+  onPdfLayoutModeChange?: (mode: PdfLayoutMode) => void;
+}
+
+function toActiveExercise(
+    exercise: DetectedExercise,
+): ActiveExercise {
+  return {
+    number: exercise.id,
+    page: exercise.pageNumber,
+    bbox: exercise.boundingBox,
+    title: exercise.title,
+  };
 }
 
 export function PDFViewer({
@@ -39,27 +74,100 @@ export function PDFViewer({
                             token,
                             activeExercise,
                             onClose,
+
                             exercises,
+                            loadingExercises = false,
+
                             onExerciseSelect,
+                            onExercisesDetected,
+
                             docName,
+
+                            pdfLayoutMode = "vertical",
+                            onPdfLayoutModeChange,
                           }: Props) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(1.0);
-  const [pageHeight, setPageHeight] = useState(0);
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [renderError, setRenderError] = useState<string | null>(null);
 
-  // ======================================================
-  // Reset cuando cambia documento
-  // ======================================================
+  const [scale, setScale] = useState(1.0);
+
+  const [pageHeights, setPageHeights] = useState<
+      Record<number, number>
+  >({});
+
+  const [pageWidths, setPageWidths] = useState<
+      Record<number, number>
+  >({});
+
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  const [pdfData, setPdfData] =
+      useState<Uint8Array | null>(null);
+
+  const [loadError, setLoadError] = useState<string | null>(
+      null,
+  );
+
+  const [renderError, setRenderError] =
+      useState<string | null>(null);
+
+  const [detectedExercises, setDetectedExercises] =
+      useState<DetectedExercise[]>([]);
+
+  const [detectingExercises, setDetectingExercises] =
+      useState(false);
+
+  const [sidebarCollapsed, setSidebarCollapsed] =
+      useState(false);
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const pageRefs = useRef<
+      Record<number, HTMLDivElement | null>
+  >({});
+
+  const suppressScrollSyncRef = useRef(false);
+
+  const autoCollapsedSidebarRef = useRef(false);
+
+  const allExercises = useMemo(
+      () =>
+          mergeDetectedExercises(
+              detectedExercises,
+              exercises,
+          ),
+      [detectedExercises, exercises],
+  );
 
   useEffect(() => {
     setCurrentPage(1);
     setNumPages(0);
-    setPageHeight(0);
+
+    setPageHeights({});
+    setPageWidths({});
+
+    setDetectedExercises([]);
+
+    setSidebarCollapsed(false);
+
+    autoCollapsedSidebarRef.current = false;
   }, [documentId]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+
+    if (!container) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width);
+    });
+
+    observer.observe(container);
+
+    setContainerWidth(container.clientWidth);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -75,17 +183,19 @@ export function PDFViewer({
         }
 
         const response = await fetch(
-          `${DOCUMENT_BASE}/documents/${documentId}/download`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
+            `${DOCUMENT_BASE}/documents/${documentId}/download`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              signal: controller.signal,
             },
-            signal: controller.signal,
-          }
         );
 
         if (response.status === 404) {
-          throw new Error("Documento no encontrado. Puede haber sido eliminado o no tener archivo PDF disponible.");
+          throw new Error(
+              "Documento no encontrado.",
+          );
         }
 
         if (!response.ok) {
@@ -93,79 +203,219 @@ export function PDFViewer({
         }
 
         const buffer = await response.arrayBuffer();
+
         if (buffer.byteLength === 0) {
-          throw new Error("El documento está vacío.");
+          throw new Error("Documento vacío.");
         }
 
         const bytes = new Uint8Array(buffer);
-        const header = new TextDecoder("ascii").decode(bytes.slice(0, 5));
+
+        const header = new TextDecoder("ascii").decode(
+            bytes.slice(0, 5),
+        );
+
         if (header !== "%PDF-") {
-          throw new Error(`Respuesta inválida (${header || "sin cabecera PDF"})`);
+          throw new Error(
+              `Respuesta inválida (${header})`,
+          );
         }
 
         setPdfData(bytes);
       } catch (error) {
         if (controller.signal.aborted) return;
-        const message =
-          error instanceof Error
-            ? error.message
-            : "No se pudo cargar el documento.";
-        setLoadError(message);
+
+        setLoadError(
+            error instanceof Error
+                ? error.message
+                : "No se pudo cargar el PDF",
+        );
       }
     };
 
     loadPdf();
 
-    return () => {
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [documentId, token]);
 
-  // ======================================================
-  // Navegar automáticamente al ejercicio
-  // ======================================================
-
   useEffect(() => {
-    if (
-        activeExercise?.page &&
-        activeExercise.page !== currentPage
-    ) {
-      setCurrentPage(activeExercise.page);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeExercise?.page]);
+    if (!pdfData) return;
 
-  // ======================================================
-  // Callbacks PDF
-  // ======================================================
+    let cancelled = false;
+
+    setDetectingExercises(true);
+
+    detectExercisesFromPdf(pdfData)
+        .then((items) => {
+          if (cancelled) return;
+
+          setDetectedExercises(items);
+
+          onExercisesDetected?.(items);
+        })
+        .catch((error) => {
+          console.warn(error);
+
+          if (!cancelled) {
+            setDetectedExercises([]);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setDetectingExercises(false);
+          }
+        });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfData, onExercisesDetected]);
 
   const handleDocumentLoad = useCallback(
       ({ numPages }: { numPages: number }) => {
         setNumPages(numPages);
+        setRenderError(null);
       },
-      []
+      [],
   );
+
+  const handleDocumentError = useCallback((error: Error) => {
+    console.error("[PDFViewer] Error cargando PDF:", error);
+    setRenderError(error.message);
+  }, []);
 
   const handlePageLoad = useCallback(
-      (page: {
-        getViewport: (opts: {
-          scale: number;
-        }) => { height: number };
-      }) => {
-        setPageHeight(
-            page.getViewport({ scale: 1 }).height
-        );
+      (
+          pageNumber: number,
+          page: {
+            getViewport: (opts: {
+              scale: number;
+            }) => {
+              height: number;
+              width: number;
+            };
+          },
+      ) => {
+        const viewport = page.getViewport({
+          scale: 1,
+        });
+
+        setPageHeights((current) => ({
+          ...current,
+          [pageNumber]: viewport.height,
+        }));
+
+        setPageWidths((current) => ({
+          ...current,
+          [pageNumber]: viewport.width,
+        }));
       },
-      []
+      [],
   );
 
-  const showBannerHighlight =
-      activeExercise && !activeExercise.bbox;
+  const basePageWidth =
+      pageWidths[currentPage] ??
+      Object.values(pageWidths)[0] ??
+      0;
 
-  const showBboxHighlight =
-      activeExercise?.bbox &&
-      pageHeight > 0 &&
-      activeExercise.page === currentPage;
+  const reservedSidebarWidth = sidebarCollapsed
+      ? 0
+      : 252;
+
+  const availablePageWidth = Math.max(
+      220,
+      containerWidth - reservedSidebarWidth - 32,
+  );
+
+  const fitScale =
+      basePageWidth > 0
+          ? Math.min(
+              1,
+              Math.max(
+                  0.35,
+                  availablePageWidth / basePageWidth,
+              ),
+          )
+          : 1;
+
+  const renderedScale = parseFloat(
+      (scale * fitScale).toFixed(3),
+  );
+
+  useEffect(() => {
+    if (
+        autoCollapsedSidebarRef.current ||
+        containerWidth === 0
+    ) {
+      return;
+    }
+
+    if (containerWidth < 760) {
+      setSidebarCollapsed(true);
+      autoCollapsedSidebarRef.current = true;
+    }
+  }, [containerWidth]);
+
+  const scrollToPage = useCallback(
+      (pageNumber: number, topOffset = 0) => {
+        const container = scrollRef.current;
+
+        const page = pageRefs.current[pageNumber];
+
+        if (!container || !page) return;
+
+        suppressScrollSyncRef.current = true;
+
+        container.scrollTo({
+          top: Math.max(
+              0,
+              page.offsetTop + topOffset,
+          ),
+          behavior: "smooth",
+        });
+
+        window.setTimeout(() => {
+          suppressScrollSyncRef.current = false;
+        }, 800);
+      },
+      [],
+  );
+
+  const scrollToExercise = useCallback(
+      (exercise: ActiveExercise) => {
+        const height =
+            pageHeights[exercise.page] ?? 0;
+
+        const bboxOffset =
+            exercise.bbox && height > 0
+                ? (height - exercise.bbox.y1) *
+                renderedScale -
+                56
+                : 0;
+
+        setCurrentPage(exercise.page);
+
+        scrollToPage(
+            exercise.page,
+            bboxOffset,
+        );
+      },
+      [
+        pageHeights,
+        renderedScale,
+        scrollToPage,
+      ],
+  );
+
+  useEffect(() => {
+    if (
+        !activeExercise?.number ||
+        !activeExercise?.page
+    ) {
+      return;
+    }
+
+    scrollToExercise(activeExercise);
+  }, [activeExercise, scrollToExercise]);
 
   const pdfFile = useMemo(() => {
     if (!pdfData) return null;
@@ -175,53 +425,56 @@ export function PDFViewer({
     };
   }, [pdfData]);
 
-  // ======================================================
+  const exerciseLoading =
+      loadingExercises ||
+      detectingExercises;
+
+  const isPdfRight =
+      pdfLayoutMode === "horizontal";
 
   return (
-      <div className="flex min-w-0 flex-1 overflow-hidden">
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* ====================================================== */}
-        {/* Toolbar */}
-        {/* ====================================================== */}
-
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <div className="relative flex shrink-0 items-center gap-2 border-b bg-muted/30 px-3 py-1.5">
-          {/* Navegación */}
-
           <div className="flex items-center gap-0.5">
             <button
                 type="button"
                 onClick={() =>
-                    setCurrentPage((p) =>
-                        Math.max(1, p - 1)
+                    scrollToPage(
+                        Math.max(
+                            1,
+                            currentPage - 1,
+                        ),
                     )
                 }
                 disabled={currentPage <= 1}
-                aria-label="Página anterior"
                 className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-40"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
 
             <span className="min-w-[60px] text-center text-xs text-muted-foreground">
-            {currentPage} / {numPages || "?"}
+            {currentPage} /{" "}
+              {numPages || "?"}
           </span>
 
             <button
                 type="button"
                 onClick={() =>
-                    setCurrentPage((p) =>
-                        Math.min(numPages, p + 1)
+                    scrollToPage(
+                        Math.min(
+                            numPages || 1,
+                            currentPage + 1,
+                        ),
                     )
                 }
-                disabled={currentPage >= numPages}
-                aria-label="Página siguiente"
+                disabled={
+                    currentPage >= numPages
+                }
                 className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-40"
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
-
-          {/* Zoom */}
 
           <div className="flex items-center gap-0.5">
             <button
@@ -230,11 +483,14 @@ export function PDFViewer({
                     setScale((s) =>
                         Math.max(
                             0.5,
-                            parseFloat((s - 0.25).toFixed(2))
-                        )
+                            parseFloat(
+                                (
+                                    s - 0.25
+                                ).toFixed(2),
+                            ),
+                        ),
                     )
                 }
-                aria-label="Reducir zoom"
                 className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
             >
               <ZoomOut className="h-3.5 w-3.5" />
@@ -250,64 +506,135 @@ export function PDFViewer({
                     setScale((s) =>
                         Math.min(
                             3,
-                            parseFloat((s + 0.25).toFixed(2))
-                        )
+                            parseFloat(
+                                (
+                                    s + 0.25
+                                ).toFixed(2),
+                            ),
+                        ),
                     )
                 }
-                aria-label="Aumentar zoom"
                 className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </button>
           </div>
 
+          <button
+              type="button"
+              onClick={() =>
+                  setSidebarCollapsed(
+                      (value) => !value,
+                  )
+              }
+              className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted",
+                  !sidebarCollapsed &&
+                  "bg-muted text-foreground",
+              )}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+          </button>
+
           {docName && (
-            <p className="pointer-events-none absolute inset-x-0 text-center text-xs font-medium text-muted-foreground truncate px-28">
-              {docName}
-            </p>
+              <p className="pointer-events-none absolute inset-x-0 truncate px-56 text-center text-xs font-medium text-muted-foreground">
+                {docName}
+              </p>
           )}
 
           <div className="flex-1" />
 
-          {/* Close */}
+          <div className="flex items-center">
+            <ToggleGroup
+                type="single"
+                value={
+                  isPdfRight
+                      ? "horizontal"
+                      : "vertical"
+                }
+                onValueChange={(value) => {
+                  if (!value) return;
+
+                  onPdfLayoutModeChange?.(
+                      value === "horizontal"
+                          ? "horizontal"
+                          : "vertical",
+                  );
+                }}
+                className="rounded-lg border bg-background shadow-sm"
+            >
+              <ToggleGroupItem
+                  value="vertical"
+                  className="flex items-center gap-1.5 px-3"
+                  aria-label="PDF abajo"
+              >
+                <PanelBottom className="h-3.5 w-3.5" />
+              </ToggleGroupItem>
+
+              <ToggleGroupItem
+                  value="horizontal"
+                  className="flex items-center gap-1.5 px-3"
+                  aria-label="PDF lateral"
+              >
+                <PanelRight className="h-3.5 w-3.5" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
 
           <button
               type="button"
-              onClick={onClose}
               aria-label="Cerrar visor"
+              onClick={onClose}
               className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        {/* ====================================================== */}
-        {/* Banner */}
-        {/* ====================================================== */}
+        <div className="relative flex-1 overflow-hidden bg-muted/20">
+          <ExerciseSidebar
+              exercises={allExercises}
+              loading={exerciseLoading}
+              collapsed={sidebarCollapsed}
+              activeExercise={
+                activeExercise
+              }
+              onExerciseSelect={
+                onExerciseSelect
+              }
+              onToggle={() =>
+                  setSidebarCollapsed(
+                      (value) => !value,
+                  )
+              }
+          />
 
-        {showBannerHighlight && (
-            <div className="sticky top-0 z-10 shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
-              Ejercicio {activeExercise.number} — Página{" "}
-              {activeExercise.page}
-            </div>
-        )}
+          <div
+              ref={scrollRef}
+              className="absolute inset-0 overflow-auto bg-muted/30"
+          >
+            <div className="flex min-h-full flex-col items-center px-6 py-6">
+              {activeExercise &&
+                  !activeExercise.bbox && (
+                      <div className="mb-4 rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-xs text-primary">
+                        Ejercicio{" "}
+                        {
+                          activeExercise.number
+                        }{" "}
+                        activo · Página{" "}
+                        {
+                          activeExercise.page
+                        }
+                      </div>
+                  )}
 
-        {/* ====================================================== */}
-        {/* PDF */}
-        {/* ====================================================== */}
-
-        <div className="flex-1 overflow-auto bg-muted/20">
-          <div className="flex justify-center p-2">
-            <div
-                style={{
-                  position: "relative",
-                  display: "inline-block",
-                  lineHeight: 0,
-                }}
-            >
-              {loadError ? (
+              {loadError || renderError ? (
                   <div className="flex h-48 w-64 items-center justify-center text-center text-xs text-destructive">
-                    Error al cargar el PDF: {loadError}
+                    {loadError
+                        ? "Error al cargar el PDF:"
+                        : "Error al renderizar el PDF:"}
+                    {" "}
+                    {loadError || renderError}
                   </div>
               ) : !pdfFile ? (
                   <div className="flex h-48 w-48 items-center justify-center">
@@ -316,62 +643,98 @@ export function PDFViewer({
               ) : (
                   <Document
                       file={pdfFile}
-                      onLoadSuccess={handleDocumentLoad}
-                      onLoadError={(error) => {
-                        const message =
-                            error instanceof Error
-                                ? error.message
-                                : "No se pudo interpretar el PDF.";
-                        setRenderError(message);
-                        console.error(
-                            "[PDFViewer] Error cargando PDF:",
-                            error
-                        );
-
-                        console.error(
-                            "[PDFViewer] Details:",
-                            {
-                              documentId,
-                              currentPage,
-                              scale,
-                              pdfUrl: `${DOCUMENT_BASE}/documents/${documentId}/download`,
-                            }
-                        );
-                      }}
-                      loading={
-                        <div className="flex h-48 w-48 items-center justify-center">
-                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                        </div>
+                      onLoadSuccess={
+                        handleDocumentLoad
+                      }
+                      onLoadError={
+                        handleDocumentError
                       }
                       error={
-                        <div className="flex h-48 w-72 items-center justify-center text-center text-xs text-destructive">
-                          Error al renderizar el PDF{renderError ? `: ${renderError}` : "."}
+                        <div className="flex h-48 w-64 items-center justify-center text-center text-xs text-destructive">
+                          Error al renderizar el PDF:
+                          {" "}
+                          {renderError ||
+                              "No se pudo renderizar el PDF"}
                         </div>
                       }
                   >
-                    <Page
-                        pageNumber={currentPage}
-                        scale={scale}
-                        onLoadSuccess={handlePageLoad}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                    />
+                    <div className="mx-auto flex w-fit flex-col items-center gap-6">
+                      {Array.from(
+                          {
+                            length: numPages,
+                          },
+                          (_, index) => {
+                            const pageNumber =
+                                index + 1;
+
+                            const pageHeight =
+                                pageHeights[
+                                    pageNumber
+                                    ] ?? 0;
+
+                            const isActivePage =
+                                activeExercise?.page ===
+                                pageNumber;
+
+                            return (
+                                <div
+                                    key={pageNumber}
+                                    ref={(node) => {
+                                      pageRefs.current[
+                                          pageNumber
+                                          ] = node;
+                                    }}
+                                    className="relative overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-border/60"
+                                >
+                                  <Page
+                                      pageNumber={
+                                        pageNumber
+                                      }
+                                      scale={
+                                        renderedScale
+                                      }
+                                      onLoadSuccess={(
+                                          page,
+                                      ) =>
+                                          handlePageLoad(
+                                              pageNumber,
+                                              page,
+                                          )
+                                      }
+                                      renderTextLayer={
+                                        false
+                                      }
+                                      renderAnnotationLayer={
+                                        false
+                                      }
+                                  />
+
+                                  {isActivePage &&
+                                      activeExercise?.bbox &&
+                                      pageHeight >
+                                      0 && (
+                                          <ExerciseHighlighter
+                                              bbox={
+                                                activeExercise.bbox
+                                              }
+                                              scale={
+                                                renderedScale
+                                              }
+                                              pageHeight={
+                                                pageHeight
+                                              }
+                                          />
+                                      )}
+                                </div>
+                            );
+                          },
+                      )}
+                    </div>
                   </Document>
-              )}
-
-              {/* Highlight */}
-
-              {showBboxHighlight && (
-                  <ExerciseHighlighter
-                      bbox={activeExercise.bbox!}
-                      scale={scale}
-                      pageHeight={pageHeight}
-                  />
               )}
             </div>
           </div>
         </div>
-      </div>
       </div>
   );
 }
