@@ -61,6 +61,8 @@ export function PDFViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [pageHeights, setPageHeights] = useState<Record<number, number>>({});
+  const [pageWidths, setPageWidths] = useState<Record<number, number>>({});
+  const [containerWidth, setContainerWidth] = useState(0);
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -71,6 +73,7 @@ export function PDFViewer({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const suppressScrollSyncRef = useRef(false);
+  const autoCollapsedSidebarRef = useRef(false);
 
   const allExercises = useMemo(
     () => mergeDetectedExercises(detectedExercises, exercises),
@@ -81,9 +84,25 @@ export function PDFViewer({
     setCurrentPage(1);
     setNumPages(0);
     setPageHeights({});
+    setPageWidths({});
     setDetectedExercises([]);
     setSidebarCollapsed(false);
+    autoCollapsedSidebarRef.current = false;
   }, [documentId]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width);
+    });
+
+    observer.observe(container);
+    setContainerWidth(container.clientWidth);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -163,15 +182,37 @@ export function PDFViewer({
   const handlePageLoad = useCallback(
     (
       pageNumber: number,
-      page: { getViewport: (opts: { scale: number }) => { height: number } },
+      page: { getViewport: (opts: { scale: number }) => { height: number; width: number } },
     ) => {
+      const viewport = page.getViewport({ scale: 1 });
       setPageHeights((current) => ({
         ...current,
-        [pageNumber]: page.getViewport({ scale: 1 }).height,
+        [pageNumber]: viewport.height,
+      }));
+      setPageWidths((current) => ({
+        ...current,
+        [pageNumber]: viewport.width,
       }));
     },
     [],
   );
+
+  const basePageWidth = pageWidths[currentPage] ?? Object.values(pageWidths)[0] ?? 0;
+  const reservedSidebarWidth = sidebarCollapsed ? 0 : 252;
+  const availablePageWidth = Math.max(220, containerWidth - reservedSidebarWidth - 32);
+  const fitScale =
+    basePageWidth > 0
+      ? Math.min(1, Math.max(0.35, availablePageWidth / basePageWidth))
+      : 1;
+  const renderedScale = parseFloat((scale * fitScale).toFixed(3));
+
+  useEffect(() => {
+    if (autoCollapsedSidebarRef.current || containerWidth === 0) return;
+    if (containerWidth < 760) {
+      setSidebarCollapsed(true);
+      autoCollapsedSidebarRef.current = true;
+    }
+  }, [containerWidth]);
 
   const scrollToPage = useCallback((pageNumber: number, topOffset = 0) => {
     const container = scrollRef.current;
@@ -193,13 +234,13 @@ export function PDFViewer({
       const height = pageHeights[exercise.page] ?? 0;
       const bboxOffset =
         exercise.bbox && height > 0
-          ? (height - exercise.bbox.y1) * scale - 56
+          ? (height - exercise.bbox.y1) * renderedScale - 56
           : 0;
 
       setCurrentPage(exercise.page);
       scrollToPage(exercise.page, bboxOffset);
     },
-    [pageHeights, scale, scrollToPage],
+    [pageHeights, renderedScale, scrollToPage],
   );
 
   const activeExerciseNumber = activeExercise?.number;
@@ -247,7 +288,7 @@ export function PDFViewer({
       const exerciseTop =
         pageElement.offsetTop +
         (exercise.boundingBox && pageHeight > 0
-          ? (pageHeight - exercise.boundingBox.y1) * scale
+          ? (pageHeight - exercise.boundingBox.y1) * renderedScale
           : 0);
 
       if (exerciseTop <= probeY) return exercise;
@@ -264,7 +305,7 @@ export function PDFViewer({
     numPages,
     onExerciseSelect,
     pageHeights,
-    scale,
+    renderedScale,
   ]);
 
   const pdfFile = useMemo(() => {
@@ -276,7 +317,7 @@ export function PDFViewer({
   const exerciseLoading = loadingExercises || detectingExercises;
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
       <div className="relative flex shrink-0 items-center gap-2 border-b bg-muted/30 px-3 py-1.5">
         <div className="flex items-center gap-0.5">
           <button
@@ -375,7 +416,7 @@ export function PDFViewer({
         />
 
         <div ref={scrollRef} onScroll={handleScroll} className="absolute inset-0 overflow-auto">
-        <div className="flex min-w-max justify-start p-3">
+        <div className="flex justify-start p-3">
           {loadError ? (
             <div className="flex h-48 w-64 items-center justify-center text-center text-xs text-destructive">
               Error al cargar el PDF: {loadError}
@@ -419,11 +460,11 @@ export function PDFViewer({
                       ref={(node) => {
                         pageRefs.current[pageNumber] = node;
                       }}
-                      className="relative overflow-hidden rounded-sm bg-background shadow-sm"
+                      className="relative overflow-hidden rounded-sm bg-white shadow-md ring-1 ring-border/80"
                     >
                       <Page
                         pageNumber={pageNumber}
-                        scale={scale}
+                        scale={renderedScale}
                         onLoadSuccess={(page) => handlePageLoad(pageNumber, page)}
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
@@ -432,7 +473,7 @@ export function PDFViewer({
                       {isActivePage && activeExercise?.bbox && pageHeight > 0 && (
                         <ExerciseHighlighter
                           bbox={activeExercise.bbox}
-                          scale={scale}
+                          scale={renderedScale}
                           pageHeight={pageHeight}
                         />
                       )}
