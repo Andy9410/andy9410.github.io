@@ -4,7 +4,6 @@ import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
-import { ExerciseSidebar } from "./ExerciseSidebar";
 import DocumentPanel from "./DocumentPanel";
 
 const PDFViewer = lazy(() =>
@@ -15,8 +14,6 @@ import { useChat } from "@/hooks/useChat";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
-import { listExercises } from "@/services/documentApi";
-import type { ExerciseOut } from "@/services/documentApi";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const ChatLayout = () => {
@@ -40,22 +37,10 @@ const ChatLayout = () => {
   } = useChat();
 
   const { accessToken } = useAuth();
-  const pdfViewer = usePDFViewer();
+  const pdfViewer = usePDFViewer(accessToken);
   const { detectExercise, isClosing } = useExerciseDetection();
-  const [exercises, setExercises] = useState<ExerciseOut[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
-
-  useEffect(() => {
-    if (!pdfViewer.activeDocId || !accessToken) {
-      setExercises([]);
-      return;
-    }
-    listExercises(pdfViewer.activeDocId, accessToken)
-      .then(setExercises)
-      .catch(() => setExercises([]));
-  }, [pdfViewer.activeDocId, accessToken]);
 
   const handleSend = useCallback(
     (content: string, files: File[]) => {
@@ -63,11 +48,12 @@ const ChatLayout = () => {
       if (pdfViewer.activeDocId) {
         const detected = detectExercise(content);
         if (detected) {
-          const ex = exercises.find((e) => e.number === detected);
+          const ex = pdfViewer.exercises.find((e) => e.id === detected);
           pdfViewer.selectExercise({
             number: detected,
-            page: ex?.page ?? 1,
-            bbox: ex?.bbox,
+            page: ex?.pageNumber ?? 1,
+            bbox: ex?.boundingBox,
+            title: ex?.title,
           });
           exerciseNum = detected;
         } else if (isClosing(content)) {
@@ -77,8 +63,32 @@ const ChatLayout = () => {
       }
       sendMessage(content, files, exerciseNum, pdfViewer.activeDocId ?? undefined);
     },
-    [pdfViewer, exercises, sendMessage, detectExercise, isClosing]
+    [pdfViewer, sendMessage, detectExercise, isClosing]
   );
+
+  useEffect(() => {
+    if (!pdfViewer.activeDocId || pdfViewer.exercises.length === 0) return;
+
+    const lastMessage = activeConversation?.messages.at(-1);
+    if (!lastMessage) return;
+
+    const detected = detectExercise(lastMessage.content);
+    if (!detected || detected === pdfViewer.activeExercise?.number) return;
+
+    const exercise = pdfViewer.exercises.find((item) => item.id === detected);
+    if (!exercise) return;
+
+    pdfViewer.selectExercise({
+      number: exercise.id,
+      page: exercise.pageNumber,
+      bbox: exercise.boundingBox,
+      title: exercise.title,
+    });
+  }, [
+    activeConversation?.messages,
+    detectExercise,
+    pdfViewer,
+  ]);
 
   if (!connectionReady && isOffline) {
     return (
@@ -110,13 +120,7 @@ const ChatLayout = () => {
 
   const messages = activeConversation?.messages ?? [];
 
-  const contextBadge = pdfViewer.activeDocId
-    ? {
-        docName: pdfViewer.activeDocName ?? "Documento",
-        exerciseNumber: pdfViewer.activeExercise?.number,
-        onClear: pdfViewer.clearAll,
-      }
-    : null;
+  const contextBadge = null;
 
   return (
     <SidebarProvider>
@@ -197,18 +201,13 @@ const ChatLayout = () => {
                 token={accessToken}
                 activeExercise={pdfViewer.activeExercise}
                 onClose={pdfViewer.closeViewer}
-                sidebarOpen={sidebarOpen}
-                onToggleSidebar={() => setSidebarOpen((v) => !v)}
+                exercises={pdfViewer.exercises}
+                loadingExercises={pdfViewer.loadingExercises}
+                onExerciseSelect={pdfViewer.selectExercise}
+                onExercisesDetected={pdfViewer.syncDetectedExercises}
+                docName={pdfViewer.activeDocName ?? undefined}
               />
             </Suspense>
-            {sidebarOpen && (
-              <ExerciseSidebar
-                exercises={exercises}
-                activeExercise={pdfViewer.activeExercise}
-                onExerciseSelect={pdfViewer.selectExercise}
-                docName={pdfViewer.activeDocName}
-              />
-            )}
           </div>
           </ErrorBoundary>
         )}
@@ -218,6 +217,7 @@ const ChatLayout = () => {
             isOpen={docPanelOpen}
             onClose={() => setDocPanelOpen(false)}
             token={accessToken}
+            onUploadSuccess={(docId) => setActiveDocument(docId)}
             onDocumentOpen={(id, name) => {
               pdfViewer.openDocument(id, name);
               setActiveDocument(id);
