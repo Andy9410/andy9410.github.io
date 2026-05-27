@@ -48,11 +48,12 @@ const ChatLayout = () => {
       if (pdfViewer.activeDocId) {
         const detected = detectExercise(content);
         if (detected) {
-          const ex = pdfViewer.exercises.find((e) => e.number === detected);
+          const ex = pdfViewer.exercises.find((e) => e.id === detected);
           pdfViewer.selectExercise({
             number: detected,
-            page: ex?.page ?? 1,
-            bbox: ex?.bbox,
+            page: ex?.pageNumber ?? 1,
+            bbox: ex?.boundingBox,
+            title: ex?.title,
           });
           exerciseNum = detected;
         } else if (isClosing(content)) {
@@ -64,6 +65,30 @@ const ChatLayout = () => {
     },
     [pdfViewer, sendMessage, detectExercise, isClosing]
   );
+
+  useEffect(() => {
+    if (!pdfViewer.activeDocId || pdfViewer.exercises.length === 0) return;
+
+    const lastMessage = activeConversation?.messages.at(-1);
+    if (!lastMessage) return;
+
+    const detected = detectExercise(lastMessage.content);
+    if (!detected || detected === pdfViewer.activeExercise?.number) return;
+
+    const exercise = pdfViewer.exercises.find((item) => item.id === detected);
+    if (!exercise) return;
+
+    pdfViewer.selectExercise({
+      number: exercise.id,
+      page: exercise.pageNumber,
+      bbox: exercise.boundingBox,
+      title: exercise.title,
+    });
+  }, [
+    activeConversation?.messages,
+    detectExercise,
+    pdfViewer,
+  ]);
 
   if (!connectionReady && isOffline) {
     return (
@@ -177,7 +202,9 @@ const ChatLayout = () => {
                 activeExercise={pdfViewer.activeExercise}
                 onClose={pdfViewer.closeViewer}
                 exercises={pdfViewer.exercises}
+                loadingExercises={pdfViewer.loadingExercises}
                 onExerciseSelect={pdfViewer.selectExercise}
+                onExercisesDetected={pdfViewer.syncDetectedExercises}
                 docName={pdfViewer.activeDocName ?? undefined}
               />
             </Suspense>

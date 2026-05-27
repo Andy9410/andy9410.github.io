@@ -11,6 +11,7 @@ export interface ActiveExercise {
   number: string;
   page: number;
   bbox?: BBox;
+  title?: string;
 }
 
 export interface Message {
