@@ -35,6 +35,11 @@ const deriveTitle = (content: string, files?: File[]): string => {
   return t.length > 45 ? t.slice(0, 45) + "…" : t;
 };
 
+const lockSuggestions = (messages: Message[]): Message[] =>
+  messages.map((m) =>
+    m.suggestions?.length ? { ...m, suggestionsLocked: true } : m
+  );
+
 export const useChat = () => {
   const { accessToken, refreshAccessToken, forceLogout } = useAuth();
 
@@ -159,6 +164,7 @@ export const useChat = () => {
                     content: m.content,
                     timestamp: new Date(m.createdAt),
                     suggestions: m.suggestions,
+                    suggestionsLocked: Boolean(m.suggestions?.length),
                   })),
                   messageCount: backendMessages.length,
                   updatedAt:
@@ -249,7 +255,7 @@ export const useChat = () => {
           c.id === capturedId
             ? {
                 ...c,
-                messages: [...c.messages, userMsg, aiMsg],
+                messages: [...lockSuggestions(c.messages), userMsg, aiMsg],
                 updatedAt: new Date(),
                 title:
                   c.messages.length === 0
@@ -389,7 +395,9 @@ export const useChat = () => {
               prev.map((c) =>
                 c.id === capturedId
                   ? { ...c, messages: c.messages.map((m) =>
-                      m.id === aiMsgId ? { ...m, suggestions: event.questions } : m
+                      m.id === aiMsgId
+                        ? { ...m, suggestions: event.questions, selectedSuggestion: undefined, suggestionsLocked: false }
+                        : m
                     )}
                   : c
               )
@@ -529,7 +537,9 @@ export const useChat = () => {
             prev.map((c) =>
               c.id === capturedId
                 ? { ...c, messages: c.messages.map((m) =>
-                    m.id === aiMsgId ? { ...m, suggestions: event.questions } : m
+                    m.id === aiMsgId
+                      ? { ...m, suggestions: event.questions, selectedSuggestion: undefined, suggestionsLocked: false }
+                      : m
                   )}
                 : c
             )
@@ -581,6 +591,31 @@ export const useChat = () => {
     }
   }, [accessToken, status, explanationLevel, refreshAccessToken, forceLogout]);
 
+  const sendSuggestion = useCallback(
+    (messageId: string, text: string) => {
+      if (messageId) {
+        const targetId = activeIdRef.current;
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === targetId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === messageId
+                      ? { ...m, selectedSuggestion: text, suggestionsLocked: true }
+                      : m
+                  ),
+                }
+              : c
+          )
+        );
+      }
+
+      sendMessage(text);
+    },
+    [sendMessage]
+  );
+
   const reloadData = useCallback(async (token: string) => {
     try {
       const summaries = await fetchMyConversations(token);
@@ -613,6 +648,8 @@ export const useChat = () => {
                     role: m.role,
                     content: m.content,
                     timestamp: new Date(m.createdAt),
+                    suggestions: m.suggestions,
+                    suggestionsLocked: Boolean(m.suggestions?.length),
                   })),
                 }
               : c
@@ -673,6 +710,7 @@ export const useChat = () => {
     setActiveDocument,
     newConversation,
     sendMessage,
+    sendSuggestion,
     selectConversation,
     deleteConversation,
     regenerateLastMessage,

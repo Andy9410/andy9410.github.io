@@ -23,6 +23,8 @@ export interface Message {
   isRestored?: boolean;
   sources?: string[];
   suggestions?: string[];
+  selectedSuggestion?: string;
+  suggestionsLocked?: boolean;
   attachedFileName?: string;
 }
 
