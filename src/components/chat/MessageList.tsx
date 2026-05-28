@@ -8,7 +8,7 @@ import type { Message } from "@/types/chat";
 interface Props {
   messages: Message[];
   isTyping: boolean;
-  onSuggestion: (text: string) => void;
+  onSuggestion: (messageId: string, text: string) => void;
   onRegenerate?: () => void;
   isLoadingHistory?: boolean;
 }
@@ -30,24 +30,36 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, isLoading
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
       {messages.length === 0 && !isTyping ? (
-        <EmptyState onSuggestion={onSuggestion} isLoadingHistory={isLoadingHistory} />
+        <EmptyState onSuggestion={(text) => onSuggestion("", text)} isLoadingHistory={isLoadingHistory} />
       ) : (
         <div className="mx-auto flex w-full max-w-5xl flex-col px-4 py-4">
           <AnimatePresence initial={false}>
-            {messages.map((msg, i) => (
-              <React.Fragment key={msg.id}>
-                <MessageBubble
-                  message={msg}
-                  isFirstInGroup={i === 0 || messages[i - 1].role !== msg.role}
-                  isLastAssistant={!isTyping && i === lastAssistantIndex}
-                  isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
-                  onRegenerate={onRegenerate}
-                />
-                {!isTyping && i === lastAssistantIndex && userMessageCount >= 1 && msg.suggestions?.length ? (
-                  <SuggestionBubbles suggestions={msg.suggestions} onSelect={onSuggestion} />
-                ) : null}
-              </React.Fragment>
-            ))}
+            {messages.map((msg, i) => {
+              const canShowActiveSuggestions =
+                !isTyping && i === lastAssistantIndex && userMessageCount >= 1;
+              const shouldShowSuggestions =
+                msg.suggestions?.length && (canShowActiveSuggestions || msg.suggestionsLocked);
+
+              return (
+                <React.Fragment key={msg.id}>
+                  <MessageBubble
+                    message={msg}
+                    isFirstInGroup={i === 0 || messages[i - 1].role !== msg.role}
+                    isLastAssistant={!isTyping && i === lastAssistantIndex}
+                    isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
+                    onRegenerate={onRegenerate}
+                  />
+                  {shouldShowSuggestions ? (
+                    <SuggestionBubbles
+                      suggestions={msg.suggestions!}
+                      selectedSuggestion={msg.selectedSuggestion}
+                      disabled={Boolean(msg.suggestionsLocked)}
+                      onSelect={(text) => onSuggestion(msg.id, text)}
+                    />
+                  ) : null}
+                </React.Fragment>
+              );
+            })}
           </AnimatePresence>
         </div>
       )}

@@ -41,6 +41,7 @@ const ChatLayout = () => {
     setExplanationLevel,
     newConversation,
     sendMessage,
+    sendSuggestion,
     setActiveDocument,
     selectConversation,
     deleteConversation,
@@ -190,7 +191,7 @@ const ChatLayout = () => {
           <MessageList
               messages={messages}
               isTyping={status === "loading"}
-              onSuggestion={sendMessage}
+              onSuggestion={sendSuggestion}
               onRegenerate={
                 status === "loading" || isOffline
                     ? undefined
