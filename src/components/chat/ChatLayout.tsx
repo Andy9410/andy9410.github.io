@@ -282,8 +282,6 @@ const ChatLayout = () => {
             onNew={newConversation}
             onDelete={deleteConversation}
             isLoadingHistory={isLoadingHistory}
-            level={explanationLevel}
-            onLevelChange={setExplanationLevel}
         />
 
         <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
@@ -305,6 +303,8 @@ const ChatLayout = () => {
           <ChatHeader
               conversation={activeConversation}
               onOpenDocuments={() => setDocPanelOpen(true)}
+              explanationLevel={explanationLevel}
+              onExplanationLevelChange={setExplanationLevel}
           />
 
           <div className="min-h-0 flex-1">

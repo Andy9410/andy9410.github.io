@@ -87,13 +87,14 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
       </div>
 
       {/* Bubble */}
-      <div className={cn("flex min-w-0 max-w-[85%] flex-col gap-1", isUser && "items-end")}>
+      <div className={cn("flex min-w-0 flex-col gap-1", !isUser && "w-full flex-1", isUser && "max-w-[78%] items-end")}>
         <div
           className={cn(
-            "relative rounded-2xl px-5 py-3",
-            !isUser && !isError && !isRestored && "pr-20",
+            "relative rounded-lg px-4 py-2.5",
+            !isUser && "w-full",
+            !isUser && !isError && !isRestored && "pr-16",
             isUser
-              ? "rounded-tr-none bg-slate-800 text-white"
+              ? "rounded-br-none bg-slate-800 text-white"
               : isError
                 ? "rounded-bl-none border border-destructive/30 bg-destructive/10 text-destructive"
                 : isRestored
@@ -101,6 +102,20 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                   : "rounded-bl-none border border-slate-100 bg-slate-50/60 text-slate-700"
           )}
         >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute bottom-1 h-3 w-3 rotate-45",
+              isUser
+                ? "-right-1.5 bg-slate-800"
+                : isError
+                  ? "-left-1.5 border-b border-l border-destructive/30 bg-destructive/10"
+                  : isRestored
+                    ? "-left-1.5 border-b border-l border-emerald-500/30 bg-emerald-500/10"
+                    : "-left-1.5 border-b border-l border-slate-100 bg-slate-50/60"
+            )}
+          />
+
           {!isError && !isRestored && !isUser && (
             <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               {isLastAssistant && (
