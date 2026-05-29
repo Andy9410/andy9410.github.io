@@ -12,7 +12,7 @@ const SuggestionBubbles = ({ suggestions, selectedSuggestion, disabled = false, 
     initial={{ opacity: 0, y: 6 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.2 }}
-    className="flex flex-wrap gap-2 px-4 pb-3 pl-14"
+    className="flex flex-wrap justify-center gap-2 px-4 pb-3"
   >
     {suggestions.map((s, index) => {
       const isSelected = selectedSuggestion === s;

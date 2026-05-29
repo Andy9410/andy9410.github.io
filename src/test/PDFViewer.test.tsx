@@ -114,6 +114,7 @@ vi.mock("lucide-react", () => ({
   BookOpen: () => <span data-testid="icon-book-open" />,
   PanelBottom: () => <span data-testid="icon-panel-bottom" />,
   PanelRight: () => <span data-testid="icon-panel-right" />,
+  PanelRightClose: () => <span data-testid="icon-panel-right-close" />,
 }));
 
 const defaultProps = {
