@@ -1,5 +1,6 @@
-import { useEffect, useId, useMemo, useRef } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef } from "react";
 import JXG from "jsxgraph";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -56,6 +57,17 @@ const compileExpression = (rawExpression: string): ((x: number) => number) => {
   return fn;
 };
 
+const buildGraphFilename = (expression: string) => {
+  const normalized = expression
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 36);
+
+  return `grafico-${normalized || "funcion"}.svg`;
+};
+
 const FunctionGraph = ({ expression, title }: Props) => {
   const boardRef = useRef<JXG.Board | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,6 +78,30 @@ const FunctionGraph = ({ expression, title }: Props) => {
     } catch {
       return { fn: null, hasError: true };
     }
+  }, [expression]);
+
+  const downloadGraph = useCallback(() => {
+    const board = boardRef.current;
+    const container = containerRef.current;
+    const svgRoot = (board?.renderer as { svgRoot?: SVGSVGElement } | undefined)?.svgRoot;
+
+    if (!svgRoot || !container) return;
+
+    const clone = svgRoot.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", `${container.clientWidth}`);
+    clone.setAttribute("height", `${container.clientHeight}`);
+
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
+      type: "image/svg+xml;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = buildGraphFilename(expression);
+    link.click();
+    URL.revokeObjectURL(url);
   }, [expression]);
 
   useEffect(() => {
@@ -133,7 +169,16 @@ const FunctionGraph = ({ expression, title }: Props) => {
   }
 
   return (
-    <figure className="my-3 overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+    <figure className="group relative my-3 overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+      <button
+        type="button"
+        onClick={downloadGraph}
+        aria-label="Descargar gráfico"
+        title="Descargar gráfico"
+        className="absolute right-3 top-12 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background/90 text-muted-foreground opacity-0 shadow-sm backdrop-blur transition-all hover:border-accent/40 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
+      >
+        <Download className="h-4 w-4" />
+      </button>
       <figcaption className="flex items-center justify-between gap-3 border-b border-border bg-secondary/60 px-3 py-2">
         <span className="min-w-0 truncate text-xs font-semibold text-muted-foreground">
           {title ?? "Gráfico de función"}
