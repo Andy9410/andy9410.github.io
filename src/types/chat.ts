@@ -14,15 +14,39 @@ export interface ActiveExercise {
   title?: string;
 }
 
+export interface ExerciseStep {
+  stepNumber: number;
+  title: string;
+  content: string;
+  hint: string;
+}
+
+export interface ExerciseBreakdown {
+  type: "exercise_breakdown";
+  exerciseTitle: string;
+  steps: ExerciseStep[];
+}
+
+export interface WhiteboardSuggestionRef {
+  type: "whiteboard_suggestion";
+  whiteboardId: string;
+  title: string;
+  elements: unknown[];
+}
+
 export interface Message {
   id: string;
   role: MessageRole;
   content: string;
   timestamp: Date;
+  exerciseBreakdown?: ExerciseBreakdown;
+  whiteboardSuggestion?: WhiteboardSuggestionRef;
   isError?: boolean;
   isRestored?: boolean;
   sources?: string[];
   suggestions?: string[];
+  selectedSuggestion?: string;
+  suggestionsLocked?: boolean;
   attachedFileName?: string;
 }
 

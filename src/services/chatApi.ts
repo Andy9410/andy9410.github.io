@@ -1,4 +1,4 @@
-import type { ConversationSummary, BackendMessage } from "@/types/chat";
+import type { ConversationSummary, BackendMessage, ExerciseBreakdown } from "@/types/chat";
 
 const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "http://localhost:8080";
 
@@ -21,6 +21,7 @@ type SseEvent =
   | { type: "replace"; text: string }
   | { type: "sources"; files: string[] }
   | { type: "suggestions"; questions: string[] }
+  | ExerciseBreakdown
   | { type: "done" }
   | { type: "error" };
 
@@ -46,7 +47,7 @@ export async function streamChatMessage(
   signal?: AbortSignal,
   preferredDocumentId?: number,
   explanationLevel?: number,
-  exerciseNumber?: string
+  exerciseNumber?: string,
 ): Promise<void> {
   const body: ChatApiRequest = { message };
   if (conversationId !== undefined) body.conversationId = conversationId;
@@ -101,6 +102,14 @@ export async function streamChatMessage(
 export async function fetchMyConversations(token: string): Promise<ConversationSummary[]> {
   const res = await chatFetch("/api/conversations", token);
   return res.json() as Promise<ConversationSummary[]>;
+}
+
+export async function createConversationApi(token: string, title = "Nueva conversación"): Promise<ConversationSummary> {
+  const res = await chatFetch("/api/conversations", token, {
+    method: "POST",
+    body: JSON.stringify({ title }),
+  });
+  return res.json() as Promise<ConversationSummary>;
 }
 
 export async function fetchConversationMessages(

@@ -7,6 +7,11 @@ type SseEvent =
   | { type: "replace"; text: string }
   | { type: "sources"; files: string[] }
   | { type: "suggestions"; questions: string[] }
+  | {
+      type: "exercise_breakdown";
+      exerciseTitle: string;
+      steps: { stepNumber: number; title: string; content: string; hint: string }[];
+    }
   | { type: "done" }
   | { type: "error" };
 
@@ -54,5 +59,14 @@ describe("SSE event parsing", () => {
   it("parsea evento error", () => {
     const e = parse('{"type":"error"}');
     expect(e.type).toBe("error");
+  });
+
+  it("parsea evento exercise_breakdown", () => {
+    const e = parse('{"type":"exercise_breakdown","exerciseTitle":"Ejercicio 2","steps":[{"stepNumber":1,"title":"Comprender","content":"Identificá datos.","hint":"Subrayá lo importante."}]}');
+    expect(e.type).toBe("exercise_breakdown");
+    if (e.type === "exercise_breakdown") {
+      expect(e.exerciseTitle).toBe("Ejercicio 2");
+      expect(e.steps[0].stepNumber).toBe(1);
+    }
   });
 });

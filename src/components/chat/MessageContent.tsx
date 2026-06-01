@@ -1,9 +1,22 @@
-import { useMemo, useEffect, useRef } from "react";
+import { lazy, Suspense, useMemo, useEffect, useRef, Component } from "react";
+import type { ReactNode } from "react";
 import MarkdownIt from "markdown-it";
 import texmath from "markdown-it-texmath";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
+
+const FunctionGraph = lazy(() => import("./FunctionGraph"));
+
+class GraphErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError)
+      return <div className="my-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">No se pudo generar el gráfico.</div>;
+    return this.props.children;
+  }
+}
 
 const md = new MarkdownIt({
   html: false,
@@ -43,8 +56,45 @@ interface Props {
   isStreaming?: boolean;
 }
 
+type ContentSegment =
+  | { type: "text"; content: string }
+  | { type: "graph"; expression: string };
+
+const GRAPH_BLOCK_RE = /\[GRAPH\]([\s\S]*?)\[\/GRAPH\]/gi;
+
+const parseGraphBlocks = (raw: string): ContentSegment[] => {
+  const segments: ContentSegment[] = [];
+  let cursor = 0;
+
+  for (const match of raw.matchAll(GRAPH_BLOCK_RE)) {
+    const start = match.index ?? 0;
+    const text = raw.slice(cursor, start);
+    if (text) segments.push({ type: "text", content: text });
+
+    segments.push({ type: "graph", expression: match[1].trim() });
+    cursor = start + match[0].length;
+  }
+
+  const tail = raw.slice(cursor);
+  if (tail) segments.push({ type: "text", content: tail });
+
+  return segments.length > 0 ? segments : [{ type: "text", content: raw }];
+};
+
 const MessageContent = ({ content, isUser = false, isStreaming = false }: Props) => {
-  const html = useMemo(() => (isStreaming ? "" : md.render(content.trimStart())), [content, isStreaming]);
+  const segments = useMemo(
+    () => (isStreaming || isUser ? [{ type: "text" as const, content }] : parseGraphBlocks(content)),
+    [content, isStreaming, isUser],
+  );
+  const htmlKey = useMemo(
+    () =>
+      isStreaming
+        ? ""
+        : segments
+            .map((segment) => (segment.type === "text" ? md.render(segment.content.trimStart()) : segment.expression))
+            .join("\n"),
+    [segments, isStreaming],
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,7 +141,7 @@ const MessageContent = ({ content, isUser = false, isStreaming = false }: Props)
     });
 
     return () => cleanups.forEach((fn) => fn());
-  }, [html, isUser]);
+  }, [htmlKey, isUser]);
 
   if (isStreaming) {
     return (
@@ -122,8 +172,22 @@ const MessageContent = ({ content, isUser = false, isStreaming = false }: Props)
               "prose-hr:border-border",
             ].join(" "),
       )}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    >
+      {segments.map((segment, index) =>
+        segment.type === "graph" ? (
+          <GraphErrorBoundary key={`graph-${index}-${segment.expression}`}>
+            <Suspense fallback={<div className="my-3 h-72 rounded-lg border border-border bg-secondary/40" />}>
+              <FunctionGraph expression={segment.expression} />
+            </Suspense>
+          </GraphErrorBoundary>
+        ) : (
+          <div
+            key={`text-${index}`}
+            dangerouslySetInnerHTML={{ __html: md.render(segment.content.trimStart()) }}
+          />
+        ),
+      )}
+    </div>
   );
 };
 
