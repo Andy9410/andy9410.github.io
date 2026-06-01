@@ -17,10 +17,11 @@ const loadLevel = (): number => {
 const saveLevel = (level: number) => {
   try { localStorage.setItem("ls_explanation_level", String(level)); } catch {}
 };
-import type { Conversation, Message, ChatStatus } from "@/types/chat";
+import type { Conversation, Message, ChatStatus, ExerciseBreakdown } from "@/types/chat";
 import {
   streamChatMessage,
   fetchMyConversations,
+  createConversationApi,
   fetchConversationMessages,
   deleteConversationApi,
   generateConversationTitle,
@@ -40,6 +41,33 @@ const lockSuggestions = (messages: Message[]): Message[] =>
     m.suggestions?.length ? { ...m, suggestionsLocked: true } : m
   );
 
+const parseExerciseBreakdown = (content: string): ExerciseBreakdown | undefined => {
+  try {
+    const parsed = JSON.parse(content) as Partial<ExerciseBreakdown>;
+    if (
+      parsed.type === "exercise_breakdown" &&
+      typeof parsed.exerciseTitle === "string" &&
+      Array.isArray(parsed.steps)
+    ) {
+      return parsed as ExerciseBreakdown;
+    }
+  } catch {}
+  return undefined;
+};
+
+const mapBackendMessage = (m: { id: number; role: Message["role"]; content: string; createdAt: string; suggestions?: string[] }): Message => {
+  const exerciseBreakdown = m.role === "assistant" ? parseExerciseBreakdown(m.content) : undefined;
+  return {
+    id: String(m.id),
+    role: m.role,
+    content: exerciseBreakdown ? "" : m.content,
+    timestamp: new Date(m.createdAt),
+    exerciseBreakdown,
+    suggestions: m.suggestions,
+    suggestionsLocked: Boolean(m.suggestions?.length),
+  };
+};
+
 export const useChat = () => {
   const { accessToken, refreshAccessToken, forceLogout } = useAuth();
 
@@ -51,6 +79,7 @@ export const useChat = () => {
   const [connectionReady, setConnectionReady] = useState(false);
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
   const [explanationLevel, setExplanationLevelState] = useState<number>(loadLevel);
+  const [activeExerciseBreakdown, setActiveExerciseBreakdown] = useState<ExerciseBreakdown | null>(null);
 
   const setExplanationLevel = useCallback((level: number) => {
     setExplanationLevelState(level);
@@ -128,6 +157,39 @@ export const useChat = () => {
     setActiveId(id);
   }, []);
 
+  const ensureBackendConversation = useCallback(async (title = "Nueva conversación") => {
+    if (!accessToken) return null;
+
+    const currentId = activeIdRef.current;
+    const current = currentId
+      ? conversationsRef.current.find((c) => c.id === currentId)
+      : null;
+
+    if (current?.backendId) return current.backendId;
+
+    const summary = await createConversationApi(accessToken, current?.title || title);
+    const backendConversation: Conversation = {
+      id: current?.id ?? `backend-${summary.id}`,
+      backendId: summary.id,
+      title: current?.title && current.title !== "Nueva conversación" ? current.title : summary.title,
+      messages: current?.messages ?? [],
+      messagesLoaded: true,
+      messageCount: current?.messageCount ?? summary.messageCount,
+      preferredDocumentId: current?.preferredDocumentId ?? loadPrefDoc(summary.id),
+      createdAt: current?.createdAt ?? new Date(summary.createdAt),
+      updatedAt: new Date(summary.createdAt),
+    };
+
+    setConversations((prev) => {
+      if (current) {
+        return prev.map((c) => (c.id === current.id ? backendConversation : c));
+      }
+      return [backendConversation, ...prev];
+    });
+    setActiveId(backendConversation.id);
+    return summary.id;
+  }, [accessToken]);
+
   const setActiveDocument = useCallback((documentId: number) => {
     const targetId = activeIdRef.current;
     if (!targetId) return;
@@ -158,14 +220,14 @@ export const useChat = () => {
                   ...c,
                   messagesLoaded: true,
                   hasMoreMessages: hasMore,
-                  messages: backendMessages.map((m) => ({
-                    id: String(m.id),
-                    role: m.role,
-                    content: m.content,
-                    timestamp: new Date(m.createdAt),
-                    suggestions: m.suggestions,
-                    suggestionsLocked: Boolean(m.suggestions?.length),
-                  })),
+                  messages: (() => {
+                    const mapped = backendMessages.map(mapBackendMessage);
+                    const last = mapped.at(-1);
+                    if (last && last.role === "assistant" && last.suggestions?.length) {
+                      mapped[mapped.length - 1] = { ...last, suggestionsLocked: false };
+                    }
+                    return mapped;
+                  })(),
                   messageCount: backendMessages.length,
                   updatedAt:
                     backendMessages.length > 0
@@ -185,7 +247,12 @@ export const useChat = () => {
   );
 
   const sendMessage = useCallback(
-    async (content: string, files?: File[], exerciseNumber?: string, contextDocId?: number) => {
+    async (
+      content: string,
+      files?: File[],
+      exerciseNumber?: string,
+      contextDocId?: number,
+    ) => {
       const file = files?.[0];
       if (!content.trim() && !files?.length) return;
       if (status === "loading" || !accessToken) return;
@@ -402,6 +469,23 @@ export const useChat = () => {
                   : c
               )
             );
+          } else if (event.type === "exercise_breakdown") {
+            receivedContent = true;
+            setActiveExerciseBreakdown(event);
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === aiMsgId
+                          ? { ...m, content: "", exerciseBreakdown: event, suggestions: [], suggestionsLocked: true }
+                          : m
+                      ),
+                    }
+                  : c
+              )
+            );
           } else if (event.type === "error") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -437,6 +521,22 @@ export const useChat = () => {
           }
           throw err;
         });
+        if (!receivedContent) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === aiMsgId && !m.content && !m.exerciseBreakdown
+                        ? { ...m, content: "No se recibió respuesta del servicio. Intentá de nuevo.", isError: true }
+                        : m
+                    ),
+                  }
+                : c
+            )
+          );
+        }
         setStatus("idle");
       } catch (err) {
         const isNetworkDown = err instanceof TypeError;
@@ -542,6 +642,20 @@ export const useChat = () => {
                       : m
                   )}
                 : c
+              )
+          );
+        } else if (event.type === "exercise_breakdown") {
+          receivedContent = true;
+          setActiveExerciseBreakdown(event);
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? { ...c, messages: c.messages.map((m) =>
+                    m.id === aiMsgId
+                      ? { ...m, content: "", exerciseBreakdown: event, suggestions: [], suggestionsLocked: true }
+                      : m
+                  )}
+                : c
             )
           );
         } else if (event.type === "error") {
@@ -643,14 +757,7 @@ export const useChat = () => {
                   ...c,
                   messagesLoaded: true,
                   hasMoreMessages: hasMore,
-                  messages: msgs.map((m) => ({
-                    id: String(m.id),
-                    role: m.role,
-                    content: m.content,
-                    timestamp: new Date(m.createdAt),
-                    suggestions: m.suggestions,
-                    suggestionsLocked: Boolean(m.suggestions?.length),
-                  })),
+                  messages: msgs.map(mapBackendMessage),
                 }
               : c
           )
@@ -705,6 +812,8 @@ export const useChat = () => {
     connectionReady,
     isLoadingHistory,
     rateLimitSecondsLeft,
+    activeExerciseBreakdown,
+    setActiveExerciseBreakdown,
     explanationLevel,
     setExplanationLevel,
     setActiveDocument,

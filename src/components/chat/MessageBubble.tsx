@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText } from "lucide-react";
+import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText, BookOpenCheck } from "lucide-react";
 
 const dot = { initial: { y: 0 }, animate: { y: -4 } };
 
@@ -29,9 +29,10 @@ interface Props {
   isLastAssistant?: boolean;
   isStreaming?: boolean;
   onRegenerate?: () => void;
+  onOpenExerciseBreakdown?: () => void;
 }
 
-const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate, onOpenExerciseBreakdown }: Props) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const isError = message.isError === true;
@@ -90,7 +91,8 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
       <div className={cn("flex min-w-0 flex-col gap-1", !isUser && "w-full flex-1", isUser && "max-w-[78%] items-end")}>
         <div
           className={cn(
-            "relative rounded-lg px-4 py-2.5",
+            "relative rounded-lg",
+            isUser ? "px-3 py-1.5" : "px-4 py-2.5",
             !isUser && "w-full",
             !isUser && !isError && !isRestored && "pr-16",
             isUser
@@ -117,20 +119,21 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
           />
 
           {!isError && !isRestored && !isUser && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
               {isLastAssistant && (
                 <button
                   onClick={onRegenerate}
                   disabled={!onRegenerate}
                   aria-label="Regenerar respuesta"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               )}
               <button
                 onClick={copyToClipboard}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary"
+                aria-label={copied ? "Respuesta copiada" : "Copiar respuesta"}
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {copied ? (
                   <Check className="h-3.5 w-3.5 text-accent" />
@@ -141,7 +144,24 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
             </div>
           )}
 
-          {isStreaming && !message.content ? (
+          {message.exerciseBreakdown ? (
+            <button
+              type="button"
+              onClick={onOpenExerciseBreakdown}
+              aria-label={`Abrir guía paso a paso: ${message.exerciseBreakdown.exerciseTitle}`}
+              className="flex w-full items-center gap-3 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-left transition-colors hover:bg-teal-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-teal-500/30 dark:bg-teal-500/10 dark:hover:bg-teal-500/15"
+            >
+              <BookOpenCheck className="h-5 w-5 shrink-0 text-teal-600 dark:text-teal-300" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  {message.exerciseBreakdown.exerciseTitle}
+                </span>
+                <span className="block text-xs text-slate-600 dark:text-slate-300">
+                  Guía interactiva de {message.exerciseBreakdown.steps.length} pasos
+                </span>
+              </span>
+            </button>
+          ) : isStreaming && !message.content ? (
             <TypingDots />
           ) : (
             <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>

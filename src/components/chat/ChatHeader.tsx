@@ -188,7 +188,7 @@ const ChatHeader = ({
             onLevelChange={onExplanationLevelChange}
         />
 
-        {onOpenDocuments && (
+{onOpenDocuments && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

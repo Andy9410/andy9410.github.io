@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
 import { WifiOff, ServerCrash, Clock } from "lucide-react";
 import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import DocumentPanel from "./DocumentPanel";
+import ExerciseStepsPanel from "./ExerciseStepsPanel";
 
 const PDFViewer = lazy(() =>
     import("./PDFViewer").then((m) => ({ default: m.PDFViewer })),
@@ -21,10 +22,12 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import type { ExerciseBreakdown, Message } from "@/types/chat";
 
 type PdfLayoutMode = "side" | "bottom";
 
 const PDF_LAYOUT_STORAGE_KEY = "learnsoft.pdfLayout";
+const EXERCISE_PANEL_STORAGE_KEY = "learnsoft.exerciseStepsPanel";
 const NARROW_LAYOUT_QUERY = "(max-width: 900px)";
 
 const ChatLayout = () => {
@@ -37,6 +40,8 @@ const ChatLayout = () => {
     connectionReady,
     isLoadingHistory,
     rateLimitSecondsLeft,
+    activeExerciseBreakdown,
+    setActiveExerciseBreakdown,
     explanationLevel,
     setExplanationLevel,
     newConversation,
@@ -54,6 +59,16 @@ const ChatLayout = () => {
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
+  const [exercisePanelOpen, setExercisePanelOpen] = useState(false);
+  const [activeBreakdown, setActiveBreakdown] = useState<ExerciseBreakdown | null>(null);
+  const [activeBreakdownMessageId, setActiveBreakdownMessageId] = useState<string | null>(null);
+  const [exercisePanelPreference, setExercisePanelPreference] =
+      useState<"open" | "closed">(() =>
+          window.localStorage.getItem(EXERCISE_PANEL_STORAGE_KEY) === "open"
+              ? "open"
+              : "closed",
+      );
+  const latestStreamBreakdownRef = useRef<ExerciseBreakdown | null>(null);
 
   const [preferredPdfLayout, setPreferredPdfLayout] =
       useState<PdfLayoutMode>(() => {
@@ -78,6 +93,18 @@ const ChatLayout = () => {
   const effectivePdfLayout: PdfLayoutMode = isNarrowLayout
       ? "bottom"
       : preferredPdfLayout;
+
+  const openExercisePanel = useCallback(() => {
+    setExercisePanelOpen(true);
+    setExercisePanelPreference("open");
+    window.localStorage.setItem(EXERCISE_PANEL_STORAGE_KEY, "open");
+  }, []);
+
+  const closeExercisePanel = useCallback(() => {
+    setExercisePanelOpen(false);
+    setExercisePanelPreference("closed");
+    window.localStorage.setItem(EXERCISE_PANEL_STORAGE_KEY, "closed");
+  }, []);
 
   const handlePdfLayoutModeChange = useCallback(
       (mode: "horizontal" | "vertical") => {
@@ -144,6 +171,63 @@ const ChatLayout = () => {
     });
   }, [activeConversation?.messages, detectExercise, pdfViewer]);
 
+  useEffect(() => {
+    if (activeExerciseBreakdown) {
+      const isNewStreamBreakdown =
+          latestStreamBreakdownRef.current !== activeExerciseBreakdown;
+
+      latestStreamBreakdownRef.current = activeExerciseBreakdown;
+      setActiveBreakdown(activeExerciseBreakdown);
+      setActiveBreakdownMessageId(null);
+
+      if (isNewStreamBreakdown && exercisePanelPreference === "open") {
+        setExercisePanelOpen(true);
+      }
+
+      return;
+    }
+
+    const latestBreakdownMessage = [...(activeConversation?.messages ?? [])]
+      .reverse()
+      .find((message) => message.role === "assistant" && message.exerciseBreakdown);
+    const latestBreakdown = latestBreakdownMessage?.exerciseBreakdown;
+
+    if (!latestBreakdown) {
+      setActiveBreakdown(null);
+      setActiveBreakdownMessageId(null);
+      setExercisePanelOpen(false);
+      return;
+    }
+    setActiveBreakdown(latestBreakdown);
+    setActiveBreakdownMessageId(latestBreakdownMessage?.id ?? null);
+
+    if (exercisePanelPreference === "open") {
+      setExercisePanelOpen(true);
+    }
+  }, [activeConversation?.messages, activeExerciseBreakdown, exercisePanelPreference]);
+
+  const handleOpenExerciseBreakdown = useCallback((message: Message) => {
+    if (!message.exerciseBreakdown) return;
+
+    const sameBreakdown =
+      activeBreakdownMessageId === message.id ||
+      activeBreakdown === message.exerciseBreakdown ||
+      (
+        activeBreakdown?.exerciseTitle === message.exerciseBreakdown.exerciseTitle &&
+        activeBreakdown?.steps.length === message.exerciseBreakdown.steps.length
+      );
+
+    if (exercisePanelOpen && sameBreakdown) {
+      closeExercisePanel();
+      return;
+    }
+
+    setActiveExerciseBreakdown(message.exerciseBreakdown);
+    setActiveBreakdown(message.exerciseBreakdown);
+    setActiveBreakdownMessageId(message.id);
+    openExercisePanel();
+  }, [activeBreakdown, activeBreakdownMessageId, closeExercisePanel, exercisePanelOpen, openExercisePanel, setActiveExerciseBreakdown]);
+
   if (!connectionReady && isOffline) {
     return (
         <div className="flex h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
@@ -186,7 +270,7 @@ const ChatLayout = () => {
       pdfViewer.viewerOpen && pdfViewer.activeDocId && accessToken;
 
   const chatPanel = (
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="relative flex h-full min-h-0 flex-col">
         <ErrorBoundary>
           <MessageList
               messages={messages}
@@ -197,6 +281,7 @@ const ChatLayout = () => {
                     ? undefined
                     : regenerateLastMessage
               }
+              onOpenExerciseBreakdown={handleOpenExerciseBreakdown}
               isLoadingHistory={isLoadingHistory}
           />
         </ErrorBoundary>
@@ -217,6 +302,14 @@ const ChatLayout = () => {
                       : undefined
             }
             contextBadge={contextBadge}
+        />
+
+        <ExerciseStepsPanel
+            breakdown={activeBreakdown}
+            isOpen={exercisePanelOpen}
+            isLoading={status === "loading" && !activeBreakdown}
+            onOpen={openExercisePanel}
+            onClose={closeExercisePanel}
         />
       </div>
   );
