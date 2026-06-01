@@ -85,7 +85,7 @@ const buildGraphFilename = (expression: string) => {
     .replace(/^-+|-+$/g, "")
     .slice(0, 36);
 
-  return `grafico-${normalized || "funcion"}.svg`;
+  return `grafico-${normalized || "funcion"}.jpg`;
 };
 
 const FunctionGraph = ({ expression, title }: Props) => {
@@ -107,21 +107,32 @@ const FunctionGraph = ({ expression, title }: Props) => {
 
     if (!svgRoot || !container) return;
 
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
     const clone = svgRoot.cloneNode(true) as SVGSVGElement;
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("width", `${container.clientWidth}`);
-    clone.setAttribute("height", `${container.clientHeight}`);
+    clone.setAttribute("width", `${width}`);
+    clone.setAttribute("height", `${height}`);
 
-    const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
-      type: "image/svg+xml;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const svgData = new XMLSerializer().serializeToString(clone);
+    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgData)}`;
 
-    link.href = url;
-    link.download = buildGraphFilename(expression);
-    link.click();
-    URL.revokeObjectURL(url);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0);
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/jpeg", 0.95);
+      link.download = buildGraphFilename(expression);
+      link.click();
+    };
+    img.src = svgUrl;
   }, [expression]);
 
   useEffect(() => {
