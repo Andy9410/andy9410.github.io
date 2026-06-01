@@ -222,7 +222,14 @@ export const useChat = () => {
                   ...c,
                   messagesLoaded: true,
                   hasMoreMessages: hasMore,
-                  messages: backendMessages.map(mapBackendMessage),
+                  messages: (() => {
+                    const mapped = backendMessages.map(mapBackendMessage);
+                    const last = mapped.at(-1);
+                    if (last && last.role === "assistant" && last.suggestions?.length) {
+                      mapped[mapped.length - 1] = { ...last, suggestionsLocked: false };
+                    }
+                    return mapped;
+                  })(),
                   messageCount: backendMessages.length,
                   updatedAt:
                     backendMessages.length > 0
