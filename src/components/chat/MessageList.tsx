@@ -10,10 +10,11 @@ interface Props {
   isTyping: boolean;
   onSuggestion: (messageId: string, text: string) => void;
   onRegenerate?: () => void;
+  onOpenExerciseBreakdown?: (message: Message) => void;
   isLoadingHistory?: boolean;
 }
 
-const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, isLoadingHistory = false }: Props) => {
+const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, onOpenExerciseBreakdown, isLoadingHistory = false }: Props) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,6 +49,9 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, isLoading
                     isLastAssistant={!isTyping && i === lastAssistantIndex}
                     isStreaming={isTyping && i === messages.length - 1 && msg.role === "assistant"}
                     onRegenerate={onRegenerate}
+                    onOpenExerciseBreakdown={
+                      msg.exerciseBreakdown ? () => onOpenExerciseBreakdown?.(msg) : undefined
+                    }
                   />
                   {shouldShowSuggestions ? (
                     <SuggestionBubbles

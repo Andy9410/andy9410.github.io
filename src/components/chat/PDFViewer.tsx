@@ -50,6 +50,7 @@ interface Props {
   loadingExercises?: boolean;
 
   onExerciseSelect: (exercise: ActiveExercise) => void;
+  onOpenExerciseWhiteboard?: (exercise: DetectedExercise) => void;
   onExercisesDetected?: (exercises: DetectedExercise[]) => void;
 
   docName?: string;
@@ -79,6 +80,7 @@ export function PDFViewer({
                             loadingExercises = false,
 
                             onExerciseSelect,
+                            onOpenExerciseWhiteboard,
                             onExercisesDetected,
 
                             docName,
@@ -602,6 +604,7 @@ export function PDFViewer({
               onExerciseSelect={
                 onExerciseSelect
               }
+              onOpenWhiteboard={onOpenExerciseWhiteboard}
               onToggle={() =>
                   setSidebarCollapsed(
                       (value) => !value,

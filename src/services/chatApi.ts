@@ -1,4 +1,5 @@
-import type { ConversationSummary, BackendMessage } from "@/types/chat";
+import type { ConversationSummary, BackendMessage, ExerciseBreakdown } from "@/types/chat";
+import type { WhiteboardAnalysis, WhiteboardInterpretation, WhiteboardSuggestion } from "@/types/whiteboard";
 
 const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "http://localhost:8080";
 
@@ -6,6 +7,8 @@ interface ChatApiRequest {
   message: string;
   conversationId?: number;
   preferredDocumentId?: number;
+  activeWhiteboardId?: string;
+  whiteboardInterpretation?: WhiteboardInterpretation;
   exerciseNumber?: string;
   explanationLevel?: number;
 }
@@ -21,6 +24,9 @@ type SseEvent =
   | { type: "replace"; text: string }
   | { type: "sources"; files: string[] }
   | { type: "suggestions"; questions: string[] }
+  | WhiteboardAnalysis
+  | WhiteboardSuggestion
+  | ExerciseBreakdown
   | { type: "done" }
   | { type: "error" };
 
@@ -46,11 +52,15 @@ export async function streamChatMessage(
   signal?: AbortSignal,
   preferredDocumentId?: number,
   explanationLevel?: number,
-  exerciseNumber?: string
+  exerciseNumber?: string,
+  activeWhiteboardId?: string,
+  whiteboardInterpretation?: WhiteboardInterpretation
 ): Promise<void> {
   const body: ChatApiRequest = { message };
   if (conversationId !== undefined) body.conversationId = conversationId;
   if (preferredDocumentId !== undefined) body.preferredDocumentId = preferredDocumentId;
+  if (activeWhiteboardId !== undefined) body.activeWhiteboardId = activeWhiteboardId;
+  if (whiteboardInterpretation !== undefined) body.whiteboardInterpretation = whiteboardInterpretation;
   if (explanationLevel !== undefined) body.explanationLevel = explanationLevel;
   if (exerciseNumber !== undefined) body.exerciseNumber = exerciseNumber;
 
@@ -101,6 +111,14 @@ export async function streamChatMessage(
 export async function fetchMyConversations(token: string): Promise<ConversationSummary[]> {
   const res = await chatFetch("/api/conversations", token);
   return res.json() as Promise<ConversationSummary[]>;
+}
+
+export async function createConversationApi(token: string, title = "Nueva conversación"): Promise<ConversationSummary> {
+  const res = await chatFetch("/api/conversations", token, {
+    method: "POST",
+    body: JSON.stringify({ title }),
+  });
+  return res.json() as Promise<ConversationSummary>;
 }
 
 export async function fetchConversationMessages(

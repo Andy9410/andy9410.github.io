@@ -19,8 +19,28 @@ const MATH_FUNCTIONS: Record<string, string> = {
   log: "Math.log10",
 };
 
+const SUPERSCRIPT_DIGITS: Record<string, string> = {
+  "⁰": "0",
+  "¹": "1",
+  "²": "2",
+  "³": "3",
+  "⁴": "4",
+  "⁵": "5",
+  "⁶": "6",
+  "⁷": "7",
+  "⁸": "8",
+  "⁹": "9",
+};
+
+const normalizeMathInput = (rawExpression: string): string =>
+  rawExpression
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (match) => `^${[...match].map((char) => SUPERSCRIPT_DIGITS[char]).join("")}`)
+    .replace(/[×·]/g, "*")
+    .replace(/[÷]/g, "/")
+    .replace(/[−–—]/g, "-");
+
 const compileExpression = (rawExpression: string): ((x: number) => number) => {
-  let source = rawExpression.trim().toLowerCase();
+  let source = normalizeMathInput(rawExpression).trim().toLowerCase();
 
   if (!source) throw new Error("empty expression");
 

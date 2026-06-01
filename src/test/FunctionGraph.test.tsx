@@ -33,7 +33,7 @@ describe("FunctionGraph", () => {
     global.ResizeObserver = ResizeObserverMock as typeof ResizeObserver;
   });
 
-  it.each(["x^2", "sin(x)", "cos(x)", "x^3", "sqrt(x)", "e^x"])(
+  it.each(["x^2", "x²", "sin(x)", "cos(x)", "x^3", "sqrt(x)", "e^x"])(
     "renderiza un gráfico para %s",
     (expression) => {
       render(<FunctionGraph expression={expression} />);
