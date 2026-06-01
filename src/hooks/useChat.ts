@@ -554,6 +554,22 @@ export const useChat = () => {
           }
           throw err;
         });
+        if (!receivedContent) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === capturedId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === aiMsgId && !m.content && !m.exerciseBreakdown
+                        ? { ...m, content: "No se recibió respuesta del servicio. Intentá de nuevo.", isError: true }
+                        : m
+                    ),
+                  }
+                : c
+            )
+          );
+        }
         setStatus("idle");
       } catch (err) {
         const isNetworkDown = err instanceof TypeError;

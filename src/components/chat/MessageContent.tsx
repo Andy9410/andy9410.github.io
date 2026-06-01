@@ -1,4 +1,5 @@
-import { lazy, Suspense, useMemo, useEffect, useRef } from "react";
+import { lazy, Suspense, useMemo, useEffect, useRef, Component } from "react";
+import type { ReactNode } from "react";
 import MarkdownIt from "markdown-it";
 import texmath from "markdown-it-texmath";
 import katex from "katex";
@@ -6,6 +7,16 @@ import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 
 const FunctionGraph = lazy(() => import("./FunctionGraph"));
+
+class GraphErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError)
+      return <div className="my-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">No se pudo generar el gráfico.</div>;
+    return this.props.children;
+  }
+}
 
 const md = new MarkdownIt({
   html: false,
@@ -164,12 +175,11 @@ const MessageContent = ({ content, isUser = false, isStreaming = false }: Props)
     >
       {segments.map((segment, index) =>
         segment.type === "graph" ? (
-          <Suspense
-            key={`graph-${index}-${segment.expression}`}
-            fallback={<div className="my-3 h-72 rounded-lg border border-border bg-secondary/40" />}
-          >
-            <FunctionGraph expression={segment.expression} />
-          </Suspense>
+          <GraphErrorBoundary key={`graph-${index}-${segment.expression}`}>
+            <Suspense fallback={<div className="my-3 h-72 rounded-lg border border-border bg-secondary/40" />}>
+              <FunctionGraph expression={segment.expression} />
+            </Suspense>
+          </GraphErrorBoundary>
         ) : (
           <div
             key={`text-${index}`}
