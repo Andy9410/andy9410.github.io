@@ -7,6 +7,7 @@ interface Props {
   data: WhiteboardData;
   tool: WhiteboardTool;
   selectedId: string | null;
+  showGrid?: boolean;
   onToolChange: (tool: WhiteboardTool) => void;
   onSelect: (id: string | null) => void;
   onChange: (data: WhiteboardData) => void;
@@ -28,7 +29,7 @@ type TextEditState = {
 const stroke = "#0f172a";
 const accent = "#14b8a6";
 
-export function WhiteboardCanvas({ data, tool, selectedId, onToolChange, onSelect, onChange }: Props) {
+export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, onToolChange, onSelect, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ignoreNextBlurRef = useRef(false);
@@ -449,7 +450,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, onToolChange, onSelec
   };
 
   return (
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px]">
+      <div className={cn("relative min-h-0 flex-1 overflow-hidden", showGrid && "bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px]")}>
         <svg
             ref={svgRef}
             className={cn("h-full w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}

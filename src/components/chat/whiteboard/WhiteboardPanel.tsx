@@ -51,6 +51,7 @@ export function WhiteboardPanel({
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showGrid, setShowGrid] = useState(true);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
   const autosave = useAutosaveWhiteboard(whiteboard, token);
@@ -181,6 +182,8 @@ export function WhiteboardPanel({
       <WhiteboardToolbar
         tool={tool}
         selectedElement={selectedElement}
+        showGrid={showGrid}
+        onToggleGrid={() => setShowGrid((g) => !g)}
         onToolChange={(nextTool) => {
           if (nextTool === "erase" && selectedId) {
             onChangeData((data) => ({
@@ -222,6 +225,7 @@ export function WhiteboardPanel({
         data={whiteboard.data}
         tool={tool}
         selectedId={selectedId}
+        showGrid={showGrid}
         onToolChange={setTool}
         onSelect={setSelectedId}
         onChange={(data) => onChangeData(() => data)}

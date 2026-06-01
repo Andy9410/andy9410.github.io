@@ -1,4 +1,4 @@
-import { Circle, Diamond, Eraser, MousePointer2, MoveRight, Pencil, Sigma, Square, Type } from "lucide-react";
+import { Circle, Diamond, Eraser, Grid2x2, Grid2x2X, MousePointer2, MoveRight, Pencil, Sigma, Square, Type } from "lucide-react";
 import type { WhiteboardElement, WhiteboardTool } from "@/types/whiteboard";
 import { WhiteboardToolButton } from "./WhiteboardToolButton";
 import { MathSymbolPicker } from "./MathSymbolPicker";
@@ -6,6 +6,8 @@ import { MathSymbolPicker } from "./MathSymbolPicker";
 interface Props {
   tool: WhiteboardTool;
   selectedElement?: WhiteboardElement;
+  showGrid?: boolean;
+  onToggleGrid?: () => void;
   onToolChange: (tool: WhiteboardTool) => void;
   onSelectedTextChange: (text: string) => void;
   onInsertSymbol: (symbol: string) => void;
@@ -35,7 +37,7 @@ const TOOL_HINTS: Partial<Record<WhiteboardTool, string>> = {
   erase: "Hacé clic sobre un elemento para borrarlo",
 };
 
-export function WhiteboardToolbar({ tool, selectedElement, onToolChange, onSelectedTextChange, onInsertSymbol }: Props) {
+export function WhiteboardToolbar({ tool, selectedElement, showGrid = true, onToggleGrid, onToolChange, onSelectedTextChange, onInsertSymbol }: Props) {
   const hint = TOOL_HINTS[tool];
 
   return (
@@ -51,6 +53,14 @@ export function WhiteboardToolbar({ tool, selectedElement, onToolChange, onSelec
               onClick={() => onToolChange(item.id)}
             />
           ))}
+          {onToggleGrid && (
+            <WhiteboardToolButton
+              label={showGrid ? "Ocultar cuadrícula" : "Mostrar cuadrícula"}
+              icon={showGrid ? Grid2x2X : Grid2x2}
+              active={showGrid}
+              onClick={onToggleGrid}
+            />
+          )}
         </div>
 
         {selectedElement?.type === "text" || selectedElement?.type === "equation" || selectedElement?.type === "rect" || selectedElement?.type === "circle" || selectedElement?.type === "diamond" ? (
