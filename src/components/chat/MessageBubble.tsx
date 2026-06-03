@@ -92,7 +92,8 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
       <div className={cn("flex min-w-0 flex-col gap-1", !isUser && "w-full flex-1", isUser && "max-w-[78%] items-end")}>
         <div
           className={cn(
-            "relative rounded-lg px-4 py-2.5",
+            "relative rounded-lg",
+            isUser ? "px-3 py-1.5" : "px-4 py-2.5",
             !isUser && "w-full",
             !isUser && !isError && !isRestored && "pr-16",
             isUser
