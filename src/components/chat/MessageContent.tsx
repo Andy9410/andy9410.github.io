@@ -5,15 +5,31 @@ import texmath from "markdown-it-texmath";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
+import GraphErrorCard from "./GraphErrorCard";
 
 const FunctionGraph = lazy(() => import("./FunctionGraph"));
 
-class GraphErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+interface BoundaryProps {
+  expression: string;
+  children: ReactNode;
+  onOpenWhiteboard?: (expression: string) => void;
+  onRequestSimplified?: (expression: string) => void;
+}
+
+class GraphErrorBoundary extends Component<BoundaryProps, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
+  retry = () => this.setState({ hasError: false });
   render() {
     if (this.state.hasError)
-      return <div className="my-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">No se pudo generar el gráfico.</div>;
+      return (
+        <GraphErrorCard
+          expression={this.props.expression}
+          onRetry={this.retry}
+          onOpenWhiteboard={this.props.onOpenWhiteboard}
+          onRequestSimplified={this.props.onRequestSimplified}
+        />
+      );
     return this.props.children;
   }
 }
@@ -54,6 +70,8 @@ interface Props {
   content: string;
   isUser?: boolean;
   isStreaming?: boolean;
+  onOpenWhiteboard?: (expression: string) => void;
+  onRequestSimplified?: (expression: string) => void;
 }
 
 type ContentSegment =
@@ -81,7 +99,7 @@ const parseGraphBlocks = (raw: string): ContentSegment[] => {
   return segments.length > 0 ? segments : [{ type: "text", content: raw }];
 };
 
-const MessageContent = ({ content, isUser = false, isStreaming = false }: Props) => {
+const MessageContent = ({ content, isUser = false, isStreaming = false, onOpenWhiteboard, onRequestSimplified }: Props) => {
   const segments = useMemo(
     () => (isStreaming || isUser ? [{ type: "text" as const, content }] : parseGraphBlocks(content)),
     [content, isStreaming, isUser],
@@ -175,9 +193,18 @@ const MessageContent = ({ content, isUser = false, isStreaming = false }: Props)
     >
       {segments.map((segment, index) =>
         segment.type === "graph" ? (
-          <GraphErrorBoundary key={`graph-${index}-${segment.expression}`}>
+          <GraphErrorBoundary
+            key={`graph-${index}-${segment.expression}`}
+            expression={segment.expression}
+            onOpenWhiteboard={onOpenWhiteboard}
+            onRequestSimplified={onRequestSimplified}
+          >
             <Suspense fallback={<div className="my-3 h-72 rounded-lg border border-border bg-secondary/40" />}>
-              <FunctionGraph expression={segment.expression} />
+              <FunctionGraph
+                expression={segment.expression}
+                onOpenWhiteboard={onOpenWhiteboard}
+                onRequestSimplified={onRequestSimplified}
+              />
             </Suspense>
           </GraphErrorBoundary>
         ) : (

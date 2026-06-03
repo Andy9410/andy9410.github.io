@@ -6,6 +6,7 @@ import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import DocumentPanel from "./DocumentPanel";
 import ExerciseStepsPanel from "./ExerciseStepsPanel";
+import { WhiteboardPanel } from "./whiteboard/WhiteboardPanel";
 
 const PDFViewer = lazy(() =>
     import("./PDFViewer").then((m) => ({ default: m.PDFViewer })),
@@ -14,8 +15,13 @@ const PDFViewer = lazy(() =>
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useChat } from "@/hooks/useChat";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
+import { useWhiteboard } from "@/hooks/useWhiteboard";
+import { useWhiteboardLesson } from "@/hooks/useWhiteboardLesson";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
+import type { InterpretMode } from "@/types/whiteboard";
+import { interpretWhiteboard } from "@/services/whiteboardApi";
+import { renderWhiteboardToPng } from "@/utils/renderWhiteboardImage";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -42,12 +48,15 @@ const ChatLayout = () => {
     rateLimitSecondsLeft,
     activeExerciseBreakdown,
     setActiveExerciseBreakdown,
+    activeWhiteboardSuggestion,
+    setActiveWhiteboardSuggestion,
     explanationLevel,
     setExplanationLevel,
     newConversation,
     sendMessage,
     sendSuggestion,
     setActiveDocument,
+    ensureBackendConversation,
     selectConversation,
     deleteConversation,
     regenerateLastMessage,
@@ -55,6 +64,8 @@ const ChatLayout = () => {
 
   const { accessToken } = useAuth();
   const pdfViewer = usePDFViewer(accessToken);
+  const whiteboard = useWhiteboard(accessToken, activeConversation?.backendId);
+  const lesson = useWhiteboardLesson();
   const { detectExercise, isClosing } = useExerciseDetection();
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
@@ -68,6 +79,8 @@ const ChatLayout = () => {
               ? "open"
               : "closed",
       );
+  const [whiteboardAskActive, setWhiteboardAskActive] = useState(false);
+  const [whiteboardInterpretMode, setWhiteboardInterpretMode] = useState<InterpretMode>("auto");
   const latestStreamBreakdownRef = useRef<ExerciseBreakdown | null>(null);
 
   const [preferredPdfLayout, setPreferredPdfLayout] =
@@ -151,6 +164,84 @@ const ChatLayout = () => {
       [pdfViewer, sendMessage, detectExercise, isClosing],
   );
 
+  const sendWhiteboardToChat = useCallback(async () => {
+    const activeWhiteboard = whiteboard.activeWhiteboard;
+    const activeWhiteboardId = activeWhiteboard?.id;
+    const conversationId = activeConversation?.backendId;
+    if (!activeWhiteboard || !activeWhiteboardId || !conversationId || !accessToken || status === "loading" || isOffline || isLoadingHistory) return;
+
+    setWhiteboardAskActive(true);
+    try {
+      const imageBase64 = renderWhiteboardToPng(activeWhiteboard.data);
+      const whiteboardInterpretation = await interpretWhiteboard(accessToken, {
+        conversationId,
+        whiteboardId: activeWhiteboardId,
+        imageBase64,
+        exerciseLabel: activeWhiteboard.exerciseLabel,
+        interpretMode: whiteboardInterpretMode,
+      }).catch(() => ({
+        type: "unknown" as const,
+        whiteboardId: activeWhiteboardId,
+        title: activeWhiteboard.title,
+        exerciseLabel: activeWhiteboard.exerciseLabel,
+        documentId: activeWhiteboard.documentId,
+        equation: null,
+        ocrText: "",
+        structuredElements: "No se pudo ejecutar la interpretación de la pizarra.",
+        semanticSummary: "No se pudo interpretar claramente la pizarra.",
+        confidence: 0,
+      }));
+      await sendMessage(
+        "Analizá la pizarra actual y decime qué falta o qué mejorar.",
+        [],
+        pdfViewer.activeExercise?.number,
+        pdfViewer.activeDocId ?? undefined,
+        activeWhiteboardId,
+        whiteboardInterpretation,
+      );
+    } finally {
+      setWhiteboardAskActive(false);
+    }
+  }, [
+    accessToken,
+    activeConversation?.backendId,
+    isLoadingHistory,
+    isOffline,
+    pdfViewer.activeDocId,
+    pdfViewer.activeExercise?.number,
+    sendMessage,
+    status,
+    whiteboard.activeWhiteboard,
+    whiteboardInterpretMode,
+  ]);
+
+  const askAboutWhiteboard = useCallback(() => {
+    void sendWhiteboardToChat();
+  }, [sendWhiteboardToChat]);
+
+  const whiteboardAskStatus = whiteboardAskActive
+    ? status === "loading" ? "generating" : "sending"
+    : "idle";
+
+  const handleExplainInWhiteboard = useCallback(async (msg: Message) => {
+    if (!accessToken) return;
+
+    const msgs = activeConversation?.messages ?? [];
+    const idx = msgs.findIndex((m) => m.id === msg.id);
+    const userMsg = [...msgs].slice(0, idx).reverse().find((m) => m.role === "user");
+
+    whiteboard.openPendingPanel();
+    const conversationId = activeConversation?.backendId
+      ?? await ensureBackendConversation("Pizarra inteligente").catch((err) => {
+        whiteboard.failPendingPanel(err instanceof Error ? err.message : "No se pudo crear la conversación.");
+        return null;
+      });
+    if (!conversationId) return;
+    await whiteboard.openConversationWhiteboard(conversationId);
+
+    void lesson.generate(conversationId, userMsg?.content ?? "", msg.content, accessToken);
+  }, [accessToken, activeConversation, ensureBackendConversation, lesson, whiteboard]);
+
   useEffect(() => {
     if (!pdfViewer.activeDocId || pdfViewer.exercises.length === 0) return;
 
@@ -170,6 +261,12 @@ const ChatLayout = () => {
       title: exercise.title,
     });
   }, [activeConversation?.messages, detectExercise, pdfViewer]);
+
+  useEffect(() => {
+    if (activeWhiteboardSuggestion) {
+      whiteboard.setPanelOpen(true);
+    }
+  }, [activeWhiteboardSuggestion, whiteboard.setPanelOpen]);
 
   useEffect(() => {
     if (activeExerciseBreakdown) {
@@ -282,6 +379,7 @@ const ChatLayout = () => {
                     : regenerateLastMessage
               }
               onOpenExerciseBreakdown={handleOpenExerciseBreakdown}
+              onExplainInWhiteboard={handleExplainInWhiteboard}
               isLoadingHistory={isLoadingHistory}
           />
         </ErrorBoundary>
@@ -357,6 +455,21 @@ const ChatLayout = () => {
               loadingExercises={pdfViewer.loadingExercises}
               onExerciseSelect={pdfViewer.selectExercise}
               onExercisesDetected={pdfViewer.syncDetectedExercises}
+              onOpenExerciseWhiteboard={async (exercise) => {
+                whiteboard.openPendingPanel();
+                const conversationId = activeConversation?.backendId ?? await ensureBackendConversation("Pizarra inteligente").catch((error) => {
+                  whiteboard.failPendingPanel(error instanceof Error ? `No se pudo crear la conversación (${error.message}).` : "No se pudo crear la conversación.");
+                  return null;
+                });
+                if (!conversationId) return;
+                await whiteboard.openExerciseWhiteboard(exercise.title, pdfViewer.activeDocId ?? undefined, conversationId);
+                pdfViewer.selectExercise({
+                  number: exercise.id,
+                  page: exercise.pageNumber,
+                  bbox: exercise.boundingBox,
+                  title: exercise.title,
+                });
+              }}
               docName={pdfViewer.activeDocName ?? undefined}
               pdfLayoutMode={
                 effectivePdfLayout === "side" ? "horizontal" : "vertical"
@@ -397,12 +510,95 @@ const ChatLayout = () => {
           <ChatHeader
               conversation={activeConversation}
               onOpenDocuments={() => setDocPanelOpen(true)}
+              onOpenWhiteboard={async () => {
+                whiteboard.openPendingPanel();
+                const conversationId = activeConversation?.backendId ?? await ensureBackendConversation("Pizarra inteligente").catch((error) => {
+                  whiteboard.failPendingPanel(error instanceof Error ? `No se pudo crear la conversación (${error.message}).` : "No se pudo crear la conversación.");
+                  return null;
+                });
+                if (!conversationId) return;
+                await whiteboard.openConversationWhiteboard(conversationId);
+              }}
               explanationLevel={explanationLevel}
               onExplanationLevelChange={setExplanationLevel}
           />
 
           <div className="min-h-0 flex-1">
-            {pdfPanel ? (
+            {whiteboard.panelOpen ? (
+                <ResizablePanelGroup
+                    direction="horizontal"
+                    autoSaveId="learnsoft-chat-whiteboard"
+                    className="h-full"
+                >
+                  <ResizablePanel defaultSize={62} minSize={36} className="min-h-0 min-w-0">
+                    {pdfPanel ? (
+                        <ResizablePanelGroup
+                            key={effectivePdfLayout}
+                            direction={
+                              effectivePdfLayout === "side" ? "horizontal" : "vertical"
+                            }
+                            autoSaveId={`learnsoft-chat-pdf-${effectivePdfLayout}`}
+                            className="h-full"
+                        >
+                          <ResizablePanel
+                              defaultSize={effectivePdfLayout === "side" ? 56 : 58}
+                              minSize={effectivePdfLayout === "side" ? 34 : 28}
+                              className="min-h-0 min-w-0"
+                          >
+                            {chatPanel}
+                          </ResizablePanel>
+
+                          <ResizableHandle withHandle />
+
+                          <ResizablePanel
+                              defaultSize={effectivePdfLayout === "side" ? 44 : 42}
+                              minSize={effectivePdfLayout === "side" ? 28 : 24}
+                              className={`min-h-0 min-w-0 border-border ${
+                                  effectivePdfLayout === "side" ? "border-l" : "border-t"
+                              }`}
+                          >
+                            {pdfPanel}
+                          </ResizablePanel>
+                        </ResizablePanelGroup>
+                    ) : (
+                        chatPanel
+                    )}
+                  </ResizablePanel>
+
+                  <ResizableHandle withHandle />
+
+                  <ResizablePanel defaultSize={38} minSize={28} className="min-h-0 min-w-0 border-l border-border">
+                    <WhiteboardPanel
+                        whiteboard={whiteboard.activeWhiteboard}
+                        token={accessToken}
+                        suggestion={activeWhiteboardSuggestion}
+                        askStatus={whiteboardAskStatus}
+                        loading={whiteboard.loading}
+                        error={whiteboard.error}
+                        interpretMode={whiteboardInterpretMode}
+                        onInterpretModeChange={setWhiteboardInterpretMode}
+                        onChangeData={whiteboard.updateData}
+                        onAskWhiteboard={askAboutWhiteboard}
+                        onApplySuggestion={() => {
+                          if (activeWhiteboardSuggestion) {
+                            whiteboard.applySuggestion(activeWhiteboardSuggestion);
+                            setActiveWhiteboardSuggestion(null);
+                          }
+                        }}
+                        onIgnoreSuggestion={() => setActiveWhiteboardSuggestion(null)}
+                        onClose={() => whiteboard.setPanelOpen(false)}
+                        lesson={lesson.lesson}
+                        lessonStepIndex={lesson.stepIndex}
+                        lessonGenerating={lesson.isGenerating}
+                        lessonError={lesson.error}
+                        lessonOverlayElements={lesson.overlayElements}
+                        onLessonNext={lesson.nextStep}
+                        onLessonPrev={lesson.prevStep}
+                        onLessonClose={lesson.close}
+                    />
+                  </ResizablePanel>
+                </ResizablePanelGroup>
+            ) : pdfPanel ? (
                 <ResizablePanelGroup
                     key={effectivePdfLayout}
                     direction={
@@ -455,6 +651,7 @@ const ChatLayout = () => {
                   }}
               />
           )}
+
         </main>
       </SidebarProvider>
   );

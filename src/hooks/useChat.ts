@@ -18,6 +18,7 @@ const saveLevel = (level: number) => {
   try { localStorage.setItem("ls_explanation_level", String(level)); } catch {}
 };
 import type { Conversation, Message, ChatStatus, ExerciseBreakdown } from "@/types/chat";
+import type { WhiteboardInterpretation, WhiteboardSuggestion } from "@/types/whiteboard";
 import {
   streamChatMessage,
   fetchMyConversations,
@@ -80,6 +81,7 @@ export const useChat = () => {
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
   const [explanationLevel, setExplanationLevelState] = useState<number>(loadLevel);
   const [activeExerciseBreakdown, setActiveExerciseBreakdown] = useState<ExerciseBreakdown | null>(null);
+  const [activeWhiteboardSuggestion, setActiveWhiteboardSuggestion] = useState<WhiteboardSuggestion | null>(null);
 
   const setExplanationLevel = useCallback((level: number) => {
     setExplanationLevelState(level);
@@ -220,14 +222,7 @@ export const useChat = () => {
                   ...c,
                   messagesLoaded: true,
                   hasMoreMessages: hasMore,
-                  messages: (() => {
-                    const mapped = backendMessages.map(mapBackendMessage);
-                    const last = mapped.at(-1);
-                    if (last && last.role === "assistant" && last.suggestions?.length) {
-                      mapped[mapped.length - 1] = { ...last, suggestionsLocked: false };
-                    }
-                    return mapped;
-                  })(),
+                  messages: backendMessages.map(mapBackendMessage),
                   messageCount: backendMessages.length,
                   updatedAt:
                     backendMessages.length > 0
@@ -252,6 +247,8 @@ export const useChat = () => {
       files?: File[],
       exerciseNumber?: string,
       contextDocId?: number,
+      activeWhiteboardId?: string,
+      whiteboardInterpretation?: WhiteboardInterpretation
     ) => {
       const file = files?.[0];
       if (!content.trim() && !files?.length) return;
@@ -486,6 +483,42 @@ export const useChat = () => {
                   : c
               )
             );
+          } else if (event.type === "whiteboard_analysis") {
+            receivedContent = true;
+            const text = [
+              event.summary,
+              "",
+              ...event.observations.map((item) => `- ${item}`),
+            ].join("\n");
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === aiMsgId ? { ...m, content: text, suggestions: [], suggestionsLocked: true } : m
+                      ),
+                    }
+                  : c
+              )
+            );
+          } else if (event.type === "whiteboard_suggestion") {
+            receivedContent = true;
+            setActiveWhiteboardSuggestion(event);
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === capturedId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === aiMsgId
+                          ? { ...m, content: `Preparé una sugerencia para la pizarra: ${event.title}`, whiteboardSuggestion: event, suggestions: [], suggestionsLocked: true }
+                          : m
+                      ),
+                    }
+                  : c
+              )
+            );
           } else if (event.type === "error") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -506,7 +539,7 @@ export const useChat = () => {
               )
             );
           }
-        }, undefined, activeDocId, capturedLevel, capturedExerciseNumber);
+        }, undefined, activeDocId, capturedLevel, capturedExerciseNumber, activeWhiteboardId, whiteboardInterpretation);
 
       try {
         await doStream(accessToken).catch(async (err: Error) => {
@@ -814,10 +847,13 @@ export const useChat = () => {
     rateLimitSecondsLeft,
     activeExerciseBreakdown,
     setActiveExerciseBreakdown,
+    activeWhiteboardSuggestion,
+    setActiveWhiteboardSuggestion,
     explanationLevel,
     setExplanationLevel,
     setActiveDocument,
     newConversation,
+    ensureBackendConversation,
     sendMessage,
     sendSuggestion,
     selectConversation,
