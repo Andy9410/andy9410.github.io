@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useId, useMemo, useRef } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import JXG from "jsxgraph";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import GraphErrorCard from "./GraphErrorCard";
 
 interface Props {
   expression: string;
   title?: string;
+  onOpenWhiteboard?: (expression: string) => void;
+  onRequestSimplified?: (expression: string) => void;
 }
 
 const MATH_FUNCTIONS: Record<string, string> = {
@@ -88,17 +91,30 @@ const buildGraphFilename = (expression: string) => {
   return `grafico-${normalized || "funcion"}.jpg`;
 };
 
-const FunctionGraph = ({ expression, title }: Props) => {
+const FunctionGraph = ({ expression, title, onOpenWhiteboard, onRequestSimplified }: Props) => {
   const boardRef = useRef<JXG.Board | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const boardId = useId().replace(/:/g, "");
+  const [retryCount, setRetryCount] = useState(0);
+  const [jsxError, setJsxError] = useState<string | null>(null);
+
   const compiledExpression = useMemo(() => {
+    const start = performance.now();
     try {
-      return { fn: compileExpression(expression), hasError: false };
-    } catch {
+      const fn = compileExpression(expression);
+      return { fn, hasError: false };
+    } catch (err) {
+      console.error("[Graph] compile error", {
+        expression,
+        tool: "compileExpression",
+        error: (err as Error).message,
+        elapsed: performance.now() - start,
+      });
       return { fn: null, hasError: true };
     }
-  }, [expression]);
+    // retryCount forces re-evaluation on retry
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expression, retryCount]);
 
   const downloadGraph = useCallback(() => {
     const board = boardRef.current;
@@ -136,40 +152,64 @@ const FunctionGraph = ({ expression, title }: Props) => {
   }, [expression]);
 
   useEffect(() => {
+    setJsxError(null);
+  }, [retryCount]);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container || !compiledExpression.fn) return;
 
-    const styles = getComputedStyle(container);
-    const axisColor = styles.getPropertyValue("--graph-axis").trim() || "#64748b";
-    const labelColor = styles.getPropertyValue("--graph-label").trim() || "#475569";
-    const lineColor = styles.getPropertyValue("--graph-line").trim() || "#14b8a6";
+    const initStart = performance.now();
+    let board: JXG.Board;
 
-    const board = JXG.JSXGraph.initBoard(container, {
-      boundingbox: [-6, 6, 6, -6],
-      axis: false,
-      showCopyright: false,
-      showNavigation: true,
-      keepaspectratio: false,
-      pan: { enabled: true },
-      zoom: { wheel: true, pinchHorizontal: true, pinchVertical: true },
-    });
+    try {
+      const styles = getComputedStyle(container);
+      const axisColor = styles.getPropertyValue("--graph-axis").trim() || "#64748b";
+      const labelColor = styles.getPropertyValue("--graph-label").trim() || "#475569";
+      const lineColor = styles.getPropertyValue("--graph-line").trim() || "#14b8a6";
 
-    boardRef.current = board;
-    board.create("axis", [[0, 0], [1, 0]], {
-      strokeColor: axisColor,
-      highlight: false,
-      ticks: { strokeColor: axisColor, label: { strokeColor: labelColor } },
-    });
-    board.create("axis", [[0, 0], [0, 1]], {
-      strokeColor: axisColor,
-      highlight: false,
-      ticks: { strokeColor: axisColor, label: { strokeColor: labelColor } },
-    });
-    board.create("functiongraph", [compiledExpression.fn], {
-      strokeColor: lineColor,
-      strokeWidth: 3,
-      highlight: false,
-    });
+      board = JXG.JSXGraph.initBoard(container, {
+        boundingbox: [-6, 6, 6, -6],
+        axis: false,
+        showCopyright: false,
+        showNavigation: true,
+        keepaspectratio: false,
+        pan: { enabled: true },
+        zoom: { wheel: true, pinchHorizontal: true, pinchVertical: true },
+      });
+
+      boardRef.current = board;
+      board.create("axis", [[0, 0], [1, 0]], {
+        strokeColor: axisColor,
+        highlight: false,
+        ticks: { strokeColor: axisColor, label: { strokeColor: labelColor } },
+      });
+      board.create("axis", [[0, 0], [0, 1]], {
+        strokeColor: axisColor,
+        highlight: false,
+        ticks: { strokeColor: axisColor, label: { strokeColor: labelColor } },
+      });
+      board.create("functiongraph", [compiledExpression.fn], {
+        strokeColor: lineColor,
+        strokeWidth: 3,
+        highlight: false,
+      });
+
+      console.debug("[Graph] rendered", {
+        expression,
+        tool: "JSXGraph",
+        elapsed: performance.now() - initStart,
+      });
+    } catch (err) {
+      console.error("[Graph] JSXGraph error", {
+        expression,
+        tool: "JSXGraph",
+        error: (err as Error).message,
+        elapsed: performance.now() - initStart,
+      });
+      setJsxError((err as Error).message);
+      return;
+    }
 
     const resizeObserver = new ResizeObserver(([entry]) => {
       const width = Math.floor(entry.contentRect.width);
@@ -189,13 +229,16 @@ const FunctionGraph = ({ expression, title }: Props) => {
         boardRef.current = null;
       }
     };
-  }, [compiledExpression]);
+  }, [compiledExpression, expression]);
 
-  if (compiledExpression.hasError || !compiledExpression.fn) {
+  if (compiledExpression.hasError || !compiledExpression.fn || jsxError) {
     return (
-      <div className="my-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-        No se pudo generar el gráfico.
-      </div>
+      <GraphErrorCard
+        expression={expression}
+        onRetry={() => setRetryCount((c) => c + 1)}
+        onOpenWhiteboard={onOpenWhiteboard}
+        onRequestSimplified={onRequestSimplified}
+      />
     );
   }
 

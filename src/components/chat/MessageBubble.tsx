@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText, BookOpenCheck } from "lucide-react";
+import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText, BookOpenCheck, GraduationCap } from "lucide-react";
 
 const dot = { initial: { y: 0 }, animate: { y: -4 } };
 
@@ -30,9 +30,10 @@ interface Props {
   isStreaming?: boolean;
   onRegenerate?: () => void;
   onOpenExerciseBreakdown?: () => void;
+  onExplainInWhiteboard?: (content: string) => void;
 }
 
-const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate, onOpenExerciseBreakdown }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate, onOpenExerciseBreakdown, onExplainInWhiteboard }: Props) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const isError = message.isError === true;
@@ -180,6 +181,17 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
         )}
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
+
+        {!isUser && !isError && !isRestored && !isStreaming && onExplainInWhiteboard && (
+          <button
+            type="button"
+            onClick={() => onExplainInWhiteboard(message.content)}
+            className="inline-flex items-center gap-1.5 self-start rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 shadow-sm transition-colors hover:bg-sky-100 dark:border-sky-800/50 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-950/60"
+          >
+            <GraduationCap className="h-3 w-3" />
+            Explicar en pizarra
+          </button>
+        )}
 
         {!isUser && message.sources && message.sources.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">

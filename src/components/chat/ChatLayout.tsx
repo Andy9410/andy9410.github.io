@@ -16,6 +16,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { useChat } from "@/hooks/useChat";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { useWhiteboard } from "@/hooks/useWhiteboard";
+import { useWhiteboardLesson } from "@/hooks/useWhiteboardLesson";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode } from "@/types/whiteboard";
@@ -64,6 +65,7 @@ const ChatLayout = () => {
   const { accessToken } = useAuth();
   const pdfViewer = usePDFViewer(accessToken);
   const whiteboard = useWhiteboard(accessToken, activeConversation?.backendId);
+  const lesson = useWhiteboardLesson();
   const { detectExercise, isClosing } = useExerciseDetection();
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
@@ -221,6 +223,25 @@ const ChatLayout = () => {
     ? status === "loading" ? "generating" : "sending"
     : "idle";
 
+  const handleExplainInWhiteboard = useCallback(async (msg: Message) => {
+    if (!accessToken) return;
+
+    const msgs = activeConversation?.messages ?? [];
+    const idx = msgs.findIndex((m) => m.id === msg.id);
+    const userMsg = [...msgs].slice(0, idx).reverse().find((m) => m.role === "user");
+
+    whiteboard.openPendingPanel();
+    const conversationId = activeConversation?.backendId
+      ?? await ensureBackendConversation("Pizarra inteligente").catch((err) => {
+        whiteboard.failPendingPanel(err instanceof Error ? err.message : "No se pudo crear la conversación.");
+        return null;
+      });
+    if (!conversationId) return;
+    await whiteboard.openConversationWhiteboard(conversationId);
+
+    void lesson.generate(conversationId, userMsg?.content ?? "", msg.content, accessToken);
+  }, [accessToken, activeConversation, ensureBackendConversation, lesson, whiteboard]);
+
   useEffect(() => {
     if (!pdfViewer.activeDocId || pdfViewer.exercises.length === 0) return;
 
@@ -358,6 +379,7 @@ const ChatLayout = () => {
                     : regenerateLastMessage
               }
               onOpenExerciseBreakdown={handleOpenExerciseBreakdown}
+              onExplainInWhiteboard={handleExplainInWhiteboard}
               isLoadingHistory={isLoadingHistory}
           />
         </ErrorBoundary>
@@ -565,6 +587,14 @@ const ChatLayout = () => {
                         }}
                         onIgnoreSuggestion={() => setActiveWhiteboardSuggestion(null)}
                         onClose={() => whiteboard.setPanelOpen(false)}
+                        lesson={lesson.lesson}
+                        lessonStepIndex={lesson.stepIndex}
+                        lessonGenerating={lesson.isGenerating}
+                        lessonError={lesson.error}
+                        lessonOverlayElements={lesson.overlayElements}
+                        onLessonNext={lesson.nextStep}
+                        onLessonPrev={lesson.prevStep}
+                        onLessonClose={lesson.close}
                     />
                   </ResizablePanel>
                 </ResizablePanelGroup>

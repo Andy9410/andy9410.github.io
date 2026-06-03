@@ -8,6 +8,7 @@ interface Props {
   tool: WhiteboardTool;
   selectedId: string | null;
   showGrid?: boolean;
+  overlayElements?: WhiteboardElement[];
   onToolChange: (tool: WhiteboardTool) => void;
   onSelect: (id: string | null) => void;
   onChange: (data: WhiteboardData) => void;
@@ -28,8 +29,10 @@ type TextEditState = {
 
 const stroke = "#0f172a";
 const accent = "#14b8a6";
+const lessonStroke = "#0ea5e9";
+const lessonFill = "#e0f2fe";
 
-export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, onToolChange, onSelect, onChange }: Props) {
+export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ignoreNextBlurRef = useRef(false);
@@ -449,6 +452,70 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, onTo
     );
   };
 
+  const renderOverlayElement = (element: WhiteboardElement) => {
+    const pe = { pointerEvents: "none" as const };
+
+    if (element.type === "text" || element.type === "equation") {
+      return (
+        <text key={element.id} x={element.x} y={element.y} fill={lessonStroke} fontSize={element.type === "equation" ? "18" : "16"} fontWeight="600" style={pe}>
+          {element.text}
+        </text>
+      );
+    }
+
+    if (element.type === "path") {
+      const d = (element.points ?? []).map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+      return <path key={element.id} d={d} fill="none" stroke={lessonStroke} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={pe} />;
+    }
+
+    if (element.type === "arrow") {
+      const x2 = element.x + (element.width ?? 120);
+      const y2 = element.y + (element.height ?? 0);
+      return (
+        <g key={element.id} style={pe}>
+          <defs>
+            <marker id="lesson-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill={lessonStroke} />
+            </marker>
+          </defs>
+          <line x1={element.x} y1={element.y} x2={x2} y2={y2} stroke={lessonStroke} strokeWidth="2.5" markerEnd="url(#lesson-arrow)" style={pe} />
+        </g>
+      );
+    }
+
+    const w = element.width ?? 120;
+    const h = element.height ?? 72;
+    const label = element.text ? (
+      <text x={element.x + w / 2} y={element.y + h / 2 + 5} textAnchor="middle" fill={lessonStroke} fontSize="14" fontWeight="600" style={pe}>{element.text}</text>
+    ) : null;
+
+    if (element.type === "circle") {
+      return (
+        <g key={element.id} style={pe}>
+          <ellipse cx={element.x + w / 2} cy={element.y + h / 2} rx={w / 2} ry={h / 2} fill={lessonFill} stroke={lessonStroke} strokeWidth="2" style={pe} />
+          {label}
+        </g>
+      );
+    }
+
+    if (element.type === "diamond") {
+      const pts = `${element.x + w / 2},${element.y} ${element.x + w},${element.y + h / 2} ${element.x + w / 2},${element.y + h} ${element.x},${element.y + h / 2}`;
+      return (
+        <g key={element.id} style={pe}>
+          <polygon points={pts} fill={lessonFill} stroke={lessonStroke} strokeWidth="2" style={pe} />
+          {label}
+        </g>
+      );
+    }
+
+    return (
+      <g key={element.id} style={pe}>
+        <rect x={element.x} y={element.y} width={w} height={h} rx="6" fill={lessonFill} stroke={lessonStroke} strokeWidth="2" style={pe} />
+        {label}
+      </g>
+    );
+  };
+
   return (
       <div className={cn("relative min-h-0 flex-1 overflow-hidden", showGrid && "bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px]")}>
         <svg
@@ -462,6 +529,11 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, onTo
             aria-label="Pizarra inteligente"
         >
           {data.elements.map(renderElement)}
+          {overlayElements && overlayElements.length > 0 && (
+            <g pointerEvents="none" opacity="0.85" aria-hidden="true">
+              {overlayElements.map(renderOverlayElement)}
+            </g>
+          )}
         </svg>
 
         {editingText && editingPosition && (

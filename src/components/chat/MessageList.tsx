@@ -11,10 +11,11 @@ interface Props {
   onSuggestion: (messageId: string, text: string) => void;
   onRegenerate?: () => void;
   onOpenExerciseBreakdown?: (message: Message) => void;
+  onExplainInWhiteboard?: (message: Message) => void;
   isLoadingHistory?: boolean;
 }
 
-const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, onOpenExerciseBreakdown, isLoadingHistory = false }: Props) => {
+const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, onOpenExerciseBreakdown, onExplainInWhiteboard, isLoadingHistory = false }: Props) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,6 +52,11 @@ const MessageList = ({ messages, isTyping, onSuggestion, onRegenerate, onOpenExe
                     onRegenerate={onRegenerate}
                     onOpenExerciseBreakdown={
                       msg.exerciseBreakdown ? () => onOpenExerciseBreakdown?.(msg) : undefined
+                    }
+                    onExplainInWhiteboard={
+                      msg.role === "assistant" && !msg.isError
+                        ? () => onExplainInWhiteboard?.(msg)
+                        : undefined
                     }
                   />
                   {shouldShowSuggestions ? (

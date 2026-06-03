@@ -1,8 +1,10 @@
 import { AlertCircle, ChevronDown, Loader2, MessageSquareText, PanelRightClose, Save, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import type { InterpretMode, Whiteboard, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
+import type { InterpretMode, Whiteboard, WhiteboardElement, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
+import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
+import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardToolbar } from "./WhiteboardToolbar";
 
@@ -20,6 +22,14 @@ interface Props {
   onApplySuggestion: () => void;
   onIgnoreSuggestion: () => void;
   onClose: () => void;
+  lesson?: WhiteboardLesson | null;
+  lessonStepIndex?: number;
+  lessonGenerating?: boolean;
+  lessonError?: string | null;
+  lessonOverlayElements?: WhiteboardElement[];
+  onLessonNext?: () => void;
+  onLessonPrev?: () => void;
+  onLessonClose?: () => void;
 }
 
 const MODE_LABELS: Record<InterpretMode, string> = {
@@ -48,6 +58,14 @@ export function WhiteboardPanel({
   onApplySuggestion,
   onIgnoreSuggestion,
   onClose,
+  lesson = null,
+  lessonStepIndex = 0,
+  lessonGenerating = false,
+  lessonError = null,
+  lessonOverlayElements = [],
+  onLessonNext,
+  onLessonPrev,
+  onLessonClose,
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -226,12 +244,23 @@ export function WhiteboardPanel({
         tool={tool}
         selectedId={selectedId}
         showGrid={showGrid}
+        overlayElements={lessonOverlayElements}
         onToolChange={setTool}
         onSelect={setSelectedId}
         onChange={(data) => onChangeData(() => data)}
       />
 
-      {suggestion && suggestion.whiteboardId === whiteboard.id && (
+      <WhiteboardLessonBar
+        lesson={lesson}
+        stepIndex={lessonStepIndex}
+        isGenerating={lessonGenerating}
+        error={lessonError}
+        onNext={onLessonNext ?? (() => {})}
+        onPrev={onLessonPrev ?? (() => {})}
+        onClose={onLessonClose ?? (() => {})}
+      />
+
+      {suggestion && suggestion.whiteboardId === whiteboard.id && !lessonGenerating && (
         <WhiteboardSuggestionCard
           suggestion={suggestion}
           onApply={onApplySuggestion}
