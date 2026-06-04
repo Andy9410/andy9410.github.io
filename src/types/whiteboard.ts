@@ -62,8 +62,28 @@ export interface WhiteboardActionPayload {
 }
 
 export interface WhiteboardAction {
-  type: "OPEN_WHITEBOARD" | "UPDATE_WHITEBOARD" | "INJECT_WHITEBOARD_CONTENT";
+  type: "OPEN_WHITEBOARD" | "UPDATE_WHITEBOARD" | "INJECT_WHITEBOARD_CONTENT" | "CREATE_REASONING_NODE";
   payload: WhiteboardActionPayload;
+}
+
+export type ReasoningNodeType =
+  | "PROBLEM" | "PLAN" | "DECOMPOSITION"
+  | "SUBPROBLEM" | "SUBPROBLEM_SOLUTION" | "PARTIAL_RESULT"
+  | "FINAL_INTEGRATION" | "FINAL_ANSWER" | "USER_QUESTION";
+
+export type ReasoningNodeStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
+
+export interface ReasoningNode {
+  nodeId: number;
+  conversationId: number;
+  whiteboardId?: number | null;
+  parentNodeId?: number | null;
+  nodeType: ReasoningNodeType;
+  title: string;
+  description?: string | null;
+  status: ReasoningNodeStatus;
+  level: number;
+  orderIndex: number;
 }
 
 export interface WhiteboardSuggestion {

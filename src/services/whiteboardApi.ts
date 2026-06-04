@@ -1,4 +1,4 @@
-import type { InterpretMode, Whiteboard, WhiteboardData, WhiteboardEntry, WhiteboardInterpretation } from "@/types/whiteboard";
+import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardData, WhiteboardEntry, WhiteboardInterpretation } from "@/types/whiteboard";
 
 const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "http://localhost:8080";
 
@@ -121,6 +121,30 @@ export async function injectWhiteboardContent(
     { method: "POST", body: JSON.stringify({ blocks }) }
   );
   return await res.json() as WhiteboardEntry[];
+}
+
+export async function getReasoningTree(conversationId: number, token: string): Promise<ReasoningNode[]> {
+  try {
+    const res = await whiteboardFetch(`/api/conversations/${conversationId}/reasoning/tree`, token);
+    return await res.json() as ReasoningNode[];
+  } catch (error) {
+    if (error instanceof Error && error.message === "404") return [];
+    throw error;
+  }
+}
+
+export async function updateReasoningNodeStatus(
+  nodeId: number,
+  conversationId: number,
+  status: string,
+  token: string
+): Promise<ReasoningNode> {
+  const res = await whiteboardFetch(
+    `/api/reasoning/nodes/${nodeId}/status?conversationId=${conversationId}`,
+    token,
+    { method: "PATCH", body: JSON.stringify({ status }) }
+  );
+  return await res.json() as ReasoningNode;
 }
 
 export async function interpretWhiteboard(

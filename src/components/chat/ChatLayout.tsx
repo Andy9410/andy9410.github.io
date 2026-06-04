@@ -20,7 +20,7 @@ import { useWhiteboardLesson } from "@/hooks/useWhiteboardLesson";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode } from "@/types/whiteboard";
-import { interpretWhiteboard } from "@/services/whiteboardApi";
+import { getReasoningTree, interpretWhiteboard } from "@/services/whiteboardApi";
 import { renderWhiteboardToPng } from "@/utils/renderWhiteboardImage";
 import {
   ResizableHandle,
@@ -71,6 +71,7 @@ const ChatLayout = () => {
   const { detectExercise, isClosing } = useExerciseDetection();
 
   const [teachingEntries, setTeachingEntries] = useState<import("@/types/whiteboard").WhiteboardEntry[]>([]);
+  const [reasoningNodes, setReasoningNodes] = useState<import("@/types/whiteboard").ReasoningNode[]>([]);
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
@@ -272,6 +273,19 @@ const ChatLayout = () => {
     }
   }, [activeWhiteboardSuggestion, whiteboard.setPanelOpen]);
 
+  // Load reasoning tree when switching conversations
+  useEffect(() => {
+    const conversationId = activeConversation?.backendId;
+    if (!conversationId || !accessToken) return;
+
+    setReasoningNodes([]);
+    void getReasoningTree(conversationId, accessToken)
+      .then((nodes) => {
+        if (nodes.length > 0) setReasoningNodes(nodes);
+      })
+      .catch(() => {});
+  }, [activeConversation?.backendId, accessToken]);
+
   // Handle backend whiteboard actions (OPEN_WHITEBOARD, UPDATE_WHITEBOARD)
   useEffect(() => {
     if (!activeWhiteboardAction) return;
@@ -285,6 +299,17 @@ const ChatLayout = () => {
       const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
       if (conversationId && accessToken && !whiteboard.activeWhiteboard) {
         void whiteboard.openConversationWhiteboard(conversationId);
+      }
+    } else if (action.type === "CREATE_REASONING_NODE") {
+      const node = action.payload as unknown as import("@/types/whiteboard").ReasoningNode;
+      if (node?.nodeId) {
+        setReasoningNodes((prev) => {
+          const exists = prev.some((n) => n.nodeId === node.nodeId);
+          if (exists) return prev.map((n) => n.nodeId === node.nodeId ? node : n);
+          return [...prev, node].sort((a, b) =>
+            a.level !== b.level ? a.level - b.level : a.orderIndex - b.orderIndex
+          );
+        });
       }
     } else if (action.type === "UPDATE_WHITEBOARD" || action.type === "INJECT_WHITEBOARD_CONTENT") {
       // Merge new entries/blocks from the action payload
@@ -627,6 +652,7 @@ const ChatLayout = () => {
                         onLessonPrev={lesson.prevStep}
                         onLessonClose={lesson.close}
                         teachingEntries={teachingEntries}
+                        reasoningNodes={reasoningNodes}
                     />
                   </ResizablePanel>
                 </ResizablePanelGroup>

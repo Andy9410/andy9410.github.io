@@ -1,10 +1,11 @@
 import { AlertCircle, ChevronDown, Loader2, MessageSquareText, PanelRightClose, Save, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import type { InterpretMode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
+import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
 import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
 import { WhiteboardEntries } from "./WhiteboardEntries";
+import { WhiteboardReasoningGraph } from "./WhiteboardReasoningGraph";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardToolbar } from "./WhiteboardToolbar";
@@ -32,6 +33,7 @@ interface Props {
   onLessonPrev?: () => void;
   onLessonClose?: () => void;
   teachingEntries?: WhiteboardEntry[];
+  reasoningNodes?: ReasoningNode[];
 }
 
 const MODE_LABELS: Record<InterpretMode, string> = {
@@ -69,6 +71,7 @@ export function WhiteboardPanel({
   onLessonPrev,
   onLessonClose,
   teachingEntries = [],
+  reasoningNodes = [],
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -252,6 +255,8 @@ export function WhiteboardPanel({
         onSelect={setSelectedId}
         onChange={(data) => onChangeData(() => data)}
       />
+
+      <WhiteboardReasoningGraph nodes={reasoningNodes} />
 
       <WhiteboardEntries entries={teachingEntries} />
 
