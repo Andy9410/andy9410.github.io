@@ -3,8 +3,8 @@ import { useMemo, useRef, useState } from "react";
 import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
 import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
+import { entriesToElements } from "@/utils/entriesToElements";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
-import { WhiteboardEntries } from "./WhiteboardEntries";
 import { WhiteboardReasoningGraph } from "./WhiteboardReasoningGraph";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
@@ -85,6 +85,18 @@ export function WhiteboardPanel({
       : askStatus === "generating"
         ? "Respuesta generándose..."
         : "Preguntar sobre la pizarra";
+
+  // Convert teaching entries to canvas overlay elements
+  const teachingOverlayElements = useMemo(
+    () => (teachingEntries.length > 0 ? entriesToElements(teachingEntries) : []),
+    [teachingEntries]
+  );
+
+  // Merge lesson overlay + teaching overlay (lesson takes priority visually — rendered last)
+  const allOverlayElements = useMemo(
+    () => [...teachingOverlayElements, ...lessonOverlayElements],
+    [teachingOverlayElements, lessonOverlayElements]
+  );
 
   const selectedElement = useMemo(
     () => whiteboard?.data.elements.find((element) => element.id === selectedId),
@@ -250,15 +262,13 @@ export function WhiteboardPanel({
         tool={tool}
         selectedId={selectedId}
         showGrid={showGrid}
-        overlayElements={lessonOverlayElements}
+        overlayElements={allOverlayElements}
         onToolChange={setTool}
         onSelect={setSelectedId}
         onChange={(data) => onChangeData(() => data)}
       />
 
       <WhiteboardReasoningGraph nodes={reasoningNodes} />
-
-      <WhiteboardEntries entries={teachingEntries} />
 
       <WhiteboardLessonBar
         lesson={lesson}
