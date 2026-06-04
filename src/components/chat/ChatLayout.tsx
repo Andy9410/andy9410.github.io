@@ -50,6 +50,8 @@ const ChatLayout = () => {
     setActiveExerciseBreakdown,
     activeWhiteboardSuggestion,
     setActiveWhiteboardSuggestion,
+    activeWhiteboardAction,
+    setActiveWhiteboardAction,
     explanationLevel,
     setExplanationLevel,
     newConversation,
@@ -67,6 +69,8 @@ const ChatLayout = () => {
   const whiteboard = useWhiteboard(accessToken, activeConversation?.backendId);
   const lesson = useWhiteboardLesson();
   const { detectExercise, isClosing } = useExerciseDetection();
+
+  const [teachingEntries, setTeachingEntries] = useState<import("@/types/whiteboard").WhiteboardEntry[]>([]);
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
@@ -267,6 +271,32 @@ const ChatLayout = () => {
       whiteboard.setPanelOpen(true);
     }
   }, [activeWhiteboardSuggestion, whiteboard.setPanelOpen]);
+
+  // Handle backend whiteboard actions (OPEN_WHITEBOARD, UPDATE_WHITEBOARD)
+  useEffect(() => {
+    if (!activeWhiteboardAction) return;
+
+    const action = activeWhiteboardAction;
+    setActiveWhiteboardAction(null);
+
+    if (action.type === "OPEN_WHITEBOARD") {
+      // Open panel and load (or accept) the whiteboard from the action payload
+      whiteboard.setPanelOpen(true);
+      const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
+      if (conversationId && accessToken && !whiteboard.activeWhiteboard) {
+        void whiteboard.openConversationWhiteboard(conversationId);
+      }
+    } else if (action.type === "UPDATE_WHITEBOARD") {
+      // Merge new entries from the action payload
+      if (action.payload.entries && action.payload.entries.length > 0) {
+        setTeachingEntries((prev) => {
+          const existingIds = new Set(prev.map((e) => e.id));
+          const fresh = action.payload.entries!.filter((e) => !existingIds.has(e.id));
+          return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+        });
+      }
+    }
+  }, [activeWhiteboardAction, setActiveWhiteboardAction, whiteboard, activeConversation, accessToken]);
 
   useEffect(() => {
     if (activeExerciseBreakdown) {
@@ -595,6 +625,7 @@ const ChatLayout = () => {
                         onLessonNext={lesson.nextStep}
                         onLessonPrev={lesson.prevStep}
                         onLessonClose={lesson.close}
+                        teachingEntries={teachingEntries}
                     />
                   </ResizablePanel>
                 </ResizablePanelGroup>

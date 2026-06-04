@@ -1,9 +1,10 @@
 import { AlertCircle, ChevronDown, Loader2, MessageSquareText, PanelRightClose, Save, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import type { InterpretMode, Whiteboard, WhiteboardElement, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
+import type { InterpretMode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
 import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
+import { WhiteboardEntries } from "./WhiteboardEntries";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardToolbar } from "./WhiteboardToolbar";
@@ -30,6 +31,7 @@ interface Props {
   onLessonNext?: () => void;
   onLessonPrev?: () => void;
   onLessonClose?: () => void;
+  teachingEntries?: WhiteboardEntry[];
 }
 
 const MODE_LABELS: Record<InterpretMode, string> = {
@@ -66,6 +68,7 @@ export function WhiteboardPanel({
   onLessonNext,
   onLessonPrev,
   onLessonClose,
+  teachingEntries = [],
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -249,6 +252,8 @@ export function WhiteboardPanel({
         onSelect={setSelectedId}
         onChange={(data) => onChangeData(() => data)}
       />
+
+      <WhiteboardEntries entries={teachingEntries} />
 
       <WhiteboardLessonBar
         lesson={lesson}

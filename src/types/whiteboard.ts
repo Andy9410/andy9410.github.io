@@ -32,8 +32,34 @@ export interface Whiteboard {
   exerciseLabel?: string | null;
   title: string;
   data: WhiteboardData;
+  mode?: string;
+  status?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type WhiteboardEntryType = "TEXT" | "STEP" | "FORMULA" | "DRAWING" | "HIGHLIGHT" | "SYSTEM_NOTE";
+
+export interface WhiteboardEntry {
+  id: number;
+  whiteboardId: string;
+  conversationId: number;
+  type: WhiteboardEntryType;
+  content: string;
+  orderIndex: number;
+}
+
+export interface WhiteboardActionPayload {
+  conversationId: number;
+  whiteboardId: string;
+  title?: string;
+  mode?: string;
+  entries?: WhiteboardEntry[];
+}
+
+export interface WhiteboardAction {
+  type: "OPEN_WHITEBOARD" | "UPDATE_WHITEBOARD";
+  payload: WhiteboardActionPayload;
 }
 
 export interface WhiteboardSuggestion {
