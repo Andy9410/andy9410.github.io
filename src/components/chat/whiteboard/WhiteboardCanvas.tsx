@@ -304,7 +304,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
                 x={element.x}
                 y={element.y}
                 fill={stroke}
-                fontSize={element.type === "equation" ? "18" : "16"}
+                fontSize={element.type === "equation" ? "22" : "19"}
                 fontWeight="600"
                 fontFamily={CHALK_FONT}
             >
@@ -398,7 +398,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             y={element.y + height / 2 + 5}
             textAnchor="middle"
             fill={stroke}
-            fontSize="14"
+            fontSize="17"
             fontWeight="600"
             fontFamily={CHALK_FONT}
         >
@@ -461,7 +461,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
 
     if (element.type === "text" || element.type === "equation") {
       return (
-        <text key={element.id} x={element.x} y={element.y} fill={lessonStroke} fontSize={element.type === "equation" ? "18" : "16"} fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
+        <text key={element.id} x={element.x} y={element.y} fill={lessonStroke} fontSize={element.type === "equation" ? "22" : "19"} fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
           {element.text}
         </text>
       );
@@ -490,7 +490,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
     const w = element.width ?? 120;
     const h = element.height ?? 72;
     const label = element.text ? (
-      <text x={element.x + w / 2} y={element.y + h / 2 + 5} textAnchor="middle" fill={lessonStroke} fontSize="14" fontWeight="600" fontFamily={CHALK_FONT} style={pe}>{element.text}</text>
+      <text x={element.x + w / 2} y={element.y + h / 2 + 5} textAnchor="middle" fill={lessonStroke} fontSize="17" fontWeight="600" fontFamily={CHALK_FONT} style={pe}>{element.text}</text>
     ) : null;
 
     if (element.type === "circle") {
