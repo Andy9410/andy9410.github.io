@@ -30,8 +30,8 @@ type TextEditState = {
 const BOARD_BG     = "#2a5e1e";
 const stroke       = "#ffffff";
 const accent       = "#f9c74f";
-const lessonStroke = "#f9c74f";
-const lessonFill   = "rgba(249,199,79,0.12)";
+const lessonStroke = "#ffffff";
+const lessonFill   = "rgba(255,255,255,0.08)";
 const CHALK_FONT   = "'FrederickatheGreat', serif";
 
 export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
