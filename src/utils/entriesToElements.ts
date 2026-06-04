@@ -29,12 +29,12 @@ export function entriesToElements(entries: WhiteboardEntry[]): WhiteboardElement
 
     switch (entry.type) {
       case "TITLE":
-        elements.push({ id, type: "text", x: X, y, text: entry.content, stroke: "#0f172a" });
+        elements.push({ id, type: "text", x: X, y, text: entry.content, stroke: "#ffffff" });
         y += LINE_H.TITLE;
         break;
 
       case "TEXT":
-        elements.push({ id, type: "text", x: X, y, text: entry.content, stroke: "#0f172a" });
+        elements.push({ id, type: "text", x: X, y, text: entry.content, stroke: "#ffffff" });
         y += LINE_H.TEXT;
         break;
 
@@ -44,13 +44,13 @@ export function entriesToElements(entries: WhiteboardEntry[]): WhiteboardElement
           x: X, y,
           width: CANVAS_W, height: 55,
           text: entry.content,
-          stroke: "#0f172a", fill: "#ffffff",
+          stroke: "#ffffff", fill: "transparent",
         });
         y += LINE_H.STEP;
         break;
 
       case "FORMULA":
-        elements.push({ id, type: "equation", x: X + 20, y: y + 4, text: entry.content, stroke: "#0f172a" });
+        elements.push({ id, type: "equation", x: X + 20, y: y + 4, text: entry.content, stroke: "#ffffff" });
         y += LINE_H.FORMULA;
         break;
 
@@ -60,7 +60,7 @@ export function entriesToElements(entries: WhiteboardEntry[]): WhiteboardElement
           x: X, y,
           width: CANVAS_W, height: 55,
           text: "Ej: " + entry.content,
-          stroke: "#0f172a", fill: "#f0fdf4",
+          stroke: "#ffffff", fill: "rgba(255,255,255,0.08)",
         });
         y += LINE_H.EXAMPLE;
         break;
@@ -71,18 +71,18 @@ export function entriesToElements(entries: WhiteboardEntry[]): WhiteboardElement
           x: X, y,
           width: CANVAS_W, height: 52,
           text: "⚠ " + entry.content,
-          stroke: "#0f172a", fill: "#fffbeb",
+          stroke: "#ffffff", fill: "rgba(249,199,79,0.15)",
         });
         y += LINE_H.WARNING;
         break;
 
       case "QUESTION":
-        elements.push({ id, type: "text", x: X, y, text: "? " + entry.content, stroke: "#0f172a" });
+        elements.push({ id, type: "text", x: X, y, text: "? " + entry.content, stroke: "#ffffff" });
         y += LINE_H.QUESTION;
         break;
 
       default:
-        elements.push({ id, type: "text", x: X, y, text: entry.content, stroke: "#0f172a" });
+        elements.push({ id, type: "text", x: X, y, text: entry.content, stroke: "#ffffff" });
         y += LINE_H.SYSTEM_NOTE;
         break;
     }

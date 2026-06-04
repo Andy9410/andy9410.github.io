@@ -27,10 +27,11 @@ type TextEditState = {
   isNew: boolean;
 };
 
-const stroke = "#0f172a";
-const accent = "#14b8a6";
-const lessonStroke = "#0ea5e9";
-const lessonFill = "#e0f2fe";
+const BOARD_BG   = "#2a5e1e";   // chalkboard green
+const stroke     = "#ffffff";   // chalk white
+const accent     = "#f9c74f";   // yellow chalk (selection)
+const lessonStroke = "#f9c74f"; // teacher's yellow chalk
+const lessonFill   = "rgba(249,199,79,0.12)";
 
 export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -410,7 +411,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
                 cy={element.y + height / 2}
                 rx={width / 2}
                 ry={height / 2}
-                fill="white"
+                fill="transparent"
                 stroke={isSelected ? accent : stroke}
                 strokeWidth="2"
             />
@@ -426,7 +427,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
           <g key={element.id} {...common}>
             <polygon
                 points={points}
-                fill="white"
+                fill="transparent"
                 stroke={isSelected ? accent : stroke}
                 strokeWidth="2"
             />
@@ -443,7 +444,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
               width={width}
               height={height}
               rx="6"
-              fill="white"
+              fill="transparent"
               stroke={isSelected ? accent : stroke}
               strokeWidth="2"
           />
@@ -517,7 +518,16 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
   };
 
   return (
-      <div className={cn("relative min-h-0 flex-1 overflow-hidden", showGrid && "bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px]")}>
+      <div
+        className="relative min-h-0 flex-1 overflow-hidden"
+        style={{
+          backgroundColor: BOARD_BG,
+          backgroundImage: showGrid
+            ? "linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)"
+            : "none",
+          backgroundSize: showGrid ? "24px 24px" : "auto",
+        }}
+      >
         <svg
             ref={svgRef}
             className={cn("h-full w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}
@@ -559,7 +569,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
                 }}
                 onBlur={handleTextBlur}
                 aria-label="Editar texto de la pizarra"
-                className="absolute z-20 h-8 min-w-24 rounded-md border border-accent bg-background px-2 text-sm font-semibold text-foreground shadow-lg outline-none ring-2 ring-accent/25"
+                className="absolute z-20 h-8 min-w-24 rounded-md border border-white/40 bg-[#1a4d1a] px-2 text-sm font-semibold text-white shadow-lg outline-none ring-2 ring-white/20"
                 style={{
                   left: editingPosition.x - 6,
                   top: editingPosition.y - 24,
