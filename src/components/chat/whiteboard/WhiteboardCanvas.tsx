@@ -27,11 +27,12 @@ type TextEditState = {
   isNew: boolean;
 };
 
-const BOARD_BG   = "#2a5e1e";   // chalkboard green
-const stroke     = "#ffffff";   // chalk white
-const accent     = "#f9c74f";   // yellow chalk (selection)
-const lessonStroke = "#f9c74f"; // teacher's yellow chalk
+const BOARD_BG     = "#2a5e1e";
+const stroke       = "#ffffff";
+const accent       = "#f9c74f";
+const lessonStroke = "#f9c74f";
 const lessonFill   = "rgba(249,199,79,0.12)";
+const CHALK_FONT   = "'FrederickatheGreat', serif";
 
 export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -305,6 +306,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
                 fill={stroke}
                 fontSize={element.type === "equation" ? "18" : "16"}
                 fontWeight="600"
+                fontFamily={CHALK_FONT}
             >
               {element.text}
             </text>
@@ -398,6 +400,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             fill={stroke}
             fontSize="14"
             fontWeight="600"
+            fontFamily={CHALK_FONT}
         >
           {element.text}
         </text>
@@ -458,7 +461,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
 
     if (element.type === "text" || element.type === "equation") {
       return (
-        <text key={element.id} x={element.x} y={element.y} fill={lessonStroke} fontSize={element.type === "equation" ? "18" : "16"} fontWeight="600" style={pe}>
+        <text key={element.id} x={element.x} y={element.y} fill={lessonStroke} fontSize={element.type === "equation" ? "18" : "16"} fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
           {element.text}
         </text>
       );
@@ -487,7 +490,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
     const w = element.width ?? 120;
     const h = element.height ?? 72;
     const label = element.text ? (
-      <text x={element.x + w / 2} y={element.y + h / 2 + 5} textAnchor="middle" fill={lessonStroke} fontSize="14" fontWeight="600" style={pe}>{element.text}</text>
+      <text x={element.x + w / 2} y={element.y + h / 2 + 5} textAnchor="middle" fill={lessonStroke} fontSize="14" fontWeight="600" fontFamily={CHALK_FONT} style={pe}>{element.text}</text>
     ) : null;
 
     if (element.type === "circle") {
@@ -569,7 +572,8 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
                 }}
                 onBlur={handleTextBlur}
                 aria-label="Editar texto de la pizarra"
-                className="absolute z-20 h-8 min-w-24 rounded-md border border-white/40 bg-[#1a4d1a] px-2 text-sm font-semibold text-white shadow-lg outline-none ring-2 ring-white/20"
+                className="absolute z-20 h-8 min-w-24 rounded-md border border-white/40 bg-[#1a4d1a] px-2 text-sm text-white shadow-lg outline-none ring-2 ring-white/20"
+                style={{ fontFamily: CHALK_FONT }}
                 style={{
                   left: editingPosition.x - 6,
                   top: editingPosition.y - 24,
