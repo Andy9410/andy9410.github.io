@@ -38,7 +38,9 @@ export interface Whiteboard {
   updatedAt?: string;
 }
 
-export type WhiteboardEntryType = "TEXT" | "STEP" | "FORMULA" | "DRAWING" | "HIGHLIGHT" | "SYSTEM_NOTE";
+export type WhiteboardEntryType =
+  | "TEXT" | "STEP" | "FORMULA" | "DRAWING" | "HIGHLIGHT" | "SYSTEM_NOTE"
+  | "TITLE" | "EXAMPLE" | "WARNING" | "QUESTION" | "DRAWING_INSTRUCTION";
 
 export interface WhiteboardEntry {
   id: number;
@@ -47,6 +49,7 @@ export interface WhiteboardEntry {
   type: WhiteboardEntryType;
   content: string;
   orderIndex: number;
+  metadata?: string | null;
 }
 
 export interface WhiteboardActionPayload {
@@ -55,10 +58,11 @@ export interface WhiteboardActionPayload {
   title?: string;
   mode?: string;
   entries?: WhiteboardEntry[];
+  blocks?: WhiteboardEntry[];
 }
 
 export interface WhiteboardAction {
-  type: "OPEN_WHITEBOARD" | "UPDATE_WHITEBOARD";
+  type: "OPEN_WHITEBOARD" | "UPDATE_WHITEBOARD" | "INJECT_WHITEBOARD_CONTENT";
   payload: WhiteboardActionPayload;
 }
 

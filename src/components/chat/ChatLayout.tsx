@@ -286,12 +286,13 @@ const ChatLayout = () => {
       if (conversationId && accessToken && !whiteboard.activeWhiteboard) {
         void whiteboard.openConversationWhiteboard(conversationId);
       }
-    } else if (action.type === "UPDATE_WHITEBOARD") {
-      // Merge new entries from the action payload
-      if (action.payload.entries && action.payload.entries.length > 0) {
+    } else if (action.type === "UPDATE_WHITEBOARD" || action.type === "INJECT_WHITEBOARD_CONTENT") {
+      // Merge new entries/blocks from the action payload
+      const incoming = action.payload.blocks ?? action.payload.entries ?? [];
+      if (incoming.length > 0) {
         setTeachingEntries((prev) => {
           const existingIds = new Set(prev.map((e) => e.id));
-          const fresh = action.payload.entries!.filter((e) => !existingIds.has(e.id));
+          const fresh = incoming.filter((e) => !existingIds.has(e.id));
           return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
         });
       }

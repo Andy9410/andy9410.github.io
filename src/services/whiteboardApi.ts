@@ -109,6 +109,20 @@ export async function getWhiteboardEntries(
   return await res.json() as WhiteboardEntry[];
 }
 
+export async function injectWhiteboardContent(
+  conversationId: number,
+  whiteboardId: string,
+  blocks: Array<{ type: string; content: string; orderIndex: number; metadata?: Record<string, unknown> }>,
+  token: string
+): Promise<WhiteboardEntry[]> {
+  const res = await whiteboardFetch(
+    `/api/conversations/${conversationId}/whiteboards/${whiteboardId}/inject`,
+    token,
+    { method: "POST", body: JSON.stringify({ blocks }) }
+  );
+  return await res.json() as WhiteboardEntry[];
+}
+
 export async function interpretWhiteboard(
   token: string,
   request: {
