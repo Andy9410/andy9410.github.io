@@ -32,7 +32,7 @@ const stroke       = "#ffffff";
 const accent       = "#f9c74f";
 const lessonStroke = "#ffffff";
 const lessonFill   = "rgba(255,255,255,0.08)";
-const CHALK_FONT   = "'FrederickatheGreat', serif";
+const CHALK_FONT   = "'Caveat', cursive";
 
 export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
