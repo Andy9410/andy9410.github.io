@@ -41,11 +41,12 @@ export function WhiteboardTextOverlay({ entries }: Props) {
 
   return (
     <div
-      className="absolute inset-0 overflow-y-auto pointer-events-none"
+      className="absolute inset-0 overflow-y-auto overflow-x-hidden pointer-events-none"
       style={{ zIndex: 5 }}
     >
       <div
         className="px-6 py-5 whiteboard-overlay-content"
+        style={{ maxWidth: "100%", wordBreak: "break-word", overflowWrap: "break-word" }}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>

@@ -43,7 +43,16 @@
 /* KaTeX inside overlay */
 .whiteboard-overlay-content .katex,
 .whiteboard-overlay-content .katex-html { color: #ffffff; font-size: 1.2em; }
-.whiteboard-overlay-content .katex-display { margin: 0.5em 0; }
+.whiteboard-overlay-content .katex-display {
+  margin: 0.5em 0;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.whiteboard-overlay-content .katex-display > .katex { max-width: 100%; }
+/* Prevent any child from overflowing */
+.whiteboard-overlay-content * { max-width: 100%; }
+.whiteboard-overlay-content pre,
+.whiteboard-overlay-content code { white-space: pre-wrap; word-break: break-all; }
 @tailwind components;
 @tailwind utilities;
 
