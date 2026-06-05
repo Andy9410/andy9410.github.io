@@ -557,14 +557,25 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             role="application"
             aria-label="Pizarra inteligente"
         >
-          {/* Teaching HTML overlay — rendered via foreignObject so pointer-events:none is SVG-native */}
+          {/* Teaching HTML overlay — foreignObject with SVG pointer-events="none" */}
           {overlayHtml && (
-            <foreignObject x="0" y="0" width="100%" height="100%" style={{ pointerEvents: "none" }}>
+            <foreignObject
+              x="0" y="0" width="100%" height="100%"
+              pointerEvents="none"
+            >
+              {/* @ts-expect-error — xmlns needed inside foreignObject */}
               <div
-                // @ts-expect-error — xmlns required for foreignObject children
                 xmlns="http://www.w3.org/1999/xhtml"
                 className="whiteboard-overlay-content"
-                style={{ padding: "20px 24px", pointerEvents: "none", width: "100%", height: "100%", overflow: "hidden auto", boxSizing: "border-box" }}
+                style={{
+                  padding: "20px 24px",
+                  pointerEvents: "none",
+                  width: "100%",
+                  height: "100%",
+                  overflow: "hidden",
+                  boxSizing: "border-box" as const,
+                  userSelect: "none",
+                }}
                 dangerouslySetInnerHTML={{ __html: overlayHtml }}
               />
             </foreignObject>
