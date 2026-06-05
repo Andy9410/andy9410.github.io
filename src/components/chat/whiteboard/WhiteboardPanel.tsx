@@ -1,14 +1,32 @@
 import { AlertCircle, ChevronDown, Loader2, MessageSquareText, PanelRightClose, Save, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import MarkdownIt from "markdown-it";
+import texmath from "markdown-it-texmath";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
 import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
-import { entriesToElements } from "@/utils/entriesToElements";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
-import { WhiteboardTextOverlay } from "./WhiteboardTextOverlay";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardToolbar } from "./WhiteboardToolbar";
+
+const overlayMd = new MarkdownIt({ html: false, breaks: true, linkify: false })
+  .use(texmath, { engine: katex, delimiters: "dollars", katexOptions: { throwOnError: false, output: "html" } });
+
+function entryToMarkdown(entry: WhiteboardEntry): string {
+  const c = entry.content.trim();
+  switch (entry.type) {
+    case "TITLE":   return `## ${c}\n\n`;
+    case "STEP":    return `**${c}**\n\n`;
+    case "FORMULA": return `$$${c}$$\n\n`;
+    case "EXAMPLE": return `> **Ej:** ${c}\n\n`;
+    case "WARNING": return `> ⚠ ${c}\n\n`;
+    case "QUESTION": return `*${c}*\n\n`;
+    default:        return `${c}\n\n`;
+  }
+}
 
 interface Props {
   whiteboard: Whiteboard | null;
@@ -86,7 +104,13 @@ export function WhiteboardPanel({
         ? "Respuesta generándose..."
         : "Preguntar sobre la pizarra";
 
-  // Only lesson overlay goes on canvas SVG; teaching entries use HTML overlay
+  // Build HTML string for foreignObject rendering (markdown + KaTeX)
+  const overlayHtml = useMemo(() => {
+    if (teachingEntries.length === 0) return undefined;
+    const sorted = [...teachingEntries].sort((a, b) => a.orderIndex - b.orderIndex);
+    return overlayMd.render(sorted.map(entryToMarkdown).join(""));
+  }, [teachingEntries]);
+
   const allOverlayElements = lessonOverlayElements;
 
   const selectedElement = useMemo(
@@ -248,19 +272,17 @@ export function WhiteboardPanel({
         }}
       />
 
-      <div className="relative min-h-0 flex-1 flex flex-col">
-        <WhiteboardCanvas
-          data={whiteboard.data}
-          tool={tool}
-          selectedId={selectedId}
-          showGrid={showGrid}
-          overlayElements={allOverlayElements}
-          onToolChange={setTool}
-          onSelect={setSelectedId}
-          onChange={(data) => onChangeData(() => data)}
-        />
-        <WhiteboardTextOverlay entries={teachingEntries} />
-      </div>
+      <WhiteboardCanvas
+        data={whiteboard.data}
+        tool={tool}
+        selectedId={selectedId}
+        showGrid={showGrid}
+        overlayElements={allOverlayElements}
+        overlayHtml={overlayHtml}
+        onToolChange={setTool}
+        onSelect={setSelectedId}
+        onChange={(data) => onChangeData(() => data)}
+      />
 
       {suggestion && suggestion.whiteboardId === whiteboard.id && (
         <WhiteboardSuggestionCard

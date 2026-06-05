@@ -9,6 +9,7 @@ interface Props {
   selectedId: string | null;
   showGrid?: boolean;
   overlayElements?: WhiteboardElement[];
+  overlayHtml?: string;           // rendered HTML (MarkdownIt+KaTeX) via foreignObject
   onToolChange: (tool: WhiteboardTool) => void;
   onSelect: (id: string | null) => void;
   onChange: (data: WhiteboardData) => void;
@@ -34,7 +35,7 @@ const lessonStroke = "#ffffff";
 const lessonFill   = "rgba(255,255,255,0.08)";
 const CHALK_FONT   = "'Caveat', cursive";
 
-export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
+export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, overlayHtml, onToolChange, onSelect, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ignoreNextBlurRef = useRef(false);
@@ -556,7 +557,19 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             role="application"
             aria-label="Pizarra inteligente"
         >
-          {/* Overlay rendered first (behind) so user elements are always on top and selectable */}
+          {/* Teaching HTML overlay — rendered via foreignObject so pointer-events:none is SVG-native */}
+          {overlayHtml && (
+            <foreignObject x="0" y="0" width="100%" height="100%" style={{ pointerEvents: "none" }}>
+              <div
+                // @ts-expect-error — xmlns required for foreignObject children
+                xmlns="http://www.w3.org/1999/xhtml"
+                className="whiteboard-overlay-content"
+                style={{ padding: "20px 24px", pointerEvents: "none", width: "100%", height: "100%", overflow: "hidden auto", boxSizing: "border-box" }}
+                dangerouslySetInnerHTML={{ __html: overlayHtml }}
+              />
+            </foreignObject>
+          )}
+          {/* SVG lesson step overlay (behind user elements) */}
           {overlayElements && overlayElements.length > 0 && (
             <g pointerEvents="none" opacity="0.85" aria-hidden="true">
               {overlayElements.map(renderOverlayElement)}
