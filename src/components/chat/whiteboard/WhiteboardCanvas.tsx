@@ -13,6 +13,7 @@ interface Props {
   onToolChange: (tool: WhiteboardTool) => void;
   onSelect: (id: string | null) => void;
   onChange: (data: WhiteboardData) => void;
+  onEraseOverlay?: () => void; // called when eraser clicks canvas with AI overlay content
 }
 
 type DragState =
@@ -35,7 +36,7 @@ const lessonStroke = "#ffffff";
 const lessonFill   = "rgba(255,255,255,0.08)";
 const CHALK_FONT   = "'Caveat', cursive";
 
-export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, overlayHtml, onToolChange, onSelect, onChange }: Props) {
+export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, overlayHtml, onToolChange, onSelect, onChange, onEraseOverlay }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ignoreNextBlurRef = useRef(false);
@@ -242,6 +243,12 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
         stroke,
       });
       setDrag({ mode: "draw", id });
+      return;
+    }
+
+    // In erase mode: clicking canvas bg clears AI overlay content
+    if (tool === "erase" && overlayHtml) {
+      onEraseOverlay?.();
       return;
     }
 

@@ -232,19 +232,6 @@ export function WhiteboardPanel({
         </button>
       </header>
 
-      {/* Button to clear AI teaching content */}
-      {teachingEntries.length > 0 && onClearTeachingEntries && (
-        <div className="flex items-center justify-between border-b border-border bg-muted/20 px-3 py-1.5">
-          <span className="text-[11px] text-muted-foreground">Contenido de IA en pizarra</span>
-          <button
-            type="button"
-            onClick={onClearTeachingEntries}
-            className="text-[11px] text-destructive hover:underline"
-          >
-            Limpiar
-          </button>
-        </div>
-      )}
 
       <WhiteboardToolbar
         tool={tool}
@@ -295,6 +282,7 @@ export function WhiteboardPanel({
         showGrid={showGrid}
         overlayElements={allOverlayElements}
         overlayHtml={overlayHtml}
+        onEraseOverlay={onClearTeachingEntries}
         onToolChange={setTool}
         onSelect={setSelectedId}
         onChange={(data) => onChangeData(() => data)}
