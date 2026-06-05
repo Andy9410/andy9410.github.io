@@ -42,13 +42,13 @@
 }
 /* KaTeX inside overlay */
 .whiteboard-overlay-content .katex,
-.whiteboard-overlay-content .katex-html { color: #ffffff; font-size: 1.2em; }
+.whiteboard-overlay-content .katex-html { color: #ffffff; font-size: 0.85em; }
 .whiteboard-overlay-content .katex-display {
-  margin: 0.5em 0;
-  overflow-x: auto;
+  margin: 0.3em 0;
   max-width: 100%;
+  overflow: hidden;
 }
-.whiteboard-overlay-content .katex-display > .katex { max-width: 100%; }
+.whiteboard-overlay-content .katex-display > .katex { max-width: 100%; font-size: 0.9em; }
 /* Prevent any child from overflowing or intercepting pointer events */
 .whiteboard-overlay-content,
 .whiteboard-overlay-content * { max-width: 100%; pointer-events: none !important; }

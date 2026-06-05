@@ -551,7 +551,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             shows through, and all pointer events go to the SVG naturally */}
         {overlayHtml && (
           <div
-            className="absolute inset-0 overflow-auto whiteboard-overlay-content"
+            className="absolute inset-0 overflow-hidden whiteboard-overlay-content"
             style={{ padding: "20px 24px", zIndex: 0 }}
             dangerouslySetInnerHTML={{ __html: overlayHtml }}
           />
