@@ -5,7 +5,7 @@ import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
 import { entriesToElements } from "@/utils/entriesToElements";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
-import { WhiteboardReasoningGraph } from "./WhiteboardReasoningGraph";
+import { WhiteboardTextOverlay } from "./WhiteboardTextOverlay";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardToolbar } from "./WhiteboardToolbar";
@@ -86,17 +86,8 @@ export function WhiteboardPanel({
         ? "Respuesta generándose..."
         : "Preguntar sobre la pizarra";
 
-  // Convert teaching entries to canvas overlay elements
-  const teachingOverlayElements = useMemo(
-    () => (teachingEntries.length > 0 ? entriesToElements(teachingEntries) : []),
-    [teachingEntries]
-  );
-
-  // Merge lesson overlay + teaching overlay (lesson takes priority visually — rendered last)
-  const allOverlayElements = useMemo(
-    () => [...teachingOverlayElements, ...lessonOverlayElements],
-    [teachingOverlayElements, lessonOverlayElements]
-  );
+  // Only lesson overlay goes on canvas SVG; teaching entries use HTML overlay
+  const allOverlayElements = lessonOverlayElements;
 
   const selectedElement = useMemo(
     () => whiteboard?.data.elements.find((element) => element.id === selectedId),
@@ -257,16 +248,19 @@ export function WhiteboardPanel({
         }}
       />
 
-      <WhiteboardCanvas
-        data={whiteboard.data}
-        tool={tool}
-        selectedId={selectedId}
-        showGrid={showGrid}
-        overlayElements={allOverlayElements}
-        onToolChange={setTool}
-        onSelect={setSelectedId}
-        onChange={(data) => onChangeData(() => data)}
-      />
+      <div className="relative min-h-0 flex-1">
+        <WhiteboardCanvas
+          data={whiteboard.data}
+          tool={tool}
+          selectedId={selectedId}
+          showGrid={showGrid}
+          overlayElements={allOverlayElements}
+          onToolChange={setTool}
+          onSelect={setSelectedId}
+          onChange={(data) => onChangeData(() => data)}
+        />
+        <WhiteboardTextOverlay entries={teachingEntries} />
+      </div>
 
       {suggestion && suggestion.whiteboardId === whiteboard.id && (
         <WhiteboardSuggestionCard
