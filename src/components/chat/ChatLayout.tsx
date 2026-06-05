@@ -20,7 +20,7 @@ import { useWhiteboardLesson } from "@/hooks/useWhiteboardLesson";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode } from "@/types/whiteboard";
-import { getReasoningTree, injectWhiteboardContent, interpretWhiteboard } from "@/services/whiteboardApi";
+import { createWhiteboard, getReasoningTree, injectWhiteboardContent, interpretWhiteboard } from "@/services/whiteboardApi";
 import { renderWhiteboardToPng } from "@/utils/renderWhiteboardImage";
 import {
   ResizableHandle,
@@ -287,7 +287,28 @@ const ChatLayout = () => {
         return null;
       });
     if (!conversationId) return;
-    const wb = await whiteboard.openConversationWhiteboard(conversationId);
+
+    // If there's already content on the whiteboard, create a fresh one
+    const hasExistingContent =
+      teachingEntries.length > 0 ||
+      (whiteboard.activeWhiteboard?.data.elements?.length ?? 0) > 0;
+
+    let wb = hasExistingContent ? null : await whiteboard.openConversationWhiteboard(conversationId);
+
+    if (hasExistingContent) {
+      setTeachingEntries([]);
+      try {
+        const fresh = await createWhiteboard(conversationId, accessToken, {
+          title: "Pizarra de enseñanza",
+          data: { version: 1, elements: [] },
+        });
+        whiteboard.setActiveWhiteboard(fresh);
+        wb = fresh;
+      } catch {
+        wb = await whiteboard.openConversationWhiteboard(conversationId);
+      }
+    }
+
     if (!wb) return;
 
     // Parse assistant message into structured blocks and inject directly to canvas
@@ -355,7 +376,8 @@ const ChatLayout = () => {
     setActiveWhiteboardAction(null);
 
     if (action.type === "OPEN_WHITEBOARD") {
-      // Open panel and load (or accept) the whiteboard from the action payload
+      // New whiteboard from backend — clear previous teaching entries
+      setTeachingEntries([]);
       whiteboard.setPanelOpen(true);
       const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
       if (conversationId && accessToken && !whiteboard.activeWhiteboard) {
