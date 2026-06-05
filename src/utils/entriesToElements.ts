@@ -3,7 +3,7 @@ import type { WhiteboardEntry } from "@/types/whiteboard";
 
 const CANVAS_W = 500;
 const X = 24;
-const CHARS_PER_LINE = 38;   // safe wrap width for Caveat 22px in ~500px canvas
+const CHARS_PER_LINE = 72;   // full canvas width for Caveat 22px in ~500px canvas
 const LINE_PX = 34;           // px between wrapped lines
 const BLOCK_GAP = 20;         // extra gap between blocks
 
