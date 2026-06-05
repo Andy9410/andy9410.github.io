@@ -268,19 +268,7 @@ export function WhiteboardPanel({
         onChange={(data) => onChangeData(() => data)}
       />
 
-      <WhiteboardReasoningGraph nodes={reasoningNodes} />
-
-      <WhiteboardLessonBar
-        lesson={lesson}
-        stepIndex={lessonStepIndex}
-        isGenerating={lessonGenerating}
-        error={lessonError}
-        onNext={onLessonNext ?? (() => {})}
-        onPrev={onLessonPrev ?? (() => {})}
-        onClose={onLessonClose ?? (() => {})}
-      />
-
-      {suggestion && suggestion.whiteboardId === whiteboard.id && !lessonGenerating && (
+      {suggestion && suggestion.whiteboardId === whiteboard.id && (
         <WhiteboardSuggestionCard
           suggestion={suggestion}
           onApply={onApplySuggestion}
