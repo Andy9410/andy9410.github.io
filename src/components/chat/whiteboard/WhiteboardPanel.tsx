@@ -248,7 +248,7 @@ export function WhiteboardPanel({
         }}
       />
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1 flex flex-col">
         <WhiteboardCanvas
           data={whiteboard.data}
           tool={tool}
