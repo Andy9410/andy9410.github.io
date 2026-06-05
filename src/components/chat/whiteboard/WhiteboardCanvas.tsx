@@ -55,6 +55,21 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
 
   const editingPosition = editingElement ?? editingText;
 
+  // Global keyboard delete: works even if SVG element doesn't have DOM focus
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      if (editingText) return;                         // don't interfere with text editing
+      const active = document.activeElement;
+      if (active && active.tagName !== "BODY" && active !== svgRef.current) return; // input/textarea focused
+      if (!selected) return;
+      e.preventDefault();
+      deleteElement(selected.id);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selected, editingText, data.elements]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!editingText) return;
 
@@ -296,6 +311,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
       tabIndex: 0,
       role: "button",
       "aria-label": `Elemento ${element.type}`,
+      pointerEvents: "all" as const,   // force clickable even with fill="transparent"
     };
 
     if (element.type === "text" || element.type === "equation") {
