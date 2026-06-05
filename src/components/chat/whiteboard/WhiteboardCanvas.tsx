@@ -466,7 +466,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
         <text key={element.id} x={element.x} y={element.y}
           fill={lessonStroke} fontSize={fs} fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
           {lines.map((line, i) => (
-            <tspan key={i} x={element.x} dy={i === 0 ? 0 : "1.25em"}>{line}</tspan>
+            <tspan key={i} x={element.x} dy={i === 0 ? 0 : "1.5em"}>{line}</tspan>
           ))}
         </text>
       );
