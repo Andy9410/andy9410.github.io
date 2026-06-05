@@ -49,8 +49,9 @@
   max-width: 100%;
 }
 .whiteboard-overlay-content .katex-display > .katex { max-width: 100%; }
-/* Prevent any child from overflowing */
-.whiteboard-overlay-content * { max-width: 100%; }
+/* Prevent any child from overflowing or intercepting pointer events */
+.whiteboard-overlay-content,
+.whiteboard-overlay-content * { max-width: 100%; pointer-events: none; }
 .whiteboard-overlay-content pre,
 .whiteboard-overlay-content code { white-space: pre-wrap; word-break: break-all; }
 @tailwind components;
