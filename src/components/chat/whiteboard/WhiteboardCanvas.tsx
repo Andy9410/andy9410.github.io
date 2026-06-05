@@ -27,10 +27,12 @@ type TextEditState = {
   isNew: boolean;
 };
 
-const stroke = "#0f172a";
-const accent = "#14b8a6";
-const lessonStroke = "#0ea5e9";
-const lessonFill = "#e0f2fe";
+const BOARD_BG     = "#2a5e1e";
+const stroke       = "#ffffff";
+const accent       = "#f9c74f";
+const lessonStroke = "#ffffff";
+const lessonFill   = "rgba(255,255,255,0.08)";
+const CHALK_FONT   = "'Caveat', cursive";
 
 export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -302,8 +304,9 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
                 x={element.x}
                 y={element.y}
                 fill={stroke}
-                fontSize={element.type === "equation" ? "18" : "16"}
+                fontSize={element.type === "equation" ? "26" : "22"}
                 fontWeight="600"
+                fontFamily={CHALK_FONT}
             >
               {element.text}
             </text>
@@ -395,8 +398,9 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             y={element.y + height / 2 + 5}
             textAnchor="middle"
             fill={stroke}
-            fontSize="14"
+            fontSize="20"
             fontWeight="600"
+            fontFamily={CHALK_FONT}
         >
           {element.text}
         </text>
@@ -410,7 +414,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
                 cy={element.y + height / 2}
                 rx={width / 2}
                 ry={height / 2}
-                fill="white"
+                fill="transparent"
                 stroke={isSelected ? accent : stroke}
                 strokeWidth="2"
             />
@@ -426,7 +430,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
           <g key={element.id} {...common}>
             <polygon
                 points={points}
-                fill="white"
+                fill="transparent"
                 stroke={isSelected ? accent : stroke}
                 strokeWidth="2"
             />
@@ -443,7 +447,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
               width={width}
               height={height}
               rx="6"
-              fill="white"
+              fill="transparent"
               stroke={isSelected ? accent : stroke}
               strokeWidth="2"
           />
@@ -456,9 +460,14 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
     const pe = { pointerEvents: "none" as const };
 
     if (element.type === "text" || element.type === "equation") {
+      const fs = element.type === "equation" ? "26" : "22";
+      const lines = element.text?.split("\n") ?? [element.text ?? ""];
       return (
-        <text key={element.id} x={element.x} y={element.y} fill={lessonStroke} fontSize={element.type === "equation" ? "18" : "16"} fontWeight="600" style={pe}>
-          {element.text}
+        <text key={element.id} x={element.x} y={element.y}
+          fill={lessonStroke} fontSize={fs} fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
+          {lines.map((line, i) => (
+            <tspan key={i} x={element.x} dy={i === 0 ? 0 : "1.5em"}>{line}</tspan>
+          ))}
         </text>
       );
     }
@@ -485,9 +494,19 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
 
     const w = element.width ?? 120;
     const h = element.height ?? 72;
-    const label = element.text ? (
-      <text x={element.x + w / 2} y={element.y + h / 2 + 5} textAnchor="middle" fill={lessonStroke} fontSize="14" fontWeight="600" style={pe}>{element.text}</text>
-    ) : null;
+    const label = element.text ? (() => {
+      const lines = element.text.split("\n");
+      const totalH = lines.length * 26;
+      const startY = element.y + h / 2 - totalH / 2 + 20;
+      return (
+        <text x={element.x + w / 2} textAnchor="middle" fill={lessonStroke}
+          fontSize="20" fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
+          {lines.map((line, i) => (
+            <tspan key={i} x={element.x + w / 2} y={startY + i * 26}>{line}</tspan>
+          ))}
+        </text>
+      );
+    })() : null;
 
     if (element.type === "circle") {
       return (
@@ -517,7 +536,16 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
   };
 
   return (
-      <div className={cn("relative min-h-0 flex-1 overflow-hidden", showGrid && "bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px]")}>
+      <div
+        className="relative min-h-0 flex-1 overflow-hidden"
+        style={{
+          backgroundColor: BOARD_BG,
+          backgroundImage: showGrid
+            ? "linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)"
+            : "none",
+          backgroundSize: showGrid ? "24px 24px" : "auto",
+        }}
+      >
         <svg
             ref={svgRef}
             className={cn("h-full w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}
@@ -528,12 +556,13 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             role="application"
             aria-label="Pizarra inteligente"
         >
-          {data.elements.map(renderElement)}
+          {/* Overlay rendered first (behind) so user elements are always on top and selectable */}
           {overlayElements && overlayElements.length > 0 && (
             <g pointerEvents="none" opacity="0.85" aria-hidden="true">
               {overlayElements.map(renderOverlayElement)}
             </g>
           )}
+          {data.elements.map(renderElement)}
         </svg>
 
         {editingText && editingPosition && (
@@ -559,7 +588,8 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
                 }}
                 onBlur={handleTextBlur}
                 aria-label="Editar texto de la pizarra"
-                className="absolute z-20 h-8 min-w-24 rounded-md border border-accent bg-background px-2 text-sm font-semibold text-foreground shadow-lg outline-none ring-2 ring-accent/25"
+                className="absolute z-20 h-8 min-w-24 rounded-md border border-white/40 bg-[#1a4d1a] px-2 text-sm text-white shadow-lg outline-none ring-2 ring-white/20"
+                style={{ fontFamily: CHALK_FONT }}
                 style={{
                   left: editingPosition.x - 6,
                   top: editingPosition.y - 24,

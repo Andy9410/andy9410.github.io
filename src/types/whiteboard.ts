@@ -32,8 +32,58 @@ export interface Whiteboard {
   exerciseLabel?: string | null;
   title: string;
   data: WhiteboardData;
+  mode?: string;
+  status?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type WhiteboardEntryType =
+  | "TEXT" | "STEP" | "FORMULA" | "DRAWING" | "HIGHLIGHT" | "SYSTEM_NOTE"
+  | "TITLE" | "EXAMPLE" | "WARNING" | "QUESTION" | "DRAWING_INSTRUCTION";
+
+export interface WhiteboardEntry {
+  id: number;
+  whiteboardId: string;
+  conversationId: number;
+  type: WhiteboardEntryType;
+  content: string;
+  orderIndex: number;
+  metadata?: string | null;
+}
+
+export interface WhiteboardActionPayload {
+  conversationId: number;
+  whiteboardId: string;
+  title?: string;
+  mode?: string;
+  entries?: WhiteboardEntry[];
+  blocks?: WhiteboardEntry[];
+}
+
+export interface WhiteboardAction {
+  type: "OPEN_WHITEBOARD" | "UPDATE_WHITEBOARD" | "INJECT_WHITEBOARD_CONTENT" | "CREATE_REASONING_NODE";
+  payload: WhiteboardActionPayload;
+}
+
+export type ReasoningNodeType =
+  | "PROBLEM" | "PLAN" | "DECOMPOSITION"
+  | "SUBPROBLEM" | "SUBPROBLEM_SOLUTION" | "PARTIAL_RESULT"
+  | "FINAL_INTEGRATION" | "FINAL_ANSWER" | "USER_QUESTION";
+
+export type ReasoningNodeStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
+
+export interface ReasoningNode {
+  nodeId: number;
+  conversationId: number;
+  whiteboardId?: number | null;
+  parentNodeId?: number | null;
+  nodeType: ReasoningNodeType;
+  title: string;
+  description?: string | null;
+  status: ReasoningNodeStatus;
+  level: number;
+  orderIndex: number;
 }
 
 export interface WhiteboardSuggestion {

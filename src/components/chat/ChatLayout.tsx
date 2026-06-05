@@ -20,7 +20,7 @@ import { useWhiteboardLesson } from "@/hooks/useWhiteboardLesson";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode } from "@/types/whiteboard";
-import { interpretWhiteboard } from "@/services/whiteboardApi";
+import { createWhiteboard, getReasoningTree, injectWhiteboardContent, interpretWhiteboard } from "@/services/whiteboardApi";
 import { renderWhiteboardToPng } from "@/utils/renderWhiteboardImage";
 import {
   ResizableHandle,
@@ -31,6 +31,51 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import type { ExerciseBreakdown, Message } from "@/types/chat";
 
 type PdfLayoutMode = "side" | "bottom";
+
+function parseMessageToBlocks(
+  userQuestion: string,
+  assistantContent: string
+): Array<{ type: string; content: string; orderIndex: number }> {
+  const blocks: Array<{ type: string; content: string; orderIndex: number }> = [];
+  let order = 1;
+
+  // Title from the user's question
+  const title = userQuestion.trim().replace(/[?\n]/g, "").slice(0, 80);
+  if (title) blocks.push({ type: "TITLE", content: title, orderIndex: order++ });
+
+  // Strip markdown artifacts and split into lines
+  const lines = assistantContent
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/#+\s/g, "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  for (const line of lines) {
+    // Skip suggestion markers
+    if (line.startsWith("|||")) break;
+
+    // Numbered step: "1.", "2.", "Paso 1:", "Step 1:"
+    if (/^(\d+[\.\)]|[Pp]aso\s*\d+[:\.]|[Ss]tep\s*\d+[:\.])\s/.test(line)) {
+      blocks.push({ type: "STEP", content: line, orderIndex: order++ });
+    }
+    // Formula: short line with math operators and digits
+    else if (line.length < 70 && /[=+\-*/^]/.test(line) && /\d/.test(line)) {
+      blocks.push({ type: "FORMULA", content: line, orderIndex: order++ });
+    }
+    // Short standalone line without trailing period → treat as sub-title
+    else if (line.length < 50 && !line.endsWith(".") && !line.endsWith(",")) {
+      blocks.push({ type: "TITLE", content: line, orderIndex: order++ });
+    }
+    // Regular paragraph text
+    else {
+      blocks.push({ type: "TEXT", content: line, orderIndex: order++ });
+    }
+  }
+
+  return blocks;
+}
 
 const PDF_LAYOUT_STORAGE_KEY = "learnsoft.pdfLayout";
 const EXERCISE_PANEL_STORAGE_KEY = "learnsoft.exerciseStepsPanel";
@@ -50,6 +95,8 @@ const ChatLayout = () => {
     setActiveExerciseBreakdown,
     activeWhiteboardSuggestion,
     setActiveWhiteboardSuggestion,
+    activeWhiteboardAction,
+    setActiveWhiteboardAction,
     explanationLevel,
     setExplanationLevel,
     newConversation,
@@ -67,6 +114,9 @@ const ChatLayout = () => {
   const whiteboard = useWhiteboard(accessToken, activeConversation?.backendId);
   const lesson = useWhiteboardLesson();
   const { detectExercise, isClosing } = useExerciseDetection();
+
+  const [teachingEntries, setTeachingEntries] = useState<import("@/types/whiteboard").WhiteboardEntry[]>([]);
+  const [reasoningNodes, setReasoningNodes] = useState<import("@/types/whiteboard").ReasoningNode[]>([]);
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
@@ -237,9 +287,46 @@ const ChatLayout = () => {
         return null;
       });
     if (!conversationId) return;
-    await whiteboard.openConversationWhiteboard(conversationId);
 
-    void lesson.generate(conversationId, userMsg?.content ?? "", msg.content, accessToken);
+    // If there's already content on the whiteboard, create a fresh one
+    const hasExistingContent =
+      teachingEntries.length > 0 ||
+      (whiteboard.activeWhiteboard?.data.elements?.length ?? 0) > 0;
+
+    let wb = hasExistingContent ? null : await whiteboard.openConversationWhiteboard(conversationId);
+
+    if (hasExistingContent) {
+      setTeachingEntries([]);
+      try {
+        const fresh = await createWhiteboard(conversationId, accessToken, {
+          title: "Pizarra de enseñanza",
+          data: { version: 1, elements: [] },
+        });
+        whiteboard.setActiveWhiteboard(fresh);
+        wb = fresh;
+      } catch {
+        wb = await whiteboard.openConversationWhiteboard(conversationId);
+      }
+    }
+
+    if (!wb) return;
+
+    // Parse assistant message into structured blocks and inject directly to canvas
+    const blocks = parseMessageToBlocks(userMsg?.content ?? "", msg.content);
+    if (blocks.length === 0) return;
+
+    try {
+      const saved = await injectWhiteboardContent(conversationId, wb.id, blocks, accessToken);
+      if (saved.length > 0) {
+        setTeachingEntries((prev) => {
+          const existingIds = new Set(prev.map((e) => e.id));
+          const fresh = saved.filter((e) => !existingIds.has(e.id));
+          return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+        });
+      }
+    } catch {
+      // silent — canvas stays empty but whiteboard is open
+    }
   }, [accessToken, activeConversation, ensureBackendConversation, lesson, whiteboard]);
 
   useEffect(() => {
@@ -267,6 +354,58 @@ const ChatLayout = () => {
       whiteboard.setPanelOpen(true);
     }
   }, [activeWhiteboardSuggestion, whiteboard.setPanelOpen]);
+
+  // Load reasoning tree when switching conversations
+  useEffect(() => {
+    const conversationId = activeConversation?.backendId;
+    if (!conversationId || !accessToken) return;
+
+    setReasoningNodes([]);
+    void getReasoningTree(conversationId, accessToken)
+      .then((nodes) => {
+        if (nodes.length > 0) setReasoningNodes(nodes);
+      })
+      .catch(() => {});
+  }, [activeConversation?.backendId, accessToken]);
+
+  // Handle backend whiteboard actions (OPEN_WHITEBOARD, UPDATE_WHITEBOARD)
+  useEffect(() => {
+    if (!activeWhiteboardAction) return;
+
+    const action = activeWhiteboardAction;
+    setActiveWhiteboardAction(null);
+
+    if (action.type === "OPEN_WHITEBOARD") {
+      // New whiteboard from backend — clear previous teaching entries
+      setTeachingEntries([]);
+      whiteboard.setPanelOpen(true);
+      const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
+      if (conversationId && accessToken && !whiteboard.activeWhiteboard) {
+        void whiteboard.openConversationWhiteboard(conversationId);
+      }
+    } else if (action.type === "CREATE_REASONING_NODE") {
+      const node = action.payload as unknown as import("@/types/whiteboard").ReasoningNode;
+      if (node?.nodeId) {
+        setReasoningNodes((prev) => {
+          const exists = prev.some((n) => n.nodeId === node.nodeId);
+          if (exists) return prev.map((n) => n.nodeId === node.nodeId ? node : n);
+          return [...prev, node].sort((a, b) =>
+            a.level !== b.level ? a.level - b.level : a.orderIndex - b.orderIndex
+          );
+        });
+      }
+    } else if (action.type === "UPDATE_WHITEBOARD" || action.type === "INJECT_WHITEBOARD_CONTENT") {
+      // Merge new entries/blocks from the action payload
+      const incoming = action.payload.blocks ?? action.payload.entries ?? [];
+      if (incoming.length > 0) {
+        setTeachingEntries((prev) => {
+          const existingIds = new Set(prev.map((e) => e.id));
+          const fresh = incoming.filter((e) => !existingIds.has(e.id));
+          return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+        });
+      }
+    }
+  }, [activeWhiteboardAction, setActiveWhiteboardAction, whiteboard, activeConversation, accessToken]);
 
   useEffect(() => {
     if (activeExerciseBreakdown) {
@@ -595,6 +734,8 @@ const ChatLayout = () => {
                         onLessonNext={lesson.nextStep}
                         onLessonPrev={lesson.prevStep}
                         onLessonClose={lesson.close}
+                        teachingEntries={teachingEntries}
+                        reasoningNodes={reasoningNodes}
                     />
                   </ResizablePanel>
                 </ResizablePanelGroup>

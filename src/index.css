@@ -1,7 +1,58 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Caveat:wght@400;600;700&display=swap');
 @import "../node_modules/jsxgraph/distrib/jsxgraph.css";
 
+@font-face {
+  font-family: 'FrederickatheGreat';
+  src: url('/FrederickatheGreat-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
+
+/* ── Whiteboard HTML overlay (Caveat, chalk white) ──────────────────── */
+.whiteboard-overlay-content {
+  font-family: 'Caveat', cursive;
+  color: #ffffff;
+  font-size: 1.7rem;
+  line-height: 1.75;
+}
+.whiteboard-overlay-content h1,
+.whiteboard-overlay-content h2,
+.whiteboard-overlay-content h3 {
+  font-family: 'Caveat', cursive;
+  color: #ffffff;
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin: 0.5em 0 0.3em;
+  border: none;
+}
+.whiteboard-overlay-content strong { color: #fff; font-weight: 700; }
+.whiteboard-overlay-content em     { color: #f9f9e0; font-style: italic; }
+.whiteboard-overlay-content p      { margin: 0 0 0.6em; }
+.whiteboard-overlay-content ul,
+.whiteboard-overlay-content ol     { margin: 0 0 0.6em 1.4em; }
+.whiteboard-overlay-content li     { margin-bottom: 0.3em; }
+.whiteboard-overlay-content blockquote {
+  border-left: 3px solid rgba(255,255,255,0.4);
+  margin: 0.4em 0;
+  padding-left: 0.8em;
+  color: rgba(255,255,255,0.85);
+}
+/* KaTeX inside overlay */
+.whiteboard-overlay-content .katex,
+.whiteboard-overlay-content .katex-html { color: #ffffff; font-size: 1.2em; }
+.whiteboard-overlay-content .katex-display {
+  margin: 0.5em 0;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.whiteboard-overlay-content .katex-display > .katex { max-width: 100%; }
+/* Prevent any child from overflowing */
+.whiteboard-overlay-content * { max-width: 100%; }
+.whiteboard-overlay-content pre,
+.whiteboard-overlay-content code { white-space: pre-wrap; word-break: break-all; }
 @tailwind components;
 @tailwind utilities;
 

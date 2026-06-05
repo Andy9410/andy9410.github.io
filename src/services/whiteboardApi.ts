@@ -1,4 +1,4 @@
-import type { InterpretMode, Whiteboard, WhiteboardData, WhiteboardInterpretation } from "@/types/whiteboard";
+import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardData, WhiteboardEntry, WhiteboardInterpretation } from "@/types/whiteboard";
 
 const BASE_URL = import.meta.env.VITE_CHAT_API_URL ?? "http://localhost:8080";
 
@@ -69,6 +69,82 @@ export async function updateWhiteboard(
     body: JSON.stringify(request),
   });
   return normalizeWhiteboard(await res.json() as Whiteboard);
+}
+
+export async function openWhiteboardForTeaching(
+  conversationId: number,
+  token: string,
+  title?: string
+): Promise<Whiteboard> {
+  const res = await whiteboardFetch(`/api/conversations/${conversationId}/whiteboards/open`, token, {
+    method: "POST",
+    body: JSON.stringify({ title: title ?? "Pizarra de enseñanza" }),
+  });
+  return normalizeWhiteboard(await res.json() as Whiteboard);
+}
+
+export async function addWhiteboardEntries(
+  conversationId: number,
+  whiteboardId: string,
+  entries: Array<{ type: string; content: string; orderIndex: number }>,
+  token: string
+): Promise<WhiteboardEntry[]> {
+  const res = await whiteboardFetch(
+    `/api/conversations/${conversationId}/whiteboards/${whiteboardId}/entries`,
+    token,
+    { method: "POST", body: JSON.stringify({ entries }) }
+  );
+  return await res.json() as WhiteboardEntry[];
+}
+
+export async function getWhiteboardEntries(
+  conversationId: number,
+  whiteboardId: string,
+  token: string
+): Promise<WhiteboardEntry[]> {
+  const res = await whiteboardFetch(
+    `/api/conversations/${conversationId}/whiteboards/${whiteboardId}/entries`,
+    token
+  );
+  return await res.json() as WhiteboardEntry[];
+}
+
+export async function injectWhiteboardContent(
+  conversationId: number,
+  whiteboardId: string,
+  blocks: Array<{ type: string; content: string; orderIndex: number; metadata?: Record<string, unknown> }>,
+  token: string
+): Promise<WhiteboardEntry[]> {
+  const res = await whiteboardFetch(
+    `/api/conversations/${conversationId}/whiteboards/${whiteboardId}/inject`,
+    token,
+    { method: "POST", body: JSON.stringify({ blocks }) }
+  );
+  return await res.json() as WhiteboardEntry[];
+}
+
+export async function getReasoningTree(conversationId: number, token: string): Promise<ReasoningNode[]> {
+  try {
+    const res = await whiteboardFetch(`/api/conversations/${conversationId}/reasoning/tree`, token);
+    return await res.json() as ReasoningNode[];
+  } catch (error) {
+    if (error instanceof Error && error.message === "404") return [];
+    throw error;
+  }
+}
+
+export async function updateReasoningNodeStatus(
+  nodeId: number,
+  conversationId: number,
+  status: string,
+  token: string
+): Promise<ReasoningNode> {
+  const res = await whiteboardFetch(
+    `/api/reasoning/nodes/${nodeId}/status?conversationId=${conversationId}`,
+    token,
+    { method: "PATCH", body: JSON.stringify({ status }) }
+  );
+  return await res.json() as ReasoningNode;
 }
 
 export async function interpretWhiteboard(

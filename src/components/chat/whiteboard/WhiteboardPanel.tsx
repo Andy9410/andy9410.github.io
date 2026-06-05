@@ -1,9 +1,11 @@
 import { AlertCircle, ChevronDown, Loader2, MessageSquareText, PanelRightClose, Save, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import type { InterpretMode, Whiteboard, WhiteboardElement, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
+import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
 import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
+import { entriesToElements } from "@/utils/entriesToElements";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
+import { WhiteboardTextOverlay } from "./WhiteboardTextOverlay";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardToolbar } from "./WhiteboardToolbar";
@@ -30,6 +32,8 @@ interface Props {
   onLessonNext?: () => void;
   onLessonPrev?: () => void;
   onLessonClose?: () => void;
+  teachingEntries?: WhiteboardEntry[];
+  reasoningNodes?: ReasoningNode[];
 }
 
 const MODE_LABELS: Record<InterpretMode, string> = {
@@ -66,10 +70,12 @@ export function WhiteboardPanel({
   onLessonNext,
   onLessonPrev,
   onLessonClose,
+  teachingEntries = [],
+  reasoningNodes = [],
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showGrid, setShowGrid] = useState(true);
+  const [showGrid, setShowGrid] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
   const autosave = useAutosaveWhiteboard(whiteboard, token);
@@ -79,6 +85,9 @@ export function WhiteboardPanel({
       : askStatus === "generating"
         ? "Respuesta generándose..."
         : "Preguntar sobre la pizarra";
+
+  // Only lesson overlay goes on canvas SVG; teaching entries use HTML overlay
+  const allOverlayElements = lessonOverlayElements;
 
   const selectedElement = useMemo(
     () => whiteboard?.data.elements.find((element) => element.id === selectedId),
@@ -239,28 +248,21 @@ export function WhiteboardPanel({
         }}
       />
 
-      <WhiteboardCanvas
-        data={whiteboard.data}
-        tool={tool}
-        selectedId={selectedId}
-        showGrid={showGrid}
-        overlayElements={lessonOverlayElements}
-        onToolChange={setTool}
-        onSelect={setSelectedId}
-        onChange={(data) => onChangeData(() => data)}
-      />
+      <div className="relative min-h-0 flex-1 flex flex-col">
+        <WhiteboardCanvas
+          data={whiteboard.data}
+          tool={tool}
+          selectedId={selectedId}
+          showGrid={showGrid}
+          overlayElements={allOverlayElements}
+          onToolChange={setTool}
+          onSelect={setSelectedId}
+          onChange={(data) => onChangeData(() => data)}
+        />
+        <WhiteboardTextOverlay entries={teachingEntries} />
+      </div>
 
-      <WhiteboardLessonBar
-        lesson={lesson}
-        stepIndex={lessonStepIndex}
-        isGenerating={lessonGenerating}
-        error={lessonError}
-        onNext={onLessonNext ?? (() => {})}
-        onPrev={onLessonPrev ?? (() => {})}
-        onClose={onLessonClose ?? (() => {})}
-      />
-
-      {suggestion && suggestion.whiteboardId === whiteboard.id && !lessonGenerating && (
+      {suggestion && suggestion.whiteboardId === whiteboard.id && (
         <WhiteboardSuggestionCard
           suggestion={suggestion}
           onApply={onApplySuggestion}

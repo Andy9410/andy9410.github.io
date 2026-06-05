@@ -18,7 +18,7 @@ const saveLevel = (level: number) => {
   try { localStorage.setItem("ls_explanation_level", String(level)); } catch {}
 };
 import type { Conversation, Message, ChatStatus, ExerciseBreakdown } from "@/types/chat";
-import type { WhiteboardInterpretation, WhiteboardSuggestion } from "@/types/whiteboard";
+import type { WhiteboardAction, WhiteboardInterpretation, WhiteboardSuggestion } from "@/types/whiteboard";
 import {
   streamChatMessage,
   fetchMyConversations,
@@ -82,6 +82,7 @@ export const useChat = () => {
   const [explanationLevel, setExplanationLevelState] = useState<number>(loadLevel);
   const [activeExerciseBreakdown, setActiveExerciseBreakdown] = useState<ExerciseBreakdown | null>(null);
   const [activeWhiteboardSuggestion, setActiveWhiteboardSuggestion] = useState<WhiteboardSuggestion | null>(null);
+  const [activeWhiteboardAction, setActiveWhiteboardAction] = useState<WhiteboardAction | null>(null);
 
   const setExplanationLevel = useCallback((level: number) => {
     setExplanationLevelState(level);
@@ -519,6 +520,10 @@ export const useChat = () => {
                   : c
               )
             );
+          } else if (event.type === "action") {
+            if (event.action) {
+              setActiveWhiteboardAction(event.action);
+            }
           } else if (event.type === "error") {
             setConversations((prev) =>
               prev.map((c) =>
@@ -849,6 +854,8 @@ export const useChat = () => {
     setActiveExerciseBreakdown,
     activeWhiteboardSuggestion,
     setActiveWhiteboardSuggestion,
+    activeWhiteboardAction,
+    setActiveWhiteboardAction,
     explanationLevel,
     setExplanationLevel,
     setActiveDocument,
