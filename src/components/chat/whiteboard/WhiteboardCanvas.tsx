@@ -9,6 +9,7 @@ interface Props {
   selectedId: string | null;
   showGrid?: boolean;
   overlayElements?: WhiteboardElement[];
+  overlayHtml?: string;
   onToolChange: (tool: WhiteboardTool) => void;
   onSelect: (id: string | null) => void;
   onChange: (data: WhiteboardData) => void;
@@ -34,7 +35,7 @@ const lessonStroke = "#ffffff";
 const lessonFill   = "rgba(255,255,255,0.08)";
 const CHALK_FONT   = "'Caveat', cursive";
 
-export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
+export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, overlayHtml, onToolChange, onSelect, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ignoreNextBlurRef = useRef(false);
@@ -546,9 +547,20 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
           backgroundSize: showGrid ? "24px 24px" : "auto",
         }}
       >
+        {/* AI content rendered BEFORE the SVG — SVG is transparent so content
+            shows through, and all pointer events go to the SVG naturally */}
+        {overlayHtml && (
+          <div
+            className="absolute inset-0 overflow-auto whiteboard-overlay-content"
+            style={{ padding: "20px 24px", zIndex: 0 }}
+            dangerouslySetInnerHTML={{ __html: overlayHtml }}
+          />
+        )}
+
         <svg
             ref={svgRef}
-            className={cn("h-full w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}
+            className={cn("absolute inset-0 h-full w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}
+            style={{ zIndex: 1 }}
             onPointerDown={onCanvasPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
