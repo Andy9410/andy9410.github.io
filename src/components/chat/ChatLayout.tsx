@@ -17,6 +17,7 @@ import { useChat } from "@/hooks/useChat";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { useWhiteboard } from "@/hooks/useWhiteboard";
 import { useWhiteboardLesson } from "@/hooks/useWhiteboardLesson";
+import { useAutoWhiteboardEval } from "@/hooks/useAutoWhiteboardEval";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode } from "@/types/whiteboard";
@@ -114,6 +115,7 @@ const ChatLayout = () => {
   const whiteboard = useWhiteboard(accessToken, activeConversation?.backendId);
   const lesson = useWhiteboardLesson();
   const { detectExercise, isClosing } = useExerciseDetection();
+
 
   const [teachingEntries, setTeachingEntries] = useState<import("@/types/whiteboard").WhiteboardEntry[]>([]);
   const [reasoningNodes, setReasoningNodes] = useState<import("@/types/whiteboard").ReasoningNode[]>([]);
@@ -272,6 +274,14 @@ const ChatLayout = () => {
   const whiteboardAskStatus = whiteboardAskActive
     ? status === "loading" ? "generating" : "sending"
     : "idle";
+
+  // Auto-evaluate whiteboard when user adds new elements (3s debounce)
+  useAutoWhiteboardEval({
+    whiteboard: whiteboard.activeWhiteboard,
+    panelOpen: whiteboard.panelOpen,
+    chatIdle: status !== "loading" && !isOffline,
+    onEvaluate: askAboutWhiteboard,
+  });
 
   const handleExplainInWhiteboard = useCallback(async (msg: Message) => {
     if (!accessToken) return;
