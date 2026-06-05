@@ -285,7 +285,7 @@ export function WhiteboardPanel({
 
       {/* AI teaching content — separate panel below canvas, never overlapping */}
       {overlayHtml && (
-        <div className="shrink-0 max-h-48 overflow-y-auto border-t border-white/10">
+        <div className="shrink-0 max-h-48 overflow-y-auto border-t border-white/10 bg-[#2a5e1e]">
           <div
             className="whiteboard-overlay-content"
             style={{ padding: "12px 20px" }}
