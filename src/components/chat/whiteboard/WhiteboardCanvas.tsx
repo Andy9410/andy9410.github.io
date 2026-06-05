@@ -460,9 +460,14 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
     const pe = { pointerEvents: "none" as const };
 
     if (element.type === "text" || element.type === "equation") {
+      const fs = element.type === "equation" ? "26" : "22";
+      const lines = element.text?.split("\n") ?? [element.text ?? ""];
       return (
-        <text key={element.id} x={element.x} y={element.y} fill={lessonStroke} fontSize={element.type === "equation" ? "26" : "22"} fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
-          {element.text}
+        <text key={element.id} x={element.x} y={element.y}
+          fill={lessonStroke} fontSize={fs} fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
+          {lines.map((line, i) => (
+            <tspan key={i} x={element.x} dy={i === 0 ? 0 : "1.25em"}>{line}</tspan>
+          ))}
         </text>
       );
     }
@@ -489,9 +494,19 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
 
     const w = element.width ?? 120;
     const h = element.height ?? 72;
-    const label = element.text ? (
-      <text x={element.x + w / 2} y={element.y + h / 2 + 5} textAnchor="middle" fill={lessonStroke} fontSize="20" fontWeight="600" fontFamily={CHALK_FONT} style={pe}>{element.text}</text>
-    ) : null;
+    const label = element.text ? (() => {
+      const lines = element.text.split("\n");
+      const totalH = lines.length * 26;
+      const startY = element.y + h / 2 - totalH / 2 + 20;
+      return (
+        <text x={element.x + w / 2} textAnchor="middle" fill={lessonStroke}
+          fontSize="20" fontWeight="600" fontFamily={CHALK_FONT} style={pe}>
+          {lines.map((line, i) => (
+            <tspan key={i} x={element.x + w / 2} y={startY + i * 26}>{line}</tspan>
+          ))}
+        </text>
+      );
+    })() : null;
 
     if (element.type === "circle") {
       return (
