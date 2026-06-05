@@ -244,7 +244,7 @@ const ChatLayout = () => {
         confidence: 0,
       }));
       await sendMessage(
-        "Analizá la pizarra actual y decime qué falta o qué mejorar.",
+        "¿Qué ves en mi pizarra?",
         [],
         pdfViewer.activeExercise?.number,
         pdfViewer.activeDocId ?? undefined,
