@@ -541,12 +541,13 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             role="application"
             aria-label="Pizarra inteligente"
         >
-          {data.elements.map(renderElement)}
+          {/* Overlay rendered first (behind) so user elements are always on top and selectable */}
           {overlayElements && overlayElements.length > 0 && (
             <g pointerEvents="none" opacity="0.85" aria-hidden="true">
               {overlayElements.map(renderOverlayElement)}
             </g>
           )}
+          {data.elements.map(renderElement)}
         </svg>
 
         {editingText && editingPosition && (
