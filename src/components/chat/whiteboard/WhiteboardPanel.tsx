@@ -7,6 +7,7 @@ import "katex/dist/katex.min.css";
 import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
 import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
+import { computeEntryLayout } from "@/utils/entriesToElements";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
@@ -52,6 +53,7 @@ interface Props {
   onLessonClose?: () => void;
   teachingEntries?: WhiteboardEntry[];
   onClearTeachingEntries?: () => void;
+  onEraseTeachingEntry?: (entryId: number) => void;
   reasoningNodes?: ReasoningNode[];
 }
 
@@ -91,6 +93,7 @@ export function WhiteboardPanel({
   onLessonClose,
   teachingEntries = [],
   onClearTeachingEntries,
+  onEraseTeachingEntry,
   reasoningNodes = [],
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
@@ -114,6 +117,11 @@ export function WhiteboardPanel({
   }, [teachingEntries]);
 
   const allOverlayElements = lessonOverlayElements;
+
+  const entryLayout = useMemo(
+    () => (teachingEntries.length > 0 ? computeEntryLayout(teachingEntries) : []),
+    [teachingEntries]
+  );
 
   const selectedElement = useMemo(
     () => whiteboard?.data.elements.find((element) => element.id === selectedId),
@@ -283,6 +291,8 @@ export function WhiteboardPanel({
         overlayElements={allOverlayElements}
         overlayHtml={overlayHtml}
         onEraseOverlay={onClearTeachingEntries}
+        onEraseEntry={onEraseTeachingEntry}
+        teachingEntryLayout={entryLayout}
         onToolChange={setTool}
         onSelect={setSelectedId}
         onChange={(data) => onChangeData(() => data)}

@@ -13,7 +13,9 @@ interface Props {
   onToolChange: (tool: WhiteboardTool) => void;
   onSelect: (id: string | null) => void;
   onChange: (data: WhiteboardData) => void;
-  onEraseOverlay?: () => void; // called when eraser clicks canvas with AI overlay content
+  onEraseOverlay?: () => void;
+  onEraseEntry?: (entryId: number) => void; // erase a specific teaching entry
+  teachingEntryLayout?: Array<{ id: number; y: number; height: number }>;
 }
 
 type DragState =
@@ -36,7 +38,7 @@ const lessonStroke = "#ffffff";
 const lessonFill   = "rgba(255,255,255,0.08)";
 const CHALK_FONT   = "'Caveat', cursive";
 
-export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, overlayHtml, onToolChange, onSelect, onChange, onEraseOverlay }: Props) {
+export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, overlayHtml, onToolChange, onSelect, onChange, onEraseOverlay, onEraseEntry, teachingEntryLayout }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ignoreNextBlurRef = useRef(false);
@@ -598,6 +600,25 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             </g>
           )}
           {data.elements.map(renderElement)}
+
+          {/* Invisible hit rects for individual entry erasure */}
+          {tool === "erase" && teachingEntryLayout && teachingEntryLayout.map((entry) => (
+            <rect
+              key={`hit-${entry.id}`}
+              x={0} y={entry.y}
+              width="100%" height={entry.height}
+              fill="rgba(255,255,255,0.08)"
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              pointerEvents="all"
+              style={{ cursor: "pointer" }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onEraseEntry?.(entry.id);
+              }}
+            />
+          ))}
         </svg>
 
         {editingText && editingPosition && (

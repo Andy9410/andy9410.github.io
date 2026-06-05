@@ -746,6 +746,7 @@ const ChatLayout = () => {
                         onLessonClose={lesson.close}
                         teachingEntries={teachingEntries}
                         onClearTeachingEntries={() => setTeachingEntries([])}
+                        onEraseTeachingEntry={(id) => setTeachingEntries((prev) => prev.filter((e) => e.id !== id))}
                         reasoningNodes={reasoningNodes}
                     />
                   </ResizablePanel>
