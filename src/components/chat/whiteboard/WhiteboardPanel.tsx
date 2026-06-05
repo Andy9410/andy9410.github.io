@@ -278,11 +278,21 @@ export function WhiteboardPanel({
         selectedId={selectedId}
         showGrid={showGrid}
         overlayElements={allOverlayElements}
-        overlayHtml={overlayHtml}
         onToolChange={setTool}
         onSelect={setSelectedId}
         onChange={(data) => onChangeData(() => data)}
       />
+
+      {/* AI teaching content — separate panel below canvas, never overlapping */}
+      {overlayHtml && (
+        <div className="shrink-0 max-h-48 overflow-y-auto border-t border-white/10">
+          <div
+            className="whiteboard-overlay-content"
+            style={{ padding: "12px 20px" }}
+            dangerouslySetInnerHTML={{ __html: overlayHtml }}
+          />
+        </div>
+      )}
 
       {suggestion && suggestion.whiteboardId === whiteboard.id && (
         <WhiteboardSuggestionCard
