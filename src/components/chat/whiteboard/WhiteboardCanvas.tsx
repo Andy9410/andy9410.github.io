@@ -102,7 +102,10 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
   };
 
   const deleteElement = (id: string) => {
-    onChange({ ...data, elements: data.elements.filter((item) => item.id !== id) });
+    console.log('[WB] deleteElement', id, 'total before:', data.elements.length);
+    const next = data.elements.filter((item) => item.id !== id);
+    console.log('[WB] after filter:', next.length);
+    onChange({ ...data, elements: next });
     onSelect(null);
     setDrag(null);
   };
@@ -250,6 +253,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
 
   const onElementPointerDown = (event: PointerEvent<SVGElement>, element: WhiteboardElement) => {
     event.stopPropagation();
+    console.log('[WB] onElementPointerDown tool=', tool, 'id=', element.id);
 
     if (editingText) {
       if (editingText.id !== element.id) {
