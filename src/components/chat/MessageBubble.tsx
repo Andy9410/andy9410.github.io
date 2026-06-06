@@ -104,20 +104,6 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                   : "rounded-tl-none border border-slate-100 bg-slate-50/60 text-slate-700"
           )}
         >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "pointer-events-none absolute top-1 h-3 w-3 rotate-45",
-              isUser
-                ? "-right-1.5 bg-slate-800"
-                : isError
-                  ? "-left-1.5 border-t border-l border-destructive/30 bg-destructive/10"
-                  : isRestored
-                    ? "-left-1.5 border-t border-l border-emerald-500/30 bg-emerald-500/10"
-                    : "-left-1.5 border-t border-l border-slate-100 bg-slate-50/60"
-            )}
-          />
-
           {!isError && !isRestored && !isUser && (
             <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
               {isLastAssistant && (
