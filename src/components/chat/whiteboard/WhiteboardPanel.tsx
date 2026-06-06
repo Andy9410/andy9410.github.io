@@ -8,7 +8,9 @@ import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardElement, White
 import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
 import { computeEntryLayout } from "@/utils/entriesToElements";
+import type { WhiteboardAnimState } from "@/hooks/useWhiteboardAnimation";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
+import { WhiteboardAnimatedOverlay } from "./WhiteboardAnimatedOverlay";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardToolbar } from "./WhiteboardToolbar";
@@ -53,6 +55,7 @@ interface Props {
   onLessonClose?: () => void;
   teachingEntries?: WhiteboardEntry[];
   onClearTeachingEntries?: () => void;
+  animState?: WhiteboardAnimState;
   onEraseTeachingEntry?: (entryId: number) => void;
   reasoningNodes?: ReasoningNode[];
 }
@@ -94,6 +97,7 @@ export function WhiteboardPanel({
   teachingEntries = [],
   onClearTeachingEntries,
   onEraseTeachingEntry,
+  animState,
   reasoningNodes = [],
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
@@ -109,12 +113,15 @@ export function WhiteboardPanel({
         ? "Respuesta generándose..."
         : "Preguntar sobre la pizarra";
 
-  // Build HTML string for foreignObject rendering (markdown + KaTeX)
+  // Static HTML fallback (used when animation is COMPLETED or no anim state)
   const overlayHtml = useMemo(() => {
-    if (teachingEntries.length === 0) return undefined;
-    const sorted = [...teachingEntries].sort((a, b) => a.orderIndex - b.orderIndex);
-    return overlayMd.render(sorted.map(entryToMarkdown).join(""));
-  }, [teachingEntries]);
+    if (!animState || animState.phase === "IDLE") {
+      if (teachingEntries.length === 0) return undefined;
+      const sorted = [...teachingEntries].sort((a, b) => a.orderIndex - b.orderIndex);
+      return overlayMd.render(sorted.map(entryToMarkdown).join(""));
+    }
+    return undefined; // animated overlay handles display during animation
+  }, [teachingEntries, animState]);
 
   const allOverlayElements = lessonOverlayElements;
 
@@ -283,20 +290,31 @@ export function WhiteboardPanel({
         }}
       />
 
-      <WhiteboardCanvas
-        data={whiteboard.data}
-        tool={tool}
-        selectedId={selectedId}
-        showGrid={showGrid}
-        overlayElements={allOverlayElements}
-        overlayHtml={overlayHtml}
-        onEraseOverlay={onClearTeachingEntries}
-        onEraseEntry={onEraseTeachingEntry}
-        teachingEntryLayout={entryLayout}
-        onToolChange={setTool}
-        onSelect={setSelectedId}
-        onChange={(data) => onChangeData(() => data)}
-      />
+      <div className="relative min-h-0 flex-1 flex flex-col">
+        <WhiteboardCanvas
+          data={whiteboard.data}
+          tool={tool}
+          selectedId={selectedId}
+          showGrid={showGrid}
+          overlayElements={allOverlayElements}
+          overlayHtml={overlayHtml}
+          onEraseOverlay={onClearTeachingEntries}
+          onEraseEntry={onEraseTeachingEntry}
+          teachingEntryLayout={entryLayout}
+          onToolChange={setTool}
+          onSelect={setSelectedId}
+          onChange={(data) => onChangeData(() => data)}
+        />
+        {/* Animated overlay — shown during animation phases */}
+        {animState && animState.phase !== "IDLE" && (
+          <WhiteboardAnimatedOverlay
+            phase={animState.phase}
+            thinkingMessage={animState.thinkingMessage}
+            blocks={animState.blocks}
+            activeBlockIndex={animState.activeBlockIndex}
+          />
+        )}
+      </div>
 
       {suggestion && suggestion.whiteboardId === whiteboard.id && (
         <WhiteboardSuggestionCard

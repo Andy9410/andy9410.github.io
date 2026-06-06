@@ -18,6 +18,7 @@ import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { useWhiteboard } from "@/hooks/useWhiteboard";
 import { useWhiteboardLesson } from "@/hooks/useWhiteboardLesson";
 import { useAutoWhiteboardEval } from "@/hooks/useAutoWhiteboardEval";
+import { useWhiteboardAnimation } from "@/hooks/useWhiteboardAnimation";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode } from "@/types/whiteboard";
@@ -119,6 +120,7 @@ const ChatLayout = () => {
 
   const [teachingEntries, setTeachingEntries] = useState<import("@/types/whiteboard").WhiteboardEntry[]>([]);
   const [reasoningNodes, setReasoningNodes] = useState<import("@/types/whiteboard").ReasoningNode[]>([]);
+  const wbAnimation = useWhiteboardAnimation();
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
@@ -331,7 +333,9 @@ const ChatLayout = () => {
         setTeachingEntries((prev) => {
           const existingIds = new Set(prev.map((e) => e.id));
           const fresh = saved.filter((e) => !existingIds.has(e.id));
-          return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+          const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+          setTimeout(() => wbAnimation.animateEntries(next), 0);
+          return next;
         });
       }
     } catch {
@@ -393,6 +397,9 @@ const ChatLayout = () => {
       if (conversationId && accessToken && !whiteboard.activeWhiteboard) {
         void whiteboard.openConversationWhiteboard(conversationId);
       }
+    } else if (action.type === "OPEN_WHITEBOARD") {
+      // Handled above — also reset animation
+      wbAnimation.clearAnimation();
     } else if (action.type === "CREATE_REASONING_NODE") {
       const node = action.payload as unknown as import("@/types/whiteboard").ReasoningNode;
       if (node?.nodeId) {
@@ -405,13 +412,17 @@ const ChatLayout = () => {
         });
       }
     } else if (action.type === "UPDATE_WHITEBOARD" || action.type === "INJECT_WHITEBOARD_CONTENT") {
-      // Merge new entries/blocks from the action payload
       const incoming = action.payload.blocks ?? action.payload.entries ?? [];
       if (incoming.length > 0) {
         setTeachingEntries((prev) => {
           const existingIds = new Set(prev.map((e) => e.id));
           const fresh = incoming.filter((e) => !existingIds.has(e.id));
-          return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+          const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+          // Trigger progressive animation for the fresh entries
+          if (fresh.length > 0) {
+            setTimeout(() => wbAnimation.animateEntries(next), 0);
+          }
+          return next;
         });
       }
     }
@@ -745,6 +756,7 @@ const ChatLayout = () => {
                         onLessonPrev={lesson.prevStep}
                         onLessonClose={lesson.close}
                         teachingEntries={teachingEntries}
+                        animState={wbAnimation.state}
                         onClearTeachingEntries={() => setTeachingEntries([])}
                         onEraseTeachingEntry={(id) => setTeachingEntries((prev) => prev.filter((e) => e.id !== id))}
                         reasoningNodes={reasoningNodes}
