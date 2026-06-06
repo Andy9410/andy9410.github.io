@@ -22,7 +22,7 @@ import { useWhiteboardAnimation } from "@/hooks/useWhiteboardAnimation";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode } from "@/types/whiteboard";
-import { annotateWhiteboard, createWhiteboard, getReasoningTree, injectWhiteboardContent, interpretWhiteboard } from "@/services/whiteboardApi";
+import { createWhiteboard, getReasoningTree, injectWhiteboardContent, interpretWhiteboard } from "@/services/whiteboardApi";
 import { renderWhiteboardToPng } from "@/utils/renderWhiteboardImage";
 import {
   ResizableHandle,
@@ -121,8 +121,6 @@ const ChatLayout = () => {
   const [teachingEntries, setTeachingEntries] = useState<import("@/types/whiteboard").WhiteboardEntry[]>([]);
   const [reasoningNodes, setReasoningNodes] = useState<import("@/types/whiteboard").ReasoningNode[]>([]);
   const wbAnimation = useWhiteboardAnimation();
-  const [teacherMode, setTeacherMode] = useState(false);
-  const [socraticMode, setSocraticMode] = useState(false);
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
@@ -279,29 +277,12 @@ const ChatLayout = () => {
     ? status === "loading" ? "generating" : "sending"
     : "idle";
 
-  const handleAnnotate = useCallback(async ({ socraticMode: socrMode }: { socraticMode: boolean }) => {
-    const wb = whiteboard.activeWhiteboard;
-    const convId = activeConversation?.backendId;
-    if (!wb || !convId || !accessToken) return;
-    try {
-      const entry = await annotateWhiteboard(convId, wb.id, accessToken, { socraticMode: socrMode });
-      setTeachingEntries((prev) => {
-        const next = [...prev, entry].sort((a, b) => a.orderIndex - b.orderIndex);
-        setTimeout(() => wbAnimation.animateEntries(next), 0);
-        return next;
-      });
-    } catch { /* silent */ }
-  }, [whiteboard.activeWhiteboard, activeConversation?.backendId, accessToken, wbAnimation]);
-
   // Auto-evaluate whiteboard when user adds new elements (3s debounce)
-  // In teacher mode → annotates whiteboard directly; otherwise → sends to chat
   useAutoWhiteboardEval({
     whiteboard: whiteboard.activeWhiteboard,
     panelOpen: whiteboard.panelOpen,
     chatIdle: status !== "loading" && !isOffline,
-    teacherMode,
     onEvaluate: askAboutWhiteboard,
-    onAnnotate: () => void handleAnnotate({ socraticMode }),
   });
 
   const handleExplainInWhiteboard = useCallback(async (msg: Message) => {
@@ -778,11 +759,6 @@ const ChatLayout = () => {
                         animState={wbAnimation.state}
                         onClearTeachingEntries={() => setTeachingEntries([])}
                         onEraseTeachingEntry={(id) => setTeachingEntries((prev) => prev.filter((e) => e.id !== id))}
-                        onAnnotate={handleAnnotate}
-                        teacherMode={teacherMode}
-                        onTeacherModeChange={setTeacherMode}
-                        socraticMode={socraticMode}
-                        onSocraticModeChange={setSocraticMode}
                         reasoningNodes={reasoningNodes}
                     />
                   </ResizablePanel>

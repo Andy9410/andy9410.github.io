@@ -7,9 +7,7 @@ interface Options {
   whiteboard: Whiteboard | null;
   panelOpen: boolean;
   chatIdle: boolean;           // true when chat is not loading
-  teacherMode?: boolean;       // when true, fires onAnnotate instead of onEvaluate
-  onEvaluate: () => void;      // fires in normal mode → sends to chat
-  onAnnotate?: () => void;     // fires in teacher mode → annotates whiteboard directly
+  onEvaluate: () => void;      // callback = sendWhiteboardToChat
 }
 
 /**
@@ -22,19 +20,12 @@ interface Options {
  *  - The whiteboard has at least one user element
  *  - The chat is idle (not loading)
  *  - The element count actually increased (new content was drawn)
- *
- * In teacher mode, calls onAnnotate (AI writes directly on the whiteboard)
- * instead of onEvaluate (AI responds in chat).
  */
-export function useAutoWhiteboardEval({ whiteboard, panelOpen, chatIdle, teacherMode = false, onEvaluate, onAnnotate }: Options) {
+export function useAutoWhiteboardEval({ whiteboard, panelOpen, chatIdle, onEvaluate }: Options) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevCountRef = useRef<number>(0);
   const onEvaluateRef = useRef(onEvaluate);
   onEvaluateRef.current = onEvaluate;
-  const onAnnotateRef = useRef(onAnnotate);
-  onAnnotateRef.current = onAnnotate;
-  const teacherModeRef = useRef(teacherMode);
-  teacherModeRef.current = teacherMode;
 
   const cancel = useCallback(() => {
     if (timerRef.current) {
@@ -67,11 +58,7 @@ export function useAutoWhiteboardEval({ whiteboard, panelOpen, chatIdle, teacher
     cancel();
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
-      if (teacherModeRef.current && onAnnotateRef.current) {
-        onAnnotateRef.current();
-      } else {
-        onEvaluateRef.current();
-      }
+      if (onEvaluateRef.current) onEvaluateRef.current();
     }, DEBOUNCE_MS);
 
     return cancel;

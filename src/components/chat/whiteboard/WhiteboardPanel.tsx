@@ -57,11 +57,6 @@ interface Props {
   onClearTeachingEntries?: () => void;
   animState?: WhiteboardAnimState;
   onEraseTeachingEntry?: (entryId: number) => void;
-  onAnnotate?: (opts: { socraticMode: boolean }) => void;
-  teacherMode?: boolean;
-  onTeacherModeChange?: (active: boolean) => void;
-  socraticMode?: boolean;
-  onSocraticModeChange?: (active: boolean) => void;
   reasoningNodes?: ReasoningNode[];
 }
 
@@ -102,15 +97,9 @@ export function WhiteboardPanel({
   teachingEntries = [],
   onClearTeachingEntries,
   onEraseTeachingEntry,
-  onAnnotate,
-  teacherMode = false,
-  onTeacherModeChange,
-  socraticMode = false,
-  onSocraticModeChange,
   animState,
   reasoningNodes = [],
 }: Props) {
-  const [teacherActive, setTeacherActive] = useState(false);
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -234,48 +223,6 @@ export function WhiteboardPanel({
           <Save className="h-3.5 w-3.5" aria-hidden="true" />
           {autosave.status === "saving" ? "Guardando..." : autosave.status === "error" ? "Error al guardar" : "Guardado"}
         </div>
-        {/* Teacher mode toggle — activates auto-annotation when student draws */}
-        {onAnnotate && (
-          <button
-            type="button"
-            onClick={() => {
-              const next = !teacherMode;
-              onTeacherModeChange?.(next);
-              if (next) {
-                // Immediate annotation on activation
-                setTeacherActive(true);
-                onAnnotate({ socraticMode });
-                setTimeout(() => setTeacherActive(false), 3000);
-              }
-            }}
-            title={teacherMode ? "Modo Profesor activo — click para desactivar" : "Activar modo Profesor"}
-            className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition
-              ${teacherMode
-                ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
-                : "border-border bg-background text-foreground hover:bg-muted"}`}
-          >
-            {teacherActive
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              : <span>{socraticMode ? "🎓" : "🧑‍🏫"}</span>}
-            <span className="hidden sm:inline">{teacherMode ? (socraticMode ? "Socrático" : "Profesor") : "Profesor"}</span>
-          </button>
-        )}
-
-        {/* Socratic mode toggle */}
-        {onAnnotate && (
-          <button
-            type="button"
-            onClick={() => onSocraticModeChange?.(!socraticMode)}
-            title="Alternar modo socrático"
-            className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 text-[10px] transition
-              ${socraticMode
-                ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
-                : "border-border bg-background text-muted-foreground hover:bg-muted"}`}
-          >
-            <span>S</span>
-          </button>
-        )}
-
         <button
           type="button"
           onClick={handleAskWhiteboard}
@@ -343,25 +290,8 @@ export function WhiteboardPanel({
         }}
       />
 
-      {/* "Ask AI" button for selected element */}
-      {selectedId && selectedElement && onAnnotate && (
-        <div className="flex items-center gap-2 border-b border-border bg-muted/10 px-3 py-1.5">
-          <span className="text-[11px] text-muted-foreground truncate max-w-[160px]">
-            Seleccionado: {selectedElement.text?.slice(0, 40) || selectedElement.type}
-          </span>
-          <button
-            type="button"
-            onClick={() => onAnnotate({
-              socraticMode,
-            })}
-            className="ml-auto shrink-0 text-[11px] rounded border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-amber-300 hover:bg-amber-400/20"
-          >
-            🎓 Preguntar a la IA
-          </button>
-        </div>
-      )}
 
-      <div className="relative min-h-0 flex-1 flex flex-col">
+<div className="relative min-h-0 flex-1 flex flex-col">
         <WhiteboardCanvas
           data={whiteboard.data}
           tool={tool}
