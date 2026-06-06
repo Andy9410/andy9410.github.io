@@ -9,10 +9,12 @@ import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
 import { computeEntryLayout } from "@/utils/entriesToElements";
 import type { WhiteboardAnimState } from "@/hooks/useWhiteboardAnimation";
+import type { TeachingPhase } from "@/hooks/useWhiteboardTeaching";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
 import { WhiteboardAnimatedOverlay } from "./WhiteboardAnimatedOverlay";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
+import { WhiteboardTeachingBar } from "./WhiteboardTeachingBar";
 import { WhiteboardToolbar } from "./WhiteboardToolbar";
 
 const overlayMd = new MarkdownIt({ html: false, breaks: true, linkify: false })
@@ -58,6 +60,13 @@ interface Props {
   animState?: WhiteboardAnimState;
   onEraseTeachingEntry?: (entryId: number) => void;
   reasoningNodes?: ReasoningNode[];
+  // Teaching session props
+  teachingPhase?: TeachingPhase;
+  teachingQuestion?: string | null;
+  teachingDraft?: string;
+  onTeachingDraftChange?: (v: string) => void;
+  onTeachingSubmit?: () => void;
+  onTeachingContinue?: () => void;
 }
 
 const MODE_LABELS: Record<InterpretMode, string> = {
@@ -99,6 +108,12 @@ export function WhiteboardPanel({
   onEraseTeachingEntry,
   animState,
   reasoningNodes = [],
+  teachingPhase = "IDLE",
+  teachingQuestion = null,
+  teachingDraft = "",
+  onTeachingDraftChange,
+  onTeachingSubmit,
+  onTeachingContinue,
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -322,6 +337,18 @@ export function WhiteboardPanel({
           suggestion={suggestion}
           onApply={onApplySuggestion}
           onIgnore={onIgnoreSuggestion}
+        />
+      )}
+
+      {/* Teaching session: interactive bar shown during a step-by-step explanation */}
+      {onTeachingDraftChange && onTeachingSubmit && onTeachingContinue && (
+        <WhiteboardTeachingBar
+          phase={teachingPhase}
+          pauseQuestion={teachingQuestion}
+          userDraft={teachingDraft}
+          onDraftChange={onTeachingDraftChange}
+          onSubmit={onTeachingSubmit}
+          onContinueWithout={onTeachingContinue}
         />
       )}
     </section>

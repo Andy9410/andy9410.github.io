@@ -191,3 +191,32 @@ export async function interpretWhiteboard(
   });
   return await res.json() as WhiteboardInterpretation;
 }
+
+// ── Teaching session (incremental, socratic) ─────────────────────────────────
+
+export interface TeachRequest {
+  userInput?: string;
+  stepIndex: number;
+  topic?: string;
+}
+
+export interface TeachResponse {
+  entries: WhiteboardEntry[];
+  pauseQuestion: string | null;
+  isComplete: boolean;
+  nextStepIndex: number;
+}
+
+export async function teachWhiteboard(
+  conversationId: number,
+  whiteboardId: string,
+  token: string,
+  req: TeachRequest
+): Promise<TeachResponse> {
+  const res = await whiteboardFetch(
+    `/api/conversations/${conversationId}/whiteboards/${whiteboardId}/teach`,
+    token,
+    { method: "POST", body: JSON.stringify(req) }
+  );
+  return await res.json() as TeachResponse;
+}
