@@ -58,6 +58,10 @@ interface Props {
   animState?: WhiteboardAnimState;
   onEraseTeachingEntry?: (entryId: number) => void;
   onAnnotate?: (opts: { socraticMode: boolean }) => void;
+  teacherMode?: boolean;
+  onTeacherModeChange?: (active: boolean) => void;
+  socraticMode?: boolean;
+  onSocraticModeChange?: (active: boolean) => void;
   reasoningNodes?: ReasoningNode[];
 }
 
@@ -99,10 +103,13 @@ export function WhiteboardPanel({
   onClearTeachingEntries,
   onEraseTeachingEntry,
   onAnnotate,
+  teacherMode = false,
+  onTeacherModeChange,
+  socraticMode = false,
+  onSocraticModeChange,
   animState,
   reasoningNodes = [],
 }: Props) {
-  const [socraticMode, setSocraticMode] = useState(false);
   const [teacherActive, setTeacherActive] = useState(false);
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -227,25 +234,30 @@ export function WhiteboardPanel({
           <Save className="h-3.5 w-3.5" aria-hidden="true" />
           {autosave.status === "saving" ? "Guardando..." : autosave.status === "error" ? "Error al guardar" : "Guardado"}
         </div>
-        {/* Teacher mode button */}
+        {/* Teacher mode toggle — activates auto-annotation when student draws */}
         {onAnnotate && (
           <button
             type="button"
             onClick={() => {
-              setTeacherActive(true);
-              onAnnotate({ socraticMode });
-              setTimeout(() => setTeacherActive(false), 3000);
+              const next = !teacherMode;
+              onTeacherModeChange?.(next);
+              if (next) {
+                // Immediate annotation on activation
+                setTeacherActive(true);
+                onAnnotate({ socraticMode });
+                setTimeout(() => setTeacherActive(false), 3000);
+              }
             }}
-            title={socraticMode ? "Modo Socrático activo" : "Modo Profesor"}
+            title={teacherMode ? "Modo Profesor activo — click para desactivar" : "Activar modo Profesor"}
             className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition
-              ${socraticMode
-                ? "border-amber-400/50 bg-amber-400/10 text-amber-300"
+              ${teacherMode
+                ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
                 : "border-border bg-background text-foreground hover:bg-muted"}`}
           >
             {teacherActive
               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
               : <span>{socraticMode ? "🎓" : "🧑‍🏫"}</span>}
-            <span className="hidden sm:inline">{socraticMode ? "Socrático" : "Profesor"}</span>
+            <span className="hidden sm:inline">{teacherMode ? (socraticMode ? "Socrático" : "Profesor") : "Profesor"}</span>
           </button>
         )}
 
@@ -253,11 +265,14 @@ export function WhiteboardPanel({
         {onAnnotate && (
           <button
             type="button"
-            onClick={() => setSocraticMode((s) => !s)}
+            onClick={() => onSocraticModeChange?.(!socraticMode)}
             title="Alternar modo socrático"
-            className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-[10px] text-muted-foreground transition hover:bg-muted"
+            className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 text-[10px] transition
+              ${socraticMode
+                ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                : "border-border bg-background text-muted-foreground hover:bg-muted"}`}
           >
-            <span className={socraticMode ? "text-amber-300" : ""}>S</span>
+            <span>S</span>
           </button>
         )}
 
