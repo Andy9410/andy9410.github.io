@@ -147,6 +147,34 @@ export async function updateReasoningNodeStatus(
   return await res.json() as ReasoningNode;
 }
 
+export async function annotateWhiteboard(
+  conversationId: number,
+  whiteboardId: string,
+  token: string,
+  opts: {
+    question?: string;
+    selectedContent?: string;
+    selectedType?: string;
+    socraticMode?: boolean;
+  } = {}
+): Promise<WhiteboardEntry> {
+  const res = await whiteboardFetch(
+    `/api/conversations/${conversationId}/whiteboards/${whiteboardId}/annotate`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        conversationId,
+        question: opts.question ?? null,
+        selectedContent: opts.selectedContent ?? null,
+        selectedType: opts.selectedType ?? null,
+        socraticMode: opts.socraticMode ?? false,
+      }),
+    }
+  );
+  return await res.json() as WhiteboardEntry;
+}
+
 export async function interpretWhiteboard(
   token: string,
   request: {

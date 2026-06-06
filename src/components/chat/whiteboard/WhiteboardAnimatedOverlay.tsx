@@ -2,16 +2,39 @@ import { useEffect, useRef } from "react";
 import type { AnimatedBlock, WBPhase } from "@/hooks/useWhiteboardAnimation";
 import { cn } from "@/lib/utils";
 
+// ─── Icons per type ────────────────────────────────────────────────────────
+
 const TYPE_ICON: Record<string, string> = {
-  TITLE:   "📌",
-  STEP:    "▶",
-  FORMULA: "∫",
-  EXAMPLE: "💡",
-  WARNING: "⚠",
-  QUESTION:"?",
-  TEXT:    "",
-  SYSTEM_NOTE: "•",
+  TITLE:             "📌",
+  STEP:              "▶",
+  FORMULA:           "∫",
+  EXAMPLE:           "💡",
+  WARNING:           "⚠",
+  QUESTION:          "?",
+  AI_NOTE:           "✦",   // AI observation
+  AI_QUESTION:       "🎓",  // Socratic/teacher question
+  AI_CORRECTION:     "⚑",  // Error hint
+  TEXT:              "",
+  SYSTEM_NOTE:       "•",
 };
+
+// ─── Styles per author + type ──────────────────────────────────────────────
+
+function blockStyle(author: string, type: string): string {
+  if (author === "user") {
+    // Student content — white chalk
+    return "wb-block-user";
+  }
+  // AI content styles by type
+  switch (type) {
+    case "AI_NOTE":       return "wb-block-ai-note";
+    case "AI_QUESTION":   return "wb-block-ai-question";
+    case "AI_CORRECTION": return "wb-block-ai-correction";
+    default:              return "wb-block-ai";
+  }
+}
+
+// ─── Single block ──────────────────────────────────────────────────────────
 
 interface BlockProps {
   block: AnimatedBlock;
@@ -23,8 +46,8 @@ function AnimatedBlockView({ block, isActive, index }: BlockProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { entry, phase, visibleText } = block;
   const icon = TYPE_ICON[entry.type] ?? "";
+  const author = entry.author ?? "assistant";
 
-  // Auto-scroll to active block
   useEffect(() => {
     if (isActive && ref.current) {
       ref.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -39,13 +62,15 @@ function AnimatedBlockView({ block, isActive, index }: BlockProps) {
     );
   }
 
-  const isBold = entry.type === "TITLE" || entry.type === "STEP";
+  const isBold  = entry.type === "TITLE" || entry.type === "STEP";
+  const style   = blockStyle(author, entry.type);
 
   return (
     <div
       ref={ref}
       className={cn(
         "wb-content-block",
+        style,
         isActive && "wb-block-active",
         phase === "complete" && "wb-block-complete"
       )}
@@ -55,12 +80,14 @@ function AnimatedBlockView({ block, isActive, index }: BlockProps) {
         {visibleText}
         {phase === "typing" && <span className="wb-cursor">|</span>}
       </span>
-      {phase === "complete" && (
+      {phase === "complete" && author === "assistant" && (
         <span className="wb-check" aria-hidden>✓</span>
       )}
     </div>
   );
 }
+
+// ─── Main overlay ──────────────────────────────────────────────────────────
 
 interface Props {
   phase: WBPhase;
@@ -74,7 +101,6 @@ export function WhiteboardAnimatedOverlay({ phase, thinkingMessage, blocks, acti
 
   return (
     <div className="wb-overlay-root">
-      {/* Thinking phase */}
       {(phase === "THINKING" || phase === "CREATING_BLOCK") && (
         <div className="wb-thinking-bar">
           <span className="wb-thinking-spinner" />
@@ -82,7 +108,6 @@ export function WhiteboardAnimatedOverlay({ phase, thinkingMessage, blocks, acti
         </div>
       )}
 
-      {/* Blocks */}
       {blocks.length > 0 && (
         <div className="wb-blocks-container">
           {blocks.map((block, i) => (
@@ -96,11 +121,8 @@ export function WhiteboardAnimatedOverlay({ phase, thinkingMessage, blocks, acti
         </div>
       )}
 
-      {/* Completed state */}
       {phase === "COMPLETED" && blocks.length > 0 && (
-        <div className="wb-completion-bar">
-          <span>✓ Listo</span>
-        </div>
+        <div className="wb-completion-bar">✓ Listo</div>
       )}
     </div>
   );

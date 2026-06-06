@@ -57,6 +57,7 @@ interface Props {
   onClearTeachingEntries?: () => void;
   animState?: WhiteboardAnimState;
   onEraseTeachingEntry?: (entryId: number) => void;
+  onAnnotate?: (opts: { socraticMode: boolean }) => void;
   reasoningNodes?: ReasoningNode[];
 }
 
@@ -97,9 +98,12 @@ export function WhiteboardPanel({
   teachingEntries = [],
   onClearTeachingEntries,
   onEraseTeachingEntry,
+  onAnnotate,
   animState,
   reasoningNodes = [],
 }: Props) {
+  const [socraticMode, setSocraticMode] = useState(false);
+  const [teacherActive, setTeacherActive] = useState(false);
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -223,6 +227,40 @@ export function WhiteboardPanel({
           <Save className="h-3.5 w-3.5" aria-hidden="true" />
           {autosave.status === "saving" ? "Guardando..." : autosave.status === "error" ? "Error al guardar" : "Guardado"}
         </div>
+        {/* Teacher mode button */}
+        {onAnnotate && (
+          <button
+            type="button"
+            onClick={() => {
+              setTeacherActive(true);
+              onAnnotate({ socraticMode });
+              setTimeout(() => setTeacherActive(false), 3000);
+            }}
+            title={socraticMode ? "Modo Socrático activo" : "Modo Profesor"}
+            className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition
+              ${socraticMode
+                ? "border-amber-400/50 bg-amber-400/10 text-amber-300"
+                : "border-border bg-background text-foreground hover:bg-muted"}`}
+          >
+            {teacherActive
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <span>{socraticMode ? "🎓" : "🧑‍🏫"}</span>}
+            <span className="hidden sm:inline">{socraticMode ? "Socrático" : "Profesor"}</span>
+          </button>
+        )}
+
+        {/* Socratic mode toggle */}
+        {onAnnotate && (
+          <button
+            type="button"
+            onClick={() => setSocraticMode((s) => !s)}
+            title="Alternar modo socrático"
+            className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-[10px] text-muted-foreground transition hover:bg-muted"
+          >
+            <span className={socraticMode ? "text-amber-300" : ""}>S</span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleAskWhiteboard}
@@ -289,6 +327,24 @@ export function WhiteboardPanel({
           setTool("select");
         }}
       />
+
+      {/* "Ask AI" button for selected element */}
+      {selectedId && selectedElement && onAnnotate && (
+        <div className="flex items-center gap-2 border-b border-border bg-muted/10 px-3 py-1.5">
+          <span className="text-[11px] text-muted-foreground truncate max-w-[160px]">
+            Seleccionado: {selectedElement.text?.slice(0, 40) || selectedElement.type}
+          </span>
+          <button
+            type="button"
+            onClick={() => onAnnotate({
+              socraticMode,
+            })}
+            className="ml-auto shrink-0 text-[11px] rounded border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-amber-300 hover:bg-amber-400/20"
+          >
+            🎓 Preguntar a la IA
+          </button>
+        </div>
+      )}
 
       <div className="relative min-h-0 flex-1 flex flex-col">
         <WhiteboardCanvas
