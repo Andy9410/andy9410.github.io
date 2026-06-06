@@ -104,6 +104,42 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
                   : "rounded-tl-none border border-slate-100 bg-slate-50/60 text-slate-700"
           )}
         >
+          {/* Tail — CSS border triangle, perfectly flush with the rounded-tr/tl-none corner */}
+          {isUser ? (
+            /* Right-pointing solid triangle for user bubble */
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-full top-[7px] w-0 h-0
+                border-t-[7px] border-t-transparent
+                border-b-[7px] border-b-transparent
+                border-r-[9px] border-r-slate-800"
+            />
+          ) : (
+            /* Left-pointing outlined triangle for assistant bubble */
+            <>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute right-full top-[7px] w-0 h-0",
+                  "border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent",
+                  isError   ? "border-l-[9px] border-l-red-200"
+                  : isRestored ? "border-l-[9px] border-l-emerald-200"
+                  : "border-l-[9px] border-l-slate-200"
+                )}
+              />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute right-full top-[7px] w-0 h-0",
+                  "border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent",
+                  isError   ? "border-l-[8px] border-l-red-50"
+                  : isRestored ? "border-l-[8px] border-l-emerald-50"
+                  : "border-l-[8px] border-l-slate-50"
+                )}
+              />
+            </>
+          )}
+
           {!isError && !isRestored && !isUser && (
             <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
               {isLastAssistant && (
