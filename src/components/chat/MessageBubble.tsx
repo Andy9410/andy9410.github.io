@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText, BookOpenCheck, GraduationCap } from "lucide-react";
+import { Bot, User, Copy, Check, WifiOff, Wifi, RefreshCw, FileText, BookOpenCheck } from "lucide-react";
 
 const dot = { initial: { y: 0 }, animate: { y: -4 } };
 
@@ -30,10 +30,9 @@ interface Props {
   isStreaming?: boolean;
   onRegenerate?: () => void;
   onOpenExerciseBreakdown?: () => void;
-  onExplainInWhiteboard?: (content: string) => void;
 }
 
-const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate, onOpenExerciseBreakdown, onExplainInWhiteboard }: Props) => {
+const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false, isStreaming = false, onRegenerate, onOpenExerciseBreakdown }: Props) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const isError = message.isError === true;
@@ -59,7 +58,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       className={cn(
-        "group flex items-end gap-3 px-4",
+        "group flex items-start gap-3 px-4",
         isFirstInGroup ? "pt-4 pb-1" : "pt-0.5 pb-1",
         isUser && "flex-row-reverse"
       )}
@@ -97,25 +96,25 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
             !isUser && "w-full",
             !isUser && !isError && !isRestored && "pr-16",
             isUser
-              ? "rounded-br-none bg-slate-800 text-white"
+              ? "rounded-tr-none bg-slate-800 text-white"
               : isError
-                ? "rounded-bl-none border border-destructive/30 bg-destructive/10 text-destructive"
+                ? "rounded-tl-none border border-destructive/30 bg-destructive/10 text-destructive"
                 : isRestored
-                  ? "rounded-bl-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : "rounded-bl-none border border-slate-100 bg-slate-50/60 text-slate-700"
+                  ? "rounded-tl-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "rounded-tl-none border border-slate-100 bg-slate-50/60 text-slate-700"
           )}
         >
           <span
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute bottom-1 h-3 w-3 rotate-45",
+              "pointer-events-none absolute top-1 h-3 w-3 rotate-45",
               isUser
                 ? "-right-1.5 bg-slate-800"
                 : isError
-                  ? "-left-1.5 border-b border-l border-destructive/30 bg-destructive/10"
+                  ? "-left-1.5 border-t border-l border-destructive/30 bg-destructive/10"
                   : isRestored
-                    ? "-left-1.5 border-b border-l border-emerald-500/30 bg-emerald-500/10"
-                    : "-left-1.5 border-b border-l border-slate-100 bg-slate-50/60"
+                    ? "-left-1.5 border-t border-l border-emerald-500/30 bg-emerald-500/10"
+                    : "-left-1.5 border-t border-l border-slate-100 bg-slate-50/60"
             )}
           />
 
@@ -183,18 +182,7 @@ const MessageBubble = ({ message, isFirstInGroup = true, isLastAssistant = false
 
         <span className="px-1 text-[11px] text-muted-foreground">{time}</span>
 
-        {!isUser && !isError && !isRestored && !isStreaming && onExplainInWhiteboard && (
-          <button
-            type="button"
-            onClick={() => onExplainInWhiteboard(message.content)}
-            className="inline-flex items-center gap-1.5 self-start rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 shadow-sm transition-colors hover:bg-sky-100 dark:border-sky-800/50 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-950/60"
-          >
-            <GraduationCap className="h-3 w-3" />
-            Explicar en pizarra
-          </button>
-        )}
-
-        {!isUser && message.sources && message.sources.length > 0 && (
+{!isUser && message.sources && message.sources.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">
             <FileText className="h-3 w-3 shrink-0 text-cyan-400/70" />
             {message.sources.map((f) => (

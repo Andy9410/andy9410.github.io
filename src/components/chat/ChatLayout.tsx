@@ -585,7 +585,6 @@ const ChatLayout = () => {
                     : regenerateLastMessage
               }
               onOpenExerciseBreakdown={handleOpenExerciseBreakdown}
-              onExplainInWhiteboard={handleExplainInWhiteboard}
               isLoadingHistory={isLoadingHistory}
           />
         </ErrorBoundary>
