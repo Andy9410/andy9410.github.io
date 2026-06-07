@@ -40,13 +40,17 @@ export interface Whiteboard {
 
 export type WhiteboardEntryType =
   | "TEXT" | "STEP" | "FORMULA" | "DRAWING" | "HIGHLIGHT" | "SYSTEM_NOTE"
-  | "TITLE" | "EXAMPLE" | "WARNING" | "QUESTION" | "DRAWING_INSTRUCTION";
+  | "TITLE" | "EXAMPLE" | "WARNING" | "QUESTION" | "DRAWING_INSTRUCTION"
+  | "AI_NOTE" | "AI_QUESTION" | "AI_CORRECTION";  // AI annotation types
+
+export type WhiteboardAuthor = "user" | "assistant";
 
 export interface WhiteboardEntry {
   id: number;
   whiteboardId: string;
   conversationId: number;
   type: WhiteboardEntryType;
+  author: WhiteboardAuthor;
   content: string;
   orderIndex: number;
   metadata?: string | null;

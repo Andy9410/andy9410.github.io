@@ -17,6 +17,9 @@ import { useChat } from "@/hooks/useChat";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { useWhiteboard } from "@/hooks/useWhiteboard";
 import { useWhiteboardLesson } from "@/hooks/useWhiteboardLesson";
+import { useAutoWhiteboardEval } from "@/hooks/useAutoWhiteboardEval";
+import { useWhiteboardAnimation } from "@/hooks/useWhiteboardAnimation";
+import { useWhiteboardTeaching } from "@/hooks/useWhiteboardTeaching";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode } from "@/types/whiteboard";
@@ -115,8 +118,25 @@ const ChatLayout = () => {
   const lesson = useWhiteboardLesson();
   const { detectExercise, isClosing } = useExerciseDetection();
 
+
   const [teachingEntries, setTeachingEntries] = useState<import("@/types/whiteboard").WhiteboardEntry[]>([]);
   const [reasoningNodes, setReasoningNodes] = useState<import("@/types/whiteboard").ReasoningNode[]>([]);
+  const wbAnimation = useWhiteboardAnimation();
+
+  const teaching = useWhiteboardTeaching({
+    conversationId: activeConversation?.backendId ?? null,
+    whiteboardId: whiteboard.activeWhiteboard?.id ?? null,
+    token: accessToken,
+    onEntries: (entries) => {
+      setTeachingEntries((prev) => {
+        const ids = new Set(prev.map((e) => e.id));
+        const fresh = entries.filter((e) => !ids.has(e.id));
+        const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+        if (fresh.length > 0) setTimeout(() => wbAnimation.animateEntries(next), 0);
+        return next;
+      });
+    },
+  });
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
@@ -132,6 +152,10 @@ const ChatLayout = () => {
   const [whiteboardAskActive, setWhiteboardAskActive] = useState(false);
   const [whiteboardInterpretMode, setWhiteboardInterpretMode] = useState<InterpretMode>("auto");
   const latestStreamBreakdownRef = useRef<ExerciseBreakdown | null>(null);
+  const teachingRef = useRef(teaching);
+  teachingRef.current = teaching;
+  const wbAnimationRef = useRef(wbAnimation);
+  wbAnimationRef.current = wbAnimation;
 
   const [preferredPdfLayout, setPreferredPdfLayout] =
       useState<PdfLayoutMode>(() => {
@@ -242,7 +266,7 @@ const ChatLayout = () => {
         confidence: 0,
       }));
       await sendMessage(
-        "Analizá la pizarra actual y decime qué falta o qué mejorar.",
+        "¿Qué ves en mi pizarra?",
         [],
         pdfViewer.activeExercise?.number,
         pdfViewer.activeDocId ?? undefined,
@@ -272,6 +296,21 @@ const ChatLayout = () => {
   const whiteboardAskStatus = whiteboardAskActive
     ? status === "loading" ? "generating" : "sending"
     : "idle";
+
+  // Auto-evaluate whiteboard when user adds new elements (3s debounce)
+  useAutoWhiteboardEval({
+    whiteboard: whiteboard.activeWhiteboard,
+    panelOpen: whiteboard.panelOpen,
+    chatIdle: status !== "loading" && !isOffline,
+    onEvaluate: askAboutWhiteboard,
+  });
+
+  // When the animation for the current teaching fragment completes, advance the teaching state
+  useEffect(() => {
+    if (wbAnimation.state.phase === "COMPLETED" && teaching.phase === "WRITING_FRAGMENT") {
+      teaching.onAnimationComplete();
+    }
+  }, [wbAnimation.state.phase, teaching.phase, teaching.onAnimationComplete]);
 
   const handleExplainInWhiteboard = useCallback(async (msg: Message) => {
     if (!accessToken) return;
@@ -321,7 +360,9 @@ const ChatLayout = () => {
         setTeachingEntries((prev) => {
           const existingIds = new Set(prev.map((e) => e.id));
           const fresh = saved.filter((e) => !existingIds.has(e.id));
-          return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+          const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+          setTimeout(() => wbAnimation.animateEntries(next), 0);
+          return next;
         });
       }
     } catch {
@@ -376,12 +417,20 @@ const ChatLayout = () => {
     setActiveWhiteboardAction(null);
 
     if (action.type === "OPEN_WHITEBOARD") {
-      // New whiteboard from backend — clear previous teaching entries
+      // New whiteboard — clear previous entries and start a fresh teaching session
       setTeachingEntries([]);
+      teachingRef.current.reset();
+      wbAnimationRef.current.clearAnimation();
       whiteboard.setPanelOpen(true);
       const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
-      if (conversationId && accessToken && !whiteboard.activeWhiteboard) {
-        void whiteboard.openConversationWhiteboard(conversationId);
+      if (conversationId && accessToken) {
+        void whiteboard.openConversationWhiteboard(conversationId).then(() => {
+          // After the whiteboard is loaded, start the teaching session
+          // Topic comes from the last user message in the conversation
+          const msgs = activeConversation?.messages ?? [];
+          const lastUserMsg = [...msgs].reverse().find((m) => m.role === "user");
+          teachingRef.current.start(lastUserMsg?.content ?? undefined);
+        });
       }
     } else if (action.type === "CREATE_REASONING_NODE") {
       const node = action.payload as unknown as import("@/types/whiteboard").ReasoningNode;
@@ -394,18 +443,36 @@ const ChatLayout = () => {
           );
         });
       }
-    } else if (action.type === "UPDATE_WHITEBOARD" || action.type === "INJECT_WHITEBOARD_CONTENT") {
-      // Merge new entries/blocks from the action payload
+    } else if (action.type === "UPDATE_WHITEBOARD") {
+      // Direct update (non-teaching): show entries with animation
       const incoming = action.payload.blocks ?? action.payload.entries ?? [];
       if (incoming.length > 0) {
         setTeachingEntries((prev) => {
           const existingIds = new Set(prev.map((e) => e.id));
           const fresh = incoming.filter((e) => !existingIds.has(e.id));
-          return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+          const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+          if (fresh.length > 0) setTimeout(() => wbAnimationRef.current.animateEntries(next), 0);
+          return next;
         });
       }
+    } else if (action.type === "INJECT_WHITEBOARD_CONTENT") {
+      // Teaching session is active — ignore SSE injection (teaching hook manages content)
+      // If teaching is idle (e.g. SSE-only flow), fall back to regular injection
+      if (!teachingRef.current.isActive) {
+        const incoming = action.payload.blocks ?? action.payload.entries ?? [];
+        if (incoming.length > 0) {
+          setTeachingEntries((prev) => {
+            const existingIds = new Set(prev.map((e) => e.id));
+            const fresh = incoming.filter((e) => !existingIds.has(e.id));
+            const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+            if (fresh.length > 0) setTimeout(() => wbAnimationRef.current.animateEntries(next), 0);
+            return next;
+          });
+        }
+      }
     }
-  }, [activeWhiteboardAction, setActiveWhiteboardAction, whiteboard, activeConversation, accessToken]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWhiteboardAction, setActiveWhiteboardAction]);
 
   useEffect(() => {
     if (activeExerciseBreakdown) {
@@ -518,7 +585,6 @@ const ChatLayout = () => {
                     : regenerateLastMessage
               }
               onOpenExerciseBreakdown={handleOpenExerciseBreakdown}
-              onExplainInWhiteboard={handleExplainInWhiteboard}
               isLoadingHistory={isLoadingHistory}
           />
         </ErrorBoundary>
@@ -735,7 +801,16 @@ const ChatLayout = () => {
                         onLessonPrev={lesson.prevStep}
                         onLessonClose={lesson.close}
                         teachingEntries={teachingEntries}
+                        animState={wbAnimation.state}
+                        onClearTeachingEntries={() => { setTeachingEntries([]); teaching.reset(); }}
+                        onEraseTeachingEntry={(id) => setTeachingEntries((prev) => prev.filter((e) => e.id !== id))}
                         reasoningNodes={reasoningNodes}
+                        teachingPhase={teaching.phase}
+                        teachingQuestion={teaching.pauseQuestion}
+                        teachingDraft={teaching.userDraft}
+                        onTeachingDraftChange={teaching.setUserDraft}
+                        onTeachingSubmit={teaching.submitResponse}
+                        onTeachingContinue={teaching.continueWithout}
                     />
                   </ResizablePanel>
                 </ResizablePanelGroup>

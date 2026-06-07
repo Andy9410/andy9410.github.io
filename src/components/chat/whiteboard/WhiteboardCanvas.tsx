@@ -9,9 +9,13 @@ interface Props {
   selectedId: string | null;
   showGrid?: boolean;
   overlayElements?: WhiteboardElement[];
+  overlayHtml?: string;
   onToolChange: (tool: WhiteboardTool) => void;
   onSelect: (id: string | null) => void;
   onChange: (data: WhiteboardData) => void;
+  onEraseOverlay?: () => void;
+  onEraseEntry?: (entryId: number) => void; // erase a specific teaching entry
+  teachingEntryLayout?: Array<{ id: number; y: number; height: number }>;
 }
 
 type DragState =
@@ -34,7 +38,7 @@ const lessonStroke = "#ffffff";
 const lessonFill   = "rgba(255,255,255,0.08)";
 const CHALK_FONT   = "'Caveat', cursive";
 
-export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, onToolChange, onSelect, onChange }: Props) {
+export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, overlayHtml, onToolChange, onSelect, onChange, onEraseOverlay, onEraseEntry, teachingEntryLayout }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ignoreNextBlurRef = useRef(false);
@@ -53,6 +57,21 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
   );
 
   const editingPosition = editingElement ?? editingText;
+
+  // Global keyboard delete: works even if SVG element doesn't have DOM focus
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      if (editingText) return;                         // don't interfere with text editing
+      const active = document.activeElement;
+      if (active && active.tagName !== "BODY" && active !== svgRef.current) return; // input/textarea focused
+      if (!selected) return;
+      e.preventDefault();
+      deleteElement(selected.id);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selected, editingText, data.elements]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!editingText) return;
@@ -229,6 +248,12 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
       return;
     }
 
+    // In erase mode: clicking canvas bg clears AI overlay content
+    if (tool === "erase" && overlayHtml) {
+      onEraseOverlay?.();
+      return;
+    }
+
     onSelect(null);
   };
 
@@ -295,6 +320,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
       tabIndex: 0,
       role: "button",
       "aria-label": `Elemento ${element.type}`,
+      pointerEvents: "all" as const,   // force clickable even with fill="transparent"
     };
 
     if (element.type === "text" || element.type === "equation") {
@@ -546,9 +572,20 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
           backgroundSize: showGrid ? "24px 24px" : "auto",
         }}
       >
+        {/* AI content rendered BEFORE the SVG — SVG is transparent so content
+            shows through, and all pointer events go to the SVG naturally */}
+        {overlayHtml && (
+          <div
+            className="absolute inset-0 overflow-hidden whiteboard-overlay-content"
+            style={{ padding: "20px 24px", zIndex: 0 }}
+            dangerouslySetInnerHTML={{ __html: overlayHtml }}
+          />
+        )}
+
         <svg
             ref={svgRef}
-            className={cn("h-full w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}
+            className={cn("absolute inset-0 h-full w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}
+            style={{ zIndex: 1 }}
             onPointerDown={onCanvasPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -556,13 +593,32 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
             role="application"
             aria-label="Pizarra inteligente"
         >
-          {/* Overlay rendered first (behind) so user elements are always on top and selectable */}
+          {/* SVG lesson step overlay (behind user elements) */}
           {overlayElements && overlayElements.length > 0 && (
             <g pointerEvents="none" opacity="0.85" aria-hidden="true">
               {overlayElements.map(renderOverlayElement)}
             </g>
           )}
           {data.elements.map(renderElement)}
+
+          {/* Invisible hit rects for individual entry erasure */}
+          {tool === "erase" && teachingEntryLayout && teachingEntryLayout.map((entry) => (
+            <rect
+              key={`hit-${entry.id}`}
+              x={0} y={entry.y}
+              width="100%" height={entry.height}
+              fill="rgba(255,255,255,0.08)"
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              pointerEvents="all"
+              style={{ cursor: "pointer" }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onEraseEntry?.(entry.id);
+              }}
+            />
+          ))}
         </svg>
 
         {editingText && editingPosition && (

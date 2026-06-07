@@ -40,9 +40,12 @@ export function WhiteboardTextOverlay({ entries }: Props) {
   if (!html) return null;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
-      className="absolute inset-0 overflow-y-auto overflow-x-hidden pointer-events-none"
-      style={{ zIndex: 5 }}
+      className="absolute inset-0 overflow-y-auto overflow-x-hidden"
+      style={{ zIndex: 5, pointerEvents: "none" }}
+      // @ts-expect-error — inert is valid HTML5 but not in React types yet
+      inert=""
     >
       <div
         className="px-6 py-5 whiteboard-overlay-content"

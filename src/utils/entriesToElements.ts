@@ -18,6 +18,31 @@ function stripMarkdown(text: string): string {
 
 const CANVAS_W = 500;
 const X = 24;
+
+export interface EntryLayout { id: number; y: number; height: number; }
+
+/** Returns estimated y-positions for each entry (for SVG hit rects). */
+export function computeEntryLayout(entries: WhiteboardEntry[]): EntryLayout[] {
+  const sorted = [...entries].sort((a, b) => a.orderIndex - b.orderIndex);
+  const layout: EntryLayout[] = [];
+  let y = 30;
+  for (const entry of sorted) {
+    const content = entry.content;
+    const lineCount = Math.max(1, Math.ceil(content.length / CHARS_PER_LINE));
+    let h: number;
+    switch (entry.type) {
+      case "TITLE":   h = lineCount * LINE_PX + BLOCK_GAP + 4; break;
+      case "STEP":    h = Math.max(50, lineCount * LINE_PX + 20) + BLOCK_GAP; break;
+      case "FORMULA": h = lineCount * LINE_PX + BLOCK_GAP; break;
+      case "EXAMPLE":
+      case "WARNING": h = Math.max(48, lineCount * LINE_PX + 20) + BLOCK_GAP; break;
+      default:        h = lineCount * LINE_PX + BLOCK_GAP; break;
+    }
+    layout.push({ id: entry.id, y, height: h });
+    y += h;
+  }
+  return layout;
+}
 const CHARS_PER_LINE = 100;
 const LINE_PX = 34;           // px between wrapped lines
 const BLOCK_GAP = 20;         // extra gap between blocks
