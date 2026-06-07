@@ -38,13 +38,8 @@ export async function listWhiteboards(conversationId: number, token: string): Pr
 }
 
 export async function getActiveWhiteboard(conversationId: number, token: string): Promise<Whiteboard | null> {
-  try {
-    const res = await whiteboardFetch(`/api/conversations/${conversationId}/whiteboards/active`, token);
-    return normalizeWhiteboard(await res.json() as Whiteboard);
-  } catch (error) {
-    if (error instanceof Error && error.message === "404") return null;
-    throw error;
-  }
+  const whiteboards = await listWhiteboards(conversationId, token);
+  return whiteboards[0] ?? null;
 }
 
 export async function createWhiteboard(
