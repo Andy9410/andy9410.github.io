@@ -18,6 +18,7 @@ export interface WhiteboardElement {
   points?: WhiteboardPoint[];
   stroke?: string;
   fill?: string;
+  questionId?: string;
 }
 
 export interface WhiteboardData {
@@ -54,6 +55,15 @@ export interface WhiteboardEntry {
   content: string;
   orderIndex: number;
   metadata?: string | null;
+}
+
+export type WhiteboardAnswerStatus = "waiting" | "writing" | "answered";
+
+export interface WhiteboardQuestionResponsePair {
+  questionId: string;
+  question: string;
+  answer: string;
+  status: WhiteboardAnswerStatus;
 }
 
 export interface WhiteboardActionPayload {

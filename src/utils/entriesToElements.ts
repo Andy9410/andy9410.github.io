@@ -1,6 +1,7 @@
 import type { WhiteboardElement } from "@/types/whiteboard";
 import type { WhiteboardEntry } from "@/types/whiteboard";
 import { mathToUnicode } from "./mathToUnicode";
+import { hasText } from "./whiteboardRenderGuards";
 
 /** Strips common markdown syntax for clean whiteboard display. */
 function stripMarkdown(text: string): string {
@@ -23,7 +24,9 @@ export interface EntryLayout { id: number; y: number; height: number; }
 
 /** Returns estimated y-positions for each entry (for SVG hit rects). */
 export function computeEntryLayout(entries: WhiteboardEntry[]): EntryLayout[] {
-  const sorted = [...entries].sort((a, b) => a.orderIndex - b.orderIndex);
+  const sorted = entries
+    .filter((entry) => hasText(entry.content))
+    .sort((a, b) => a.orderIndex - b.orderIndex);
   const layout: EntryLayout[] = [];
   let y = 30;
   for (const entry of sorted) {
@@ -72,13 +75,16 @@ function wrapText(text: string, maxChars = CHARS_PER_LINE): string[] {
  * them into SVG <tspan> elements.
  */
 export function entriesToElements(entries: WhiteboardEntry[]): WhiteboardElement[] {
-  const sorted = [...entries].sort((a, b) => a.orderIndex - b.orderIndex);
+  const sorted = entries
+    .filter((entry) => hasText(entry.content))
+    .sort((a, b) => a.orderIndex - b.orderIndex);
   const elements: WhiteboardElement[] = [];
   let y = 30;
 
   for (const entry of sorted) {
     const id = `entry-${entry.id}`;
     const content = mathToUnicode(stripMarkdown(entry.content));
+    if (!hasText(content)) continue;
 
     switch (entry.type) {
       case "TITLE": {

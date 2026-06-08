@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { createWhiteboard, getActiveWhiteboard, listWhiteboards } from "@/services/whiteboardApi";
+import { createWhiteboard, listWhiteboards } from "@/services/whiteboardApi";
 import type { Whiteboard, WhiteboardData, WhiteboardElement, WhiteboardSuggestion } from "@/types/whiteboard";
 
 const emptyData: WhiteboardData = { version: 1, elements: [] };
@@ -21,14 +21,11 @@ export function useWhiteboard(token: string | null, conversationId?: number) {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    Promise.all([
-      listWhiteboards(conversationId, token).catch(() => []),
-      getActiveWhiteboard(conversationId, token).catch(() => null),
-    ])
-      .then(([items, active]) => {
+    listWhiteboards(conversationId, token)
+      .then((items) => {
         if (cancelled) return;
         setWhiteboards(items);
-        setActiveWhiteboard(active);
+        setActiveWhiteboard(items[0] ?? null);
       })
       .catch(() => {
         if (!cancelled) setError("No se pudieron cargar las pizarras.");
@@ -56,14 +53,19 @@ export function useWhiteboard(token: string | null, conversationId?: number) {
     }
     setLoading(true);
     try {
+      let items: Whiteboard[] | null = null;
       const existing = activeWhiteboard?.conversationId === targetConversationId
         ? activeWhiteboard
-        : await getActiveWhiteboard(targetConversationId, token).catch(() => null);
+        : (items = await listWhiteboards(targetConversationId, token))[0] ?? null;
       const board = existing ?? await createWhiteboard(targetConversationId, token, {
         title: "Pizarra inteligente",
         data: emptyData,
       });
       setActiveWhiteboard(board);
+      setWhiteboards((current) => {
+        const source = targetConversationId === conversationId ? items ?? current : current;
+        return [board, ...source.filter((item) => item.id !== board.id)];
+      });
       return board;
     } catch (err) {
       setError(err instanceof Error ? `No se pudo abrir la pizarra (${err.message}).` : "No se pudo abrir la pizarra.");

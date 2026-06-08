@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WhiteboardEntry } from "@/types/whiteboard";
+import { hasText } from "@/utils/whiteboardRenderGuards";
 
 // ─── State Machine ────────────────────────────────────────────────────────────
 
@@ -79,7 +80,10 @@ export function useWhiteboardAnimation() {
     []
   );
 
-  const runAnimation = useCallback(async (entries: WhiteboardEntry[]) => {
+  const runAnimation = useCallback(async (rawEntries: WhiteboardEntry[]) => {
+    const entries = rawEntries.filter((entry) => hasText(entry.content));
+    if (!entries.length) return;
+
     if (runningRef.current) return;
     runningRef.current = true;
     const signal = { cancelled: false };
@@ -161,7 +165,8 @@ export function useWhiteboardAnimation() {
 
   /** Called when new teaching entries arrive */
   const animateEntries = useCallback(
-    (entries: WhiteboardEntry[]) => {
+    (rawEntries: WhiteboardEntry[]) => {
+      const entries = rawEntries.filter((entry) => hasText(entry.content));
       if (!entries.length) return;
       clearTimer();
       runningRef.current = false; // force restart

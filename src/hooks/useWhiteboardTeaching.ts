@@ -38,9 +38,32 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
   const onEntriesRef = useRef(onEntries);
   onEntriesRef.current = onEntries;
 
+  const buildFallbackEntry = useCallback(
+    (
+      targetConversationId: number,
+      targetWhiteboardId: string,
+      stepIndex: number,
+      content: string
+    ): WhiteboardEntry => ({
+      id: -(Date.now() + stepIndex),
+      whiteboardId: targetWhiteboardId,
+      conversationId: targetConversationId,
+      type: "SYSTEM_NOTE",
+      author: "assistant",
+      content,
+      orderIndex: Math.max(1, stepIndex + 1),
+    }),
+    []
+  );
+
   const callTeach = useCallback(
-    async (userInput: string | undefined, stepIndex: number, topic?: string) => {
-      if (!conversationId || !whiteboardId || !token) return;
+    async (
+      userInput: string | undefined,
+      stepIndex: number,
+      topic?: string,
+      targetWhiteboardId = whiteboardId
+    ) => {
+      if (!conversationId || !targetWhiteboardId || !token) return;
 
       setState((s) => ({
         ...s,
@@ -49,13 +72,24 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
       }));
 
       try {
-        const resp = await teachWhiteboard(conversationId, whiteboardId, token, {
+        const resp = await teachWhiteboard(conversationId, targetWhiteboardId, token, {
           userInput: userInput?.trim() || undefined,
           stepIndex,
           topic,
         });
 
-        onEntriesRef.current(resp.entries);
+        const entries = resp.entries.length > 0
+          ? resp.entries
+          : [
+              buildFallbackEntry(
+                conversationId,
+                targetWhiteboardId,
+                stepIndex,
+                "No recibí contenido para mostrar en la pizarra. Intentá pedir la explicación nuevamente."
+              ),
+            ];
+
+        onEntriesRef.current(entries);
 
         setState((s) => ({
           ...s,
@@ -70,11 +104,25 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
         // Store isComplete in a closure for the callback
         return resp.isComplete;
       } catch {
-        setState(INITIAL);
+        onEntriesRef.current([
+          buildFallbackEntry(
+            conversationId,
+            targetWhiteboardId,
+            stepIndex,
+            "No pude cargar la explicación en la pizarra. Intentá de nuevo en unos segundos."
+          ),
+        ]);
+        setState((s) => ({
+          ...s,
+          phase: "WRITING_FRAGMENT",
+          pauseQuestion: null,
+          stepIndex,
+          userDraft: "",
+        }));
         return true;
       }
     },
-    [conversationId, whiteboardId, token]
+    [buildFallbackEntry, conversationId, token, whiteboardId]
   );
 
   // Called by parent when the animation for the current fragment finishes
@@ -87,17 +135,19 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
   }, []);
 
   const start = useCallback(
-    (topic?: string) => {
-      void callTeach(undefined, 0, topic);
+    (topic?: string, targetWhiteboardId?: string) => {
+      void callTeach(undefined, 0, topic, targetWhiteboardId);
     },
     [callTeach]
   );
 
-  const submitResponse = useCallback(() => {
+  const submitResponse = useCallback((canvasAnswer?: string) => {
     setState((s) => {
       if (s.phase !== "WAITING_USER_INPUT" && s.phase !== "USER_WRITING") return s;
-      void callTeach(s.userDraft || undefined, s.stepIndex);
-      return { ...s, phase: "ANALYZING_USER_INPUT" };
+      const answer = canvasAnswer?.trim() || s.userDraft.trim();
+      if (!answer) return s;
+      void callTeach(answer, s.stepIndex);
+      return { ...s, phase: "ANALYZING_USER_INPUT", userDraft: "" };
     });
   }, [callTeach]);
 

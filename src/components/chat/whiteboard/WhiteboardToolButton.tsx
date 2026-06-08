@@ -16,12 +16,12 @@ export function WhiteboardToolButton({ label, active = false, icon: Icon, onClic
       aria-label={label}
       title={label}
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground transition-all duration-150",
+        "inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all duration-150",
         "hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "active:scale-95",
         active
-          ? "border-accent bg-accent/15 text-accent shadow-sm ring-1 ring-accent/30"
-          : "border-border bg-background hover:border-foreground/20"
+          ? "bg-accent/15 text-accent"
+          : "bg-transparent"
       )}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />

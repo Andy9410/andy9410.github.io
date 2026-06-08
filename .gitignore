@@ -4,3 +4,7 @@ dist/
 .idea/
 .claude/
 .env
+e2e/auth.json
+playwright-report/
+test-results/
+testreel-output/
