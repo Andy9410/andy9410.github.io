@@ -1,8 +1,32 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { chromium } from "@playwright/test";
 
 const STORAGE_STATE_PATH = "e2e/auth.json";
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "https://learnsoft.uy";
+const CHAT_API_URL = process.env.PLAYWRIGHT_CHAT_API_URL ?? "https://chat-service-academy.fly.dev";
+
+function readStoredAccessToken() {
+  if (!existsSync(STORAGE_STATE_PATH)) return null;
+
+  const authState = JSON.parse(readFileSync(STORAGE_STATE_PATH, "utf8")) as {
+    origins?: Array<{ origin: string; localStorage?: Array<{ name: string; value: string }> }>;
+  };
+
+  return authState.origins
+    ?.flatMap((entry) => entry.localStorage ?? [])
+    .find((item) => item.name === "auth_access_token")?.value ?? null;
+}
+
+async function isChatTokenAccepted() {
+  const token = readStoredAccessToken();
+  if (!token) return false;
+
+  const response = await fetch(`${CHAT_API_URL}/api/conversations`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null);
+
+  return response?.ok ?? false;
+}
 
 async function hasValidStoredSession() {
   if (!existsSync(STORAGE_STATE_PATH)) return false;
@@ -14,7 +38,7 @@ async function hasValidStoredSession() {
   try {
     await page.goto(`${BASE_URL}/chat`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1_000);
-    return !/\/login/i.test(page.url());
+    return !/\/login/i.test(page.url()) && await isChatTokenAccepted();
   } finally {
     await browser.close();
   }
