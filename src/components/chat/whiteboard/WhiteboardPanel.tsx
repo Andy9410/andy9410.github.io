@@ -1,15 +1,16 @@
-import { AlertCircle, ChevronDown, Loader2, MessageSquareText, PanelRightClose, Save, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { AlertCircle, Loader2, MessageSquareText, PanelRightClose, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import MarkdownIt from "markdown-it";
 import texmath from "markdown-it-texmath";
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import type { InterpretMode, ReasoningNode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
+import type { ReasoningNode, Whiteboard, WhiteboardElement, WhiteboardEntry, WhiteboardQuestionResponsePair, WhiteboardSuggestion, WhiteboardTool } from "@/types/whiteboard";
 import type { WhiteboardLesson } from "@/types/lesson";
 import { useAutosaveWhiteboard } from "@/hooks/useAutosaveWhiteboard";
 import { computeEntryLayout } from "@/utils/entriesToElements";
 import type { WhiteboardAnimState } from "@/hooks/useWhiteboardAnimation";
 import type { TeachingPhase } from "@/hooks/useWhiteboardTeaching";
+import { hasText } from "@/utils/whiteboardRenderGuards";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
 import { WhiteboardAnimatedOverlay } from "./WhiteboardAnimatedOverlay";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
@@ -40,8 +41,6 @@ interface Props {
   askStatus?: "idle" | "sending" | "generating";
   loading?: boolean;
   error?: string | null;
-  interpretMode?: InterpretMode;
-  onInterpretModeChange?: (mode: InterpretMode) => void;
   onChangeData: (updater: (data: Whiteboard["data"]) => Whiteboard["data"]) => void;
   onAskWhiteboard: () => void;
   onApplySuggestion: () => void;
@@ -62,24 +61,23 @@ interface Props {
   reasoningNodes?: ReasoningNode[];
   // Teaching session props
   teachingPhase?: TeachingPhase;
-  teachingQuestion?: string | null;
-  teachingDraft?: string;
-  onTeachingDraftChange?: (v: string) => void;
+  questionPairs?: WhiteboardQuestionResponsePair[];
+  activeQuestionId?: string | null;
   onTeachingSubmit?: () => void;
   onTeachingContinue?: () => void;
 }
 
-const MODE_LABELS: Record<InterpretMode, string> = {
-  auto: "Automático",
-  math: "Matemática",
-  algorithm: "Algoritmo",
-  flowchart: "Diagrama",
-  text: "Texto",
-};
-
-const MODE_OPTIONS: InterpretMode[] = ["auto", "math", "algorithm", "flowchart", "text"];
-
 const STROKE_COLOR = "#0f172a";
+
+const TEACHING_STATUS_LABEL: Partial<Record<TeachingPhase, string>> = {
+  THINKING: "Pensando",
+  WRITING_FRAGMENT: "Explicando",
+  WAITING_USER_INPUT: "Esperando respuesta",
+  USER_WRITING: "Respuesta en curso",
+  ANALYZING_USER_INPUT: "Analizando respuesta",
+  CONTINUING: "Continuando",
+  COMPLETED: "Completo",
+};
 
 export function WhiteboardPanel({
   whiteboard,
@@ -88,8 +86,6 @@ export function WhiteboardPanel({
   askStatus = "idle",
   loading = false,
   error = null,
-  interpretMode = "auto",
-  onInterpretModeChange,
   onChangeData,
   onAskWhiteboard,
   onApplySuggestion,
@@ -109,17 +105,17 @@ export function WhiteboardPanel({
   animState,
   reasoningNodes = [],
   teachingPhase = "IDLE",
-  teachingQuestion = null,
-  teachingDraft = "",
-  onTeachingDraftChange,
+  questionPairs = [],
+  activeQuestionId = null,
   onTeachingSubmit,
   onTeachingContinue,
 }: Props) {
   const [tool, setTool] = useState<WhiteboardTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
-  const [modeMenuOpen, setModeMenuOpen] = useState(false);
-  const modeMenuRef = useRef<HTMLDivElement>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [expandedQuestionIds, setExpandedQuestionIds] = useState<Set<string>>(() => new Set());
   const autosave = useAutosaveWhiteboard(whiteboard, token);
   const askLabel =
     askStatus === "sending"
@@ -127,28 +123,86 @@ export function WhiteboardPanel({
       : askStatus === "generating"
         ? "Respuesta generándose..."
         : "Preguntar sobre la pizarra";
+  const visibleTeachingEntries = useMemo(
+    () => teachingEntries.filter((entry) => hasText(entry.content)),
+    [teachingEntries]
+  );
 
   // Static HTML fallback (used when animation is COMPLETED or no anim state)
   const overlayHtml = useMemo(() => {
     if (!animState || animState.phase === "IDLE") {
-      if (teachingEntries.length === 0) return undefined;
-      const sorted = [...teachingEntries].sort((a, b) => a.orderIndex - b.orderIndex);
+      if (visibleTeachingEntries.length === 0) return undefined;
+      const sorted = [...visibleTeachingEntries].sort((a, b) => a.orderIndex - b.orderIndex);
       return overlayMd.render(sorted.map(entryToMarkdown).join(""));
     }
     return undefined; // animated overlay handles display during animation
-  }, [teachingEntries, animState]);
+  }, [visibleTeachingEntries, animState]);
 
   const allOverlayElements = lessonOverlayElements;
 
   const entryLayout = useMemo(
-    () => (teachingEntries.length > 0 ? computeEntryLayout(teachingEntries) : []),
-    [teachingEntries]
+    () => (visibleTeachingEntries.length > 0 ? computeEntryLayout(visibleTeachingEntries) : []),
+    [visibleTeachingEntries]
   );
 
   const selectedElement = useMemo(
     () => whiteboard?.data.elements.find((element) => element.id === selectedId),
     [selectedId, whiteboard?.data.elements]
   );
+  const isTeachingWaiting = teachingPhase === "WAITING_USER_INPUT" || teachingPhase === "USER_WRITING";
+  const teachingActive = teachingPhase !== "IDLE" && teachingPhase !== "COMPLETED";
+  const showTools = !focusMode && (toolsOpen || !teachingActive);
+  const visibleAnimationBlocks = useMemo(
+    () => (animState?.blocks ?? []).filter((block) => hasText(block.entry.content) || hasText(block.visibleText)),
+    [animState?.blocks]
+  );
+  const activeBlockCount = visibleAnimationBlocks.length;
+  const activeStepNumber =
+    activeBlockCount > 0
+      ? Math.min(Math.max(animState?.activeBlockIndex ?? 0, 0) + 1, activeBlockCount)
+      : null;
+  const stepLabel = activeStepNumber
+    ? `Paso ${activeStepNumber}/${activeBlockCount}`
+    : visibleTeachingEntries.length > 0
+      ? `Paso ${visibleTeachingEntries.length}`
+      : "Paso inicial";
+  const statusLabel =
+    askStatus !== "idle"
+      ? askLabel
+      : TEACHING_STATUS_LABEL[teachingPhase] ??
+        (autosave.status === "saving" ? "Guardando" : autosave.status === "error" ? "Error al guardar" : "Guardado");
+  const boardTitle = whiteboard?.exerciseLabel || whiteboard?.title || "Pizarra";
+  const collapsedQuestionIds = useMemo(
+    () =>
+      questionPairs
+        .filter((pair) => pair.status === "answered" && pair.questionId !== activeQuestionId && !expandedQuestionIds.has(pair.questionId))
+        .filter((pair) => hasText(pair.question) && hasText(pair.answer))
+        .map((pair) => pair.questionId),
+    [activeQuestionId, expandedQuestionIds, questionPairs]
+  );
+
+  useEffect(() => {
+    if (isTeachingWaiting) setTool("text");
+  }, [isTeachingWaiting]);
+
+  useEffect(() => {
+    if (questionPairs.length === 0) {
+      setFocusMode(false);
+      setExpandedQuestionIds(new Set());
+    }
+  }, [questionPairs.length]);
+
+  const toggleQuestionCollapsed = (questionId: string) => {
+    setExpandedQuestionIds((current) => {
+      const next = new Set(current);
+      if (next.has(questionId)) {
+        next.delete(questionId);
+      } else {
+        next.add(questionId);
+      }
+      return next;
+    });
+  };
 
   const handleAskWhiteboard = async () => {
     // Intentar guardar los últimos cambios, pero NO bloquear la consulta si falla
@@ -187,126 +241,103 @@ export function WhiteboardPanel({
 
   return (
     <section className="flex h-full min-h-[260px] min-w-0 flex-col bg-background" aria-label="Pizarra inteligente">
-      <header className="flex min-w-0 items-center gap-3 border-b bg-background px-3 py-2">
+      <header className="flex min-w-0 items-center gap-2 bg-background/95 px-4 py-3 shadow-[0_1px_0_rgba(15,23,42,0.08)]">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{whiteboard.title}</p>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {whiteboard.exerciseLabel ? `${whiteboard.exerciseLabel} · ` : ""}Hoja compartida con el tutor IA
-          </p>
+          <p className="truncate text-sm font-semibold text-foreground">{boardTitle}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{stepLabel} · {statusLabel}</p>
         </div>
-        {/* Interpret mode selector */}
-        <div className="relative" ref={modeMenuRef}>
+        {questionPairs.length > 0 && (
           <button
             type="button"
-            onClick={() => setModeMenuOpen(!modeMenuOpen)}
-            onBlur={(e) => {
-              if (!modeMenuRef.current?.contains(e.relatedTarget)) {
-                setModeMenuOpen(false);
-              }
-            }}
-            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label="Modo de interpretación"
+            onClick={() => setFocusMode((value) => !value)}
+            className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs font-semibold transition ${
+              focusMode
+                ? "bg-accent text-accent-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+            }`}
           >
-            <span className="hidden sm:inline">Interpretar como:</span>
-            <span className="font-semibold text-foreground">{MODE_LABELS[interpretMode]}</span>
-            <ChevronDown className="h-3 w-3" aria-hidden="true" />
+            {focusMode ? "Salir foco" : "Foco"}
           </button>
-          {modeMenuOpen && (
-            <div className="absolute right-0 top-full z-50 mt-1 min-w-[160px] overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-lg">
-              {MODE_OPTIONS.map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => {
-                    onInterpretModeChange?.(mode);
-                    setModeMenuOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition ${
-                    interpretMode === mode
-                      ? "bg-accent font-semibold text-accent-foreground"
-                      : "text-popover-foreground hover:bg-muted"
-                  }`}
-                >
-                  {MODE_LABELS[mode]}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Save className="h-3.5 w-3.5" aria-hidden="true" />
-          {autosave.status === "saving" ? "Guardando..." : autosave.status === "error" ? "Error al guardar" : "Guardado"}
-        </div>
+        )}
+        {!focusMode && (
+          <button
+            type="button"
+            onClick={() => setToolsOpen((value) => !value)}
+            className="inline-flex h-8 shrink-0 items-center rounded-full bg-muted px-3 text-xs font-semibold text-muted-foreground transition hover:bg-muted/80 hover:text-foreground"
+          >
+            {showTools && teachingActive ? "Ocultar herramientas" : "Herramientas"}
+          </button>
+        )}
         <button
           type="button"
           onClick={handleAskWhiteboard}
           disabled={askStatus !== "idle"}
           aria-label="Preguntar a la IA sobre la pizarra actual"
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {askStatus === "idle" ? (
             <MessageSquareText className="h-3.5 w-3.5" aria-hidden="true" />
           ) : (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
           )}
-          <span className="max-w-[150px] truncate">{askLabel}</span>
         </button>
         <button
           type="button"
           onClick={onClose}
           aria-label="Ocultar pizarra"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </header>
 
 
-      <WhiteboardToolbar
-        tool={tool}
-        selectedElement={selectedElement}
-        showGrid={showGrid}
-        onToggleGrid={() => setShowGrid((g) => !g)}
-        onToolChange={(nextTool) => {
-          if (nextTool === "erase" && selectedId) {
+      {showTools && (
+        <WhiteboardToolbar
+          tool={tool}
+          selectedElement={selectedElement}
+          showGrid={showGrid}
+          onToggleGrid={() => setShowGrid((g) => !g)}
+          onToolChange={(nextTool) => {
+            if (nextTool === "erase" && selectedId) {
+              onChangeData((data) => ({
+                ...data,
+                elements: data.elements.filter((element) => element.id !== selectedId),
+              }));
+              setSelectedId(null);
+              setTool("select");
+              return;
+            }
+            setTool(nextTool);
+          }}
+          onSelectedTextChange={(text) => {
+            if (!selectedId) return;
             onChangeData((data) => ({
               ...data,
-              elements: data.elements.filter((element) => element.id !== selectedId),
+              elements: data.elements.map((element) =>
+                element.id === selectedId ? { ...element, text } : element
+              ),
             }));
-            setSelectedId(null);
+          }}
+          onInsertSymbol={(symbol) => {
+            const id = crypto.randomUUID();
+            const count = whiteboard?.data.elements.filter((e) => e.type === "equation").length ?? 0;
+            const offset = count * 36;
+            onChangeData((data) => ({
+              ...data,
+              elements: [
+                ...data.elements,
+                { id, type: "equation" as const, x: 40 + offset, y: 80 + offset, text: symbol, stroke: STROKE_COLOR },
+              ],
+            }));
+            setSelectedId(id);
             setTool("select");
-            return;
-          }
-          setTool(nextTool);
-        }}
-        onSelectedTextChange={(text) => {
-          if (!selectedId) return;
-          onChangeData((data) => ({
-            ...data,
-            elements: data.elements.map((element) =>
-              element.id === selectedId ? { ...element, text } : element
-            ),
-          }));
-        }}
-        onInsertSymbol={(symbol) => {
-          const id = crypto.randomUUID();
-          const count = whiteboard?.data.elements.filter((e) => e.type === "equation").length ?? 0;
-          const offset = count * 36;
-          onChangeData((data) => ({
-            ...data,
-            elements: [
-              ...data.elements,
-              { id, type: "equation" as const, x: 40 + offset, y: 80 + offset, text: symbol, stroke: STROKE_COLOR },
-            ],
-          }));
-          setSelectedId(id);
-          setTool("select");
-        }}
-      />
+          }}
+        />
+      )}
 
 
-<div className="relative min-h-0 flex-1 flex flex-col">
+      <div className="relative min-h-0 flex-1 flex flex-col">
         <WhiteboardCanvas
           data={whiteboard.data}
           tool={tool}
@@ -317,38 +348,39 @@ export function WhiteboardPanel({
           onEraseOverlay={onClearTeachingEntries}
           onEraseEntry={onEraseTeachingEntry}
           teachingEntryLayout={entryLayout}
+          questionPairs={questionPairs}
+          activeQuestionId={isTeachingWaiting ? activeQuestionId : null}
+          collapsedQuestionIds={collapsedQuestionIds}
+          focusMode={focusMode}
+          onAnswerSubmit={onTeachingSubmit}
+          onAnswerContinue={onTeachingContinue}
+          onToggleQuestionCollapsed={toggleQuestionCollapsed}
           onToolChange={setTool}
           onSelect={setSelectedId}
           onChange={(data) => onChangeData(() => data)}
         />
         {/* Animated overlay — shown during animation phases */}
-        {animState && animState.phase !== "IDLE" && (
+        {!focusMode && animState && animState.phase !== "IDLE" && (
           <WhiteboardAnimatedOverlay
             phase={animState.phase}
             thinkingMessage={animState.thinkingMessage}
-            blocks={animState.blocks}
+            blocks={visibleAnimationBlocks}
             activeBlockIndex={animState.activeBlockIndex}
+          />
+        )}
+        {/* Teaching session: prompt embedded in the whiteboard surface, not a parallel chat. */}
+        {!focusMode && onTeachingSubmit && onTeachingContinue && (
+          <WhiteboardTeachingBar
+            phase={teachingPhase}
           />
         )}
       </div>
 
-      {suggestion && suggestion.whiteboardId === whiteboard.id && (
+      {!focusMode && suggestion && suggestion.whiteboardId === whiteboard.id && (
         <WhiteboardSuggestionCard
           suggestion={suggestion}
           onApply={onApplySuggestion}
           onIgnore={onIgnoreSuggestion}
-        />
-      )}
-
-      {/* Teaching session: interactive bar shown during a step-by-step explanation */}
-      {onTeachingDraftChange && onTeachingSubmit && onTeachingContinue && (
-        <WhiteboardTeachingBar
-          phase={teachingPhase}
-          pauseQuestion={teachingQuestion}
-          userDraft={teachingDraft}
-          onDraftChange={onTeachingDraftChange}
-          onSubmit={onTeachingSubmit}
-          onContinueWithout={onTeachingContinue}
         />
       )}
     </section>

@@ -1,5 +1,6 @@
 import type { WhiteboardEntry } from "@/types/whiteboard";
 import { cn } from "@/lib/utils";
+import { hasText } from "@/utils/whiteboardRenderGuards";
 
 interface Props {
   entries: WhiteboardEntry[];
@@ -48,7 +49,9 @@ const TYPE_CONFIG: Record<string, { label: string; style: string; prefixFn?: (e:
 };
 
 export function WhiteboardEntries({ entries }: Props) {
-  if (entries.length === 0) return null;
+  const visibleEntries = entries.filter((entry) => hasText(entry.content));
+
+  if (visibleEntries.length === 0) return null;
 
   return (
     <div className="shrink-0 border-t border-border bg-background px-3 py-2.5 max-h-56 overflow-y-auto">
@@ -56,7 +59,7 @@ export function WhiteboardEntries({ entries }: Props) {
         Contenido de la pizarra
       </p>
       <ol className="flex flex-col gap-1.5">
-        {entries.map((entry) => {
+        {visibleEntries.map((entry) => {
           const cfg = TYPE_CONFIG[entry.type] ?? TYPE_CONFIG.TEXT;
           const prefix = cfg.prefixFn
             ? cfg.prefixFn(entry)
