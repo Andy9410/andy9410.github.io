@@ -5,7 +5,6 @@ import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import DocumentPanel from "./DocumentPanel";
-import ExerciseStepsPanel from "./ExerciseStepsPanel";
 import { WhiteboardPanel } from "./whiteboard/WhiteboardPanel";
 
 const PDFViewer = lazy(() =>
@@ -23,7 +22,7 @@ import { useWhiteboardTeaching } from "@/hooks/useWhiteboardTeaching";
 import { useExerciseDetection } from "@/hooks/useExerciseDetection";
 import { useAuth } from "@/auth/useAuth";
 import type { InterpretMode, WhiteboardElement, WhiteboardEntry, WhiteboardQuestionResponsePair } from "@/types/whiteboard";
-import { createWhiteboard, getReasoningTree, injectWhiteboardContent, interpretWhiteboard } from "@/services/whiteboardApi";
+import { createWhiteboard, getReasoningTree, getWhiteboardEntries, injectWhiteboardContent, interpretWhiteboard } from "@/services/whiteboardApi";
 import { renderWhiteboardToPng } from "@/utils/renderWhiteboardImage";
 import { hasText } from "@/utils/whiteboardRenderGuards";
 import {
@@ -32,7 +31,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import type { ExerciseBreakdown, Message } from "@/types/chat";
+import type { Message } from "@/types/chat";
 
 type PdfLayoutMode = "side" | "bottom";
 
@@ -205,9 +204,8 @@ const ChatLayout = () => {
         const ids = new Set(prev.map((e) => e.id));
         const fresh = visibleEntries.filter((e) => !ids.has(e.id));
         if (fresh.length === 0) return prev;
-        const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-        setTimeout(() => wbAnimation.animateEntries(next), 0);
-        return next;
+        // Append-only: el contenido viejo queda; lo nuevo se suma. Render estático + scroll.
+        return [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
       });
     },
   });
@@ -219,22 +217,14 @@ const ChatLayout = () => {
 
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
-  const [exercisePanelOpen, setExercisePanelOpen] = useState(false);
-  const [activeBreakdown, setActiveBreakdown] = useState<ExerciseBreakdown | null>(null);
-  const [activeBreakdownMessageId, setActiveBreakdownMessageId] = useState<string | null>(null);
-  const [exercisePanelPreference, setExercisePanelPreference] =
-      useState<"open" | "closed">(() =>
-          window.localStorage.getItem(EXERCISE_PANEL_STORAGE_KEY) === "open"
-              ? "open"
-              : "closed",
-      );
   const [whiteboardAskActive, setWhiteboardAskActive] = useState(false);
   const [whiteboardInterpretMode, setWhiteboardInterpretMode] = useState<InterpretMode>("auto");
-  const latestStreamBreakdownRef = useRef<ExerciseBreakdown | null>(null);
   const teachingRef = useRef(teaching);
   teachingRef.current = teaching;
   const wbAnimationRef = useRef(wbAnimation);
   wbAnimationRef.current = wbAnimation;
+  const teachingEntriesRef = useRef(teachingEntries);
+  teachingEntriesRef.current = teachingEntries;
   const whiteboardElements = whiteboard.activeWhiteboard?.data.elements ?? [];
   const whiteboardElementsRef = useRef<WhiteboardElement[]>(whiteboardElements);
   whiteboardElementsRef.current = whiteboardElements;
@@ -265,18 +255,6 @@ const ChatLayout = () => {
   const effectivePdfLayout: PdfLayoutMode = isNarrowLayout
       ? "bottom"
       : preferredPdfLayout;
-
-  const openExercisePanel = useCallback(() => {
-    setExercisePanelOpen(true);
-    setExercisePanelPreference("open");
-    window.localStorage.setItem(EXERCISE_PANEL_STORAGE_KEY, "open");
-  }, []);
-
-  const closeExercisePanel = useCallback(() => {
-    setExercisePanelOpen(false);
-    setExercisePanelPreference("closed");
-    window.localStorage.setItem(EXERCISE_PANEL_STORAGE_KEY, "closed");
-  }, []);
 
   const handlePdfLayoutModeChange = useCallback(
       (mode: "horizontal" | "vertical") => {
@@ -346,12 +324,12 @@ const ChatLayout = () => {
         documentId: activeWhiteboard.documentId,
         equation: null,
         ocrText: "",
-        structuredElements: "No se pudo ejecutar la interpretación de la pizarra.",
-        semanticSummary: "No se pudo interpretar claramente la pizarra.",
+        structuredElements: "No se pudo ejecutar la interpretación de la resolución guiada.",
+        semanticSummary: "No se pudo interpretar claramente la resolución guiada.",
         confidence: 0,
       }));
       await sendMessage(
-        "¿Qué ves en mi pizarra?",
+        "¿Qué ves en mi resolución?",
         [],
         pdfViewer.activeExercise?.number,
         pdfViewer.activeDocId ?? undefined,
@@ -392,12 +370,13 @@ const ChatLayout = () => {
     onEvaluate: askAboutWhiteboard,
   });
 
-  // When the animation for the current teaching fragment completes, advance the teaching state
+  // Avance progresivo "de a poco": el contenido se muestra estático (sin animación que
+  // resetee/borre). Tras escribir un fragmento, esperamos un momento y avanzamos al siguiente.
   useEffect(() => {
-    if (wbAnimation.state.phase === "COMPLETED" && teachingPhase === "WRITING_FRAGMENT") {
-      teachingOnAnimationComplete();
-    }
-  }, [wbAnimation.state.phase, teachingPhase, teachingOnAnimationComplete]);
+    if (teachingPhase !== "WRITING_FRAGMENT") return;
+    const t = setTimeout(() => teachingOnAnimationComplete(), 1200);
+    return () => clearTimeout(t);
+  }, [teachingPhase, teaching.stepIndex, teachingOnAnimationComplete]);
 
   useEffect(() => {
     const wasWaiting =
@@ -492,65 +471,8 @@ const ChatLayout = () => {
     teachingSubmitResponse(answer);
   }, [teachingSubmitResponse]);
 
-  const handleExplainInWhiteboard = useCallback(async (msg: Message) => {
-    if (!accessToken) return;
-
-    const msgs = activeConversation?.messages ?? [];
-    const idx = msgs.findIndex((m) => m.id === msg.id);
-    const userMsg = [...msgs].slice(0, idx).reverse().find((m) => m.role === "user");
-
-    whiteboard.openPendingPanel();
-    const conversationId = activeConversation?.backendId
-      ?? await ensureBackendConversation("Pizarra inteligente").catch((err) => {
-        whiteboard.failPendingPanel(err instanceof Error ? err.message : "No se pudo crear la conversación.");
-        return null;
-      });
-    if (!conversationId) return;
-
-    // If there's already content on the whiteboard, create a fresh one
-    const hasExistingContent =
-      teachingEntries.length > 0 ||
-      (whiteboard.activeWhiteboard?.data.elements?.length ?? 0) > 0;
-
-    let wb = hasExistingContent ? null : await whiteboard.openConversationWhiteboard(conversationId);
-
-    if (hasExistingContent) {
-      setTeachingEntries([]);
-      resetQuestionPairs();
-      try {
-        const fresh = await createWhiteboard(conversationId, accessToken, {
-          title: "Pizarra de enseñanza",
-          data: { version: 1, elements: [] },
-        });
-        whiteboard.setActiveWhiteboard(fresh);
-        wb = fresh;
-      } catch {
-        wb = await whiteboard.openConversationWhiteboard(conversationId);
-      }
-    }
-
-    if (!wb) return;
-
-    // Parse assistant message into structured blocks and inject directly to canvas
-    const blocks = parseMessageToBlocks(userMsg?.content ?? "", msg.content);
-    if (blocks.length === 0) return;
-
-    try {
-      const saved = await injectWhiteboardContent(conversationId, wb.id, blocks, accessToken);
-      if (saved.length > 0) {
-        setTeachingEntries((prev) => {
-          const existingIds = new Set(prev.map((e) => e.id));
-          const fresh = saved.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-          if (fresh.length === 0) return prev;
-          const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-          setTimeout(() => wbAnimation.animateEntries(next), 0);
-          return next;
-        });
-      }
-    } catch {
-      // silent — canvas stays empty but whiteboard is open
-    }
-  }, [accessToken, activeConversation, ensureBackendConversation, lesson, resetQuestionPairs, whiteboard]);
+  // La invocación explícita ("Explicar en pizarra") fue eliminada: el modelo abre/usa la
+  // "Resolución guiada" automáticamente vía la acción SSE OPEN_WHITEBOARD según la intención.
 
   useEffect(() => {
     if (!pdfViewer.activeDocId || pdfViewer.exercises.length === 0) return;
@@ -591,6 +513,49 @@ const ChatLayout = () => {
       .catch(() => {});
   }, [activeConversation?.backendId, accessToken]);
 
+  // Switching conversations: drop stale workspace state so content from another
+  // conversation never bleeds in. The persisted blocks are reloaded below.
+  const loadedEntriesConvRef = useRef<number | null>(null);
+  useEffect(() => {
+    setTeachingEntries([]);
+    resetQuestionPairs();
+    teachingRef.current.reset();
+    wbAnimationRef.current.clearAnimation();
+    loadedEntriesConvRef.current = null;
+  }, [activeConversation?.backendId, resetQuestionPairs]);
+
+  // Restore the guided-resolution workspace blocks for the active conversation from the
+  // backend, so content persists across conversation switches and page reloads.
+  useEffect(() => {
+    const conversationId = activeConversation?.backendId;
+    const board = whiteboard.activeWhiteboard;
+    if (!conversationId || !board?.id || !accessToken) return;
+    // Durante el cambio de conversación, useWhiteboard recarga la pizarra de forma asíncrona,
+    // así que activeWhiteboard puede quedar momentáneamente desfasada (la de la conversación
+    // anterior). Solo restauramos cuando la pizarra activa pertenece a ESTA conversación,
+    // para no cargar la pizarra de otra conversación (no se comparten).
+    if (board.conversationId !== conversationId) return;
+    if (loadedEntriesConvRef.current === conversationId) return;
+    loadedEntriesConvRef.current = conversationId;
+
+    let cancelled = false;
+    void getWhiteboardEntries(conversationId, board.id, accessToken)
+      .then((entries) => {
+        if (cancelled) return;
+        const fresh = entries.filter((e) => hasText(e.content));
+        if (fresh.length === 0) return;
+        setTeachingEntries((prev) => {
+          const ids = new Set(prev.map((e) => e.id));
+          return [...prev, ...fresh.filter((e) => !ids.has(e.id))]
+            .sort((a, b) => a.orderIndex - b.orderIndex);
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeConversation?.backendId, whiteboard.activeWhiteboard?.id, whiteboard.activeWhiteboard?.conversationId, accessToken]);
+
+  // La "Resolución guiada" es de solo lectura: el estudiante no edita bloques manualmente.
+
   // Handle backend whiteboard actions (OPEN_WHITEBOARD, UPDATE_WHITEBOARD)
   useEffect(() => {
     if (!activeWhiteboardAction) return;
@@ -599,11 +564,15 @@ const ChatLayout = () => {
     setActiveWhiteboardAction(null);
 
     if (action.type === "OPEN_WHITEBOARD") {
-      // New whiteboard — clear previous entries and start a fresh teaching session
-      setTeachingEntries([]);
-      resetQuestionPairs();
-      teachingRef.current.reset();
-      wbAnimationRef.current.clearAnimation();
+      // Open-or-reuse: only reset when the workspace is genuinely empty. If it already
+      // has content, keep it and merge the incoming blocks — never erase what's accumulated.
+      const hasExistingContent = teachingEntriesRef.current.length > 0;
+      if (!hasExistingContent) {
+        setTeachingEntries([]);
+        resetQuestionPairs();
+        teachingRef.current.reset();
+        wbAnimationRef.current.clearAnimation();
+      }
       whiteboard.setPanelOpen(true);
       const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
       const incoming = action.payload.blocks ?? action.payload.entries ?? [];
@@ -619,13 +588,16 @@ const ChatLayout = () => {
               const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
               if (fresh.length === 0) return prev;
               const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-              setTimeout(() => wbAnimationRef.current.animateEntries(next), 0);
               return next;
             });
             return;
           }
 
-          // After the whiteboard is loaded, start the teaching session
+          // Solo iniciar la resolución progresiva si el workspace está VACÍO y no hay una
+          // sesión en curso. Si ya hay contenido, reutilizamos (no regeneramos ni borramos):
+          // open_whiteboard sin bloques sobre un workspace con contenido solo reabre el panel.
+          if (hasExistingContent || teachingRef.current.isActive) return;
+
           // Topic comes from the last user message in the conversation
           const msgs = activeConversation?.messages ?? [];
           const lastUserMsg = [...msgs].reverse().find((m) => m.role === "user");
@@ -652,7 +624,6 @@ const ChatLayout = () => {
           const fresh = incoming.filter((e) => hasText(e.content) && !existingIds.has(e.id));
           if (fresh.length === 0) return prev;
           const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-          setTimeout(() => wbAnimationRef.current.animateEntries(next), 0);
           return next;
         });
       }
@@ -667,7 +638,6 @@ const ChatLayout = () => {
             const fresh = incoming.filter((e) => hasText(e.content) && !existingIds.has(e.id));
             if (fresh.length === 0) return prev;
             const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-            setTimeout(() => wbAnimationRef.current.animateEntries(next), 0);
             return next;
           });
         }
@@ -676,62 +646,7 @@ const ChatLayout = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWhiteboardAction, setActiveWhiteboardAction]);
 
-  useEffect(() => {
-    if (activeExerciseBreakdown) {
-      const isNewStreamBreakdown =
-          latestStreamBreakdownRef.current !== activeExerciseBreakdown;
-
-      latestStreamBreakdownRef.current = activeExerciseBreakdown;
-      setActiveBreakdown(activeExerciseBreakdown);
-      setActiveBreakdownMessageId(null);
-
-      if (isNewStreamBreakdown && exercisePanelPreference === "open") {
-        setExercisePanelOpen(true);
-      }
-
-      return;
-    }
-
-    const latestBreakdownMessage = [...(activeConversation?.messages ?? [])]
-      .reverse()
-      .find((message) => message.role === "assistant" && message.exerciseBreakdown);
-    const latestBreakdown = latestBreakdownMessage?.exerciseBreakdown;
-
-    if (!latestBreakdown) {
-      setActiveBreakdown(null);
-      setActiveBreakdownMessageId(null);
-      setExercisePanelOpen(false);
-      return;
-    }
-    setActiveBreakdown(latestBreakdown);
-    setActiveBreakdownMessageId(latestBreakdownMessage?.id ?? null);
-
-    if (exercisePanelPreference === "open") {
-      setExercisePanelOpen(true);
-    }
-  }, [activeConversation?.messages, activeExerciseBreakdown, exercisePanelPreference]);
-
-  const handleOpenExerciseBreakdown = useCallback((message: Message) => {
-    if (!message.exerciseBreakdown) return;
-
-    const sameBreakdown =
-      activeBreakdownMessageId === message.id ||
-      activeBreakdown === message.exerciseBreakdown ||
-      (
-        activeBreakdown?.exerciseTitle === message.exerciseBreakdown.exerciseTitle &&
-        activeBreakdown?.steps.length === message.exerciseBreakdown.steps.length
-      );
-
-    if (exercisePanelOpen && sameBreakdown) {
-      closeExercisePanel();
-      return;
-    }
-
-    setActiveExerciseBreakdown(message.exerciseBreakdown);
-    setActiveBreakdown(message.exerciseBreakdown);
-    setActiveBreakdownMessageId(message.id);
-    openExercisePanel();
-  }, [activeBreakdown, activeBreakdownMessageId, closeExercisePanel, exercisePanelOpen, openExercisePanel, setActiveExerciseBreakdown]);
+  // "Guía del ejercicio" (break_down_exercise / ExerciseStepsPanel) fue eliminada.
 
   if (!connectionReady && isOffline) {
     return (
@@ -786,7 +701,6 @@ const ChatLayout = () => {
                     ? undefined
                     : regenerateLastMessage
               }
-              onOpenExerciseBreakdown={handleOpenExerciseBreakdown}
               isLoadingHistory={isLoadingHistory}
           />
         </ErrorBoundary>
@@ -807,14 +721,6 @@ const ChatLayout = () => {
                       : undefined
             }
             contextBadge={contextBadge}
-        />
-
-        <ExerciseStepsPanel
-            breakdown={activeBreakdown}
-            isOpen={exercisePanelOpen}
-            isLoading={status === "loading" && !activeBreakdown}
-            onOpen={openExercisePanel}
-            onClose={closeExercisePanel}
         />
       </div>
   );
@@ -864,7 +770,7 @@ const ChatLayout = () => {
               onExercisesDetected={pdfViewer.syncDetectedExercises}
               onOpenExerciseWhiteboard={async (exercise) => {
                 whiteboard.openPendingPanel();
-                const conversationId = activeConversation?.backendId ?? await ensureBackendConversation("Pizarra inteligente").catch((error) => {
+                const conversationId = activeConversation?.backendId ?? await ensureBackendConversation("Resolución guiada").catch((error) => {
                   whiteboard.failPendingPanel(error instanceof Error ? `No se pudo crear la conversación (${error.message}).` : "No se pudo crear la conversación.");
                   return null;
                 });
@@ -919,7 +825,7 @@ const ChatLayout = () => {
               onOpenDocuments={() => setDocPanelOpen(true)}
               onOpenWhiteboard={async () => {
                 whiteboard.openPendingPanel();
-                const conversationId = activeConversation?.backendId ?? await ensureBackendConversation("Pizarra inteligente").catch((error) => {
+                const conversationId = activeConversation?.backendId ?? await ensureBackendConversation("Resolución guiada").catch((error) => {
                   whiteboard.failPendingPanel(error instanceof Error ? `No se pudo crear la conversación (${error.message}).` : "No se pudo crear la conversación.");
                   return null;
                 });
@@ -975,6 +881,7 @@ const ChatLayout = () => {
                   <ResizableHandle withHandle />
 
                   <ResizablePanel defaultSize={38} minSize={28} className="min-h-0 min-w-0 border-l border-border">
+                    <ErrorBoundary>
                     <WhiteboardPanel
                         whiteboard={whiteboard.activeWhiteboard}
                         token={accessToken}
@@ -1001,6 +908,7 @@ const ChatLayout = () => {
                         onLessonPrev={lesson.prevStep}
                         onLessonClose={lesson.close}
                         teachingEntries={teachingEntries}
+                        conversationId={activeConversation?.backendId ?? null}
                         animState={wbAnimation.state}
                         onClearTeachingEntries={() => {
                           setTeachingEntries([]);
@@ -1015,6 +923,7 @@ const ChatLayout = () => {
                         onTeachingSubmit={handleTeachingSubmitFromCanvas}
                         onTeachingContinue={teachingContinueWithout}
                     />
+                    </ErrorBoundary>
                   </ResizablePanel>
                 </ResizablePanelGroup>
             ) : pdfPanel ? (

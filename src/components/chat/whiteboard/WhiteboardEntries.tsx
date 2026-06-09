@@ -1,9 +1,11 @@
+import { useEffect, useRef } from "react";
 import type { WhiteboardEntry } from "@/types/whiteboard";
 import { cn } from "@/lib/utils";
 import { hasText } from "@/utils/whiteboardRenderGuards";
 
 interface Props {
   entries: WhiteboardEntry[];
+  conversationId?: number | null;
 }
 
 const TYPE_CONFIG: Record<string, { label: string; style: string; prefixFn?: (e: WhiteboardEntry) => string }> = {
@@ -23,6 +25,10 @@ const TYPE_CONFIG: Record<string, { label: string; style: string; prefixFn?: (e:
   EXAMPLE: {
     label: "Ejemplo",
     style: "border-l-2 border-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/20 pl-3",
+  },
+  NOTE: {
+    label: "Nota",
+    style: "border-l-2 border-sky-400 bg-sky-50/60 dark:bg-sky-950/20 pl-3",
   },
   WARNING: {
     label: "⚠️",
@@ -48,34 +54,67 @@ const TYPE_CONFIG: Record<string, { label: string; style: string; prefixFn?: (e:
   DRAWING: { label: "", style: "text-muted-foreground" },
 };
 
-export function WhiteboardEntries({ entries }: Props) {
+/** Read-only chronological view of the guided-resolution workspace blocks. */
+export function WhiteboardEntries({ entries, conversationId = null }: Props) {
   const visibleEntries = entries.filter((entry) => hasText(entry.content));
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const restoredForRef = useRef<number | null>(null);
+
+  // Restore the saved reading position once per conversation, after blocks are present.
+  // localStorage (not session): the position must survive across browser sessions.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !conversationId || visibleEntries.length === 0) return;
+    if (restoredForRef.current === conversationId) return;
+    const saved = localStorage.getItem(`wb-scroll-${conversationId}`);
+    if (saved != null) el.scrollTop = Number(saved);
+    restoredForRef.current = conversationId;
+  }, [conversationId, visibleEntries.length]);
+
+  const handleScroll = () => {
+    if (!conversationId || !scrollRef.current) return;
+    localStorage.setItem(`wb-scroll-${conversationId}`, String(scrollRef.current.scrollTop));
+  };
 
   if (visibleEntries.length === 0) return null;
 
   return (
-    <div className="shrink-0 border-t border-border bg-background px-3 py-2.5 max-h-56 overflow-y-auto">
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Contenido de la pizarra
-      </p>
-      <ol className="flex flex-col gap-1.5">
-        {visibleEntries.map((entry) => {
-          const cfg = TYPE_CONFIG[entry.type] ?? TYPE_CONFIG.TEXT;
-          const prefix = cfg.prefixFn
-            ? cfg.prefixFn(entry)
-            : cfg.label
-              ? `${cfg.label}: `
-              : "";
-          return (
-            <li key={entry.id} className={cn("text-[11px] leading-relaxed text-foreground", cfg.style)}>
-              {prefix && (
-                <span className="font-semibold text-accent">{prefix}</span>
-              )}
-              {entry.content}
-            </li>
-          );
-        })}
-      </ol>
+    <div className="shrink-0 border-t border-border bg-background">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="max-h-72 overflow-y-auto px-3 py-2.5"
+      >
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Resolución guiada
+        </p>
+        <ol className="flex flex-col gap-1.5">
+          {visibleEntries.map((entry) => {
+            const cfg = TYPE_CONFIG[entry.type] ?? TYPE_CONFIG.TEXT;
+            const prefix = cfg.prefixFn
+              ? cfg.prefixFn(entry)
+              : cfg.label
+                ? `${cfg.label}: `
+                : "";
+            const isUser = entry.author === "user";
+            return (
+              <li key={entry.id} className={cn("text-[11px] leading-relaxed text-foreground", cfg.style)}>
+                <span
+                  className={cn(
+                    "mr-1.5 inline-block rounded px-1 align-middle text-[9px] font-semibold uppercase tracking-wide",
+                    isUser ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {isUser ? "Tú" : "IA"}
+                </span>
+                {prefix && <span className="font-semibold text-accent">{prefix}</span>}
+                {entry.content}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </div>
   );
 }

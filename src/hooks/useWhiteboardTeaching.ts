@@ -17,7 +17,11 @@ interface TeachingState {
   pauseQuestion: string | null;
   stepIndex: number;
   userDraft: string;
+  isComplete: boolean;
 }
+
+// Tope de seguridad para el auto-avance (evita un bucle infinito si el LLM nunca marca isComplete).
+const MAX_TEACH_STEPS = 12;
 
 interface Options {
   conversationId: number | null;
@@ -31,6 +35,7 @@ const INITIAL: TeachingState = {
   pauseQuestion: null,
   stepIndex: 0,
   userDraft: "",
+  isComplete: false,
 };
 
 export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onEntries }: Options) {
@@ -85,7 +90,7 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
                 conversationId,
                 targetWhiteboardId,
                 stepIndex,
-                "No recibí contenido para mostrar en la pizarra. Intentá pedir la explicación nuevamente."
+                "No recibí contenido para mostrar en la resolución guiada. Intentá pedir la explicación nuevamente."
               ),
             ];
 
@@ -94,14 +99,15 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
         setState((s) => ({
           ...s,
           phase: "WRITING_FRAGMENT",
-          pauseQuestion: resp.pauseQuestion,
+          // Modo no interactivo: nunca preguntamos al alumno.
+          pauseQuestion: null,
           stepIndex: resp.nextStepIndex,
           userDraft: "",
+          isComplete: resp.isComplete,
         }));
 
-        // onAnimationComplete() is called externally when the animation finishes
-        // and transitions WRITING_FRAGMENT → WAITING_USER_INPUT | COMPLETED
-        // Store isComplete in a closure for the callback
+        // onAnimationComplete() (llamado al terminar la animación del fragmento) decide:
+        // si isComplete → COMPLETED; si no → auto-avanza al siguiente fragmento.
         return resp.isComplete;
       } catch {
         onEntriesRef.current([
@@ -109,7 +115,7 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
             conversationId,
             targetWhiteboardId,
             stepIndex,
-            "No pude cargar la explicación en la pizarra. Intentá de nuevo en unos segundos."
+            "No pude cargar la explicación en la resolución guiada. Intentá de nuevo en unos segundos."
           ),
         ]);
         setState((s) => ({
@@ -118,6 +124,7 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
           pauseQuestion: null,
           stepIndex,
           userDraft: "",
+          isComplete: true,
         }));
         return true;
       }
@@ -125,12 +132,21 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
     [buildFallbackEntry, conversationId, token, whiteboardId]
   );
 
-  // Called by parent when the animation for the current fragment finishes
+  const callTeachRef = useRef(callTeach);
+  callTeachRef.current = callTeach;
+
+  // Called by parent when the animation for the current fragment finishes.
+  // Non-interactive: keep resolving the next fragment automatically (no questions),
+  // until the LLM marks isComplete or we hit the safety cap.
   const onAnimationComplete = useCallback(() => {
     setState((s) => {
       if (s.phase !== "WRITING_FRAGMENT") return s;
-      // If no question was set (isComplete was true), go to COMPLETED
-      return { ...s, phase: s.pauseQuestion ? "WAITING_USER_INPUT" : "COMPLETED" };
+      if (s.isComplete || s.stepIndex >= MAX_TEACH_STEPS) {
+        return { ...s, phase: "COMPLETED" };
+      }
+      const nextStep = s.stepIndex;
+      setTimeout(() => callTeachRef.current(undefined, nextStep), 0);
+      return { ...s, phase: "CONTINUING" };
     });
   }, []);
 
