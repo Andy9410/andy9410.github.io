@@ -32,6 +32,7 @@ export interface Whiteboard {
   documentId?: number | null;
   exerciseLabel?: string | null;
   title: string;
+  intent?: string | null;
   data: WhiteboardData;
   mode?: string;
   status?: string;
@@ -41,7 +42,7 @@ export interface Whiteboard {
 
 export type WhiteboardEntryType =
   | "TEXT" | "STEP" | "FORMULA" | "DRAWING" | "HIGHLIGHT" | "SYSTEM_NOTE"
-  | "TITLE" | "EXAMPLE" | "WARNING" | "QUESTION" | "DRAWING_INSTRUCTION"
+  | "TITLE" | "EXAMPLE" | "WARNING" | "QUESTION" | "NOTE" | "DRAWING_INSTRUCTION"
   | "AI_NOTE" | "AI_QUESTION" | "AI_CORRECTION";  // AI annotation types
 
 export type WhiteboardAuthor = "user" | "assistant";

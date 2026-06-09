@@ -28,7 +28,7 @@ export function useWhiteboard(token: string | null, conversationId?: number) {
         setActiveWhiteboard(items[0] ?? null);
       })
       .catch(() => {
-        if (!cancelled) setError("No se pudieron cargar las pizarras.");
+        if (!cancelled) setError("No se pudo cargar la resolución guiada.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -44,11 +44,11 @@ export function useWhiteboard(token: string | null, conversationId?: number) {
     setPanelOpen(true);
     setError(null);
     if (!token) {
-      setError("No hay sesión activa para abrir la pizarra.");
+      setError("No hay sesión activa para abrir la resolución guiada.");
       return null;
     }
     if (!targetConversationId) {
-      setError("No se pudo preparar la conversación para la pizarra.");
+      setError("No se pudo preparar la conversación.");
       return null;
     }
     setLoading(true);
@@ -58,7 +58,7 @@ export function useWhiteboard(token: string | null, conversationId?: number) {
         ? activeWhiteboard
         : (items = await listWhiteboards(targetConversationId, token))[0] ?? null;
       const board = existing ?? await createWhiteboard(targetConversationId, token, {
-        title: "Pizarra inteligente",
+        title: "Resolución guiada",
         data: emptyData,
       });
       setActiveWhiteboard(board);
@@ -68,7 +68,7 @@ export function useWhiteboard(token: string | null, conversationId?: number) {
       });
       return board;
     } catch (err) {
-      setError(err instanceof Error ? `No se pudo abrir la pizarra (${err.message}).` : "No se pudo abrir la pizarra.");
+      setError(err instanceof Error ? `No se pudo abrir la resolución guiada (${err.message}).` : "No se pudo abrir la resolución guiada.");
       return null;
     } finally {
       setLoading(false);
@@ -80,11 +80,11 @@ export function useWhiteboard(token: string | null, conversationId?: number) {
     setPanelOpen(true);
     setError(null);
     if (!token) {
-      setError("No hay sesión activa para abrir la pizarra.");
+      setError("No hay sesión activa para abrir la resolución guiada.");
       return null;
     }
     if (!targetConversationId) {
-      setError("No se pudo preparar la conversación para la pizarra.");
+      setError("No se pudo preparar la conversación.");
       return null;
     }
     setLoading(true);
@@ -92,14 +92,14 @@ export function useWhiteboard(token: string | null, conversationId?: number) {
       const board = await createWhiteboard(targetConversationId, token, {
         documentId,
         exerciseLabel,
-        title: `Pizarra - ${exerciseLabel}`,
+        title: `Resolución guiada - ${exerciseLabel}`,
         data: emptyData,
       });
       setActiveWhiteboard(board);
       setWhiteboards((items) => [board, ...items.filter((item) => item.id !== board.id)]);
       return board;
     } catch (err) {
-      setError(err instanceof Error ? `No se pudo abrir la pizarra (${err.message}).` : "No se pudo abrir la pizarra.");
+      setError(err instanceof Error ? `No se pudo abrir la resolución guiada (${err.message}).` : "No se pudo abrir la resolución guiada.");
       return null;
     } finally {
       setLoading(false);

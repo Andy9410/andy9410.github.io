@@ -7,7 +7,7 @@ interface Props {
 
 const PHASE_LABEL: Partial<Record<TeachingPhase, string>> = {
   THINKING:             "Pensando...",
-  WRITING_FRAGMENT:     "Escribiendo en la pizarra...",
+  WRITING_FRAGMENT:     "Escribiendo en la resolución guiada...",
   ANALYZING_USER_INPUT: "Analizando tu respuesta...",
   CONTINUING:           "Continuando...",
   COMPLETED:            "Explicación completa ✓",

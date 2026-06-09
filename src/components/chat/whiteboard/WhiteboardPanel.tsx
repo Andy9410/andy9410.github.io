@@ -16,13 +16,12 @@ import { WhiteboardAnimatedOverlay } from "./WhiteboardAnimatedOverlay";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardTeachingBar } from "./WhiteboardTeachingBar";
-import { WhiteboardToolbar } from "./WhiteboardToolbar";
 
 const overlayMd = new MarkdownIt({ html: false, breaks: true, linkify: false })
   .use(texmath, { engine: katex, delimiters: "dollars", katexOptions: { throwOnError: false, output: "html" } });
 
 function entryToMarkdown(entry: WhiteboardEntry): string {
-  const c = entry.content.trim();
+  const c = (entry.content ?? "").trim();
   switch (entry.type) {
     case "TITLE":   return `## ${c}\n\n`;
     case "STEP":    return `**${c}**\n\n`;
@@ -55,6 +54,7 @@ interface Props {
   onLessonPrev?: () => void;
   onLessonClose?: () => void;
   teachingEntries?: WhiteboardEntry[];
+  conversationId?: number | null;
   onClearTeachingEntries?: () => void;
   animState?: WhiteboardAnimState;
   onEraseTeachingEntry?: (entryId: number) => void;
@@ -100,6 +100,7 @@ export function WhiteboardPanel({
   onLessonPrev,
   onLessonClose,
   teachingEntries = [],
+  conversationId = null,
   onClearTeachingEntries,
   onEraseTeachingEntry,
   animState,
@@ -122,7 +123,7 @@ export function WhiteboardPanel({
       ? "Enviando a IA..."
       : askStatus === "generating"
         ? "Respuesta generándose..."
-        : "Preguntar sobre la pizarra";
+        : "Preguntar sobre la resolución guiada";
   const visibleTeachingEntries = useMemo(
     () => teachingEntries.filter((entry) => hasText(entry.content)),
     [teachingEntries]
@@ -133,7 +134,13 @@ export function WhiteboardPanel({
     if (!animState || animState.phase === "IDLE") {
       if (visibleTeachingEntries.length === 0) return undefined;
       const sorted = [...visibleTeachingEntries].sort((a, b) => a.orderIndex - b.orderIndex);
-      return overlayMd.render(sorted.map(entryToMarkdown).join(""));
+      try {
+        return overlayMd.render(sorted.map(entryToMarkdown).join(""));
+      } catch (err) {
+        console.error("[WhiteboardPanel] overlay render failed", err);
+        // Fallback a texto plano si markdown/KaTeX falla con algún contenido.
+        return sorted.map((e) => `<p>${(e.content ?? "").replace(/[<>&]/g, "")}</p>`).join("");
+      }
     }
     return undefined; // animated overlay handles display during animation
   }, [visibleTeachingEntries, animState]);
@@ -171,7 +178,7 @@ export function WhiteboardPanel({
       ? askLabel
       : TEACHING_STATUS_LABEL[teachingPhase] ??
         (autosave.status === "saving" ? "Guardando" : autosave.status === "error" ? "Error al guardar" : "Guardado");
-  const boardTitle = whiteboard?.exerciseLabel || whiteboard?.title || "Pizarra";
+  const boardTitle = whiteboard?.exerciseLabel || whiteboard?.title || "Resolución guiada";
   const collapsedQuestionIds = useMemo(
     () =>
       questionPairs
@@ -223,10 +230,10 @@ export function WhiteboardPanel({
           <PanelRightClose className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
         )}
         <p className="text-sm font-medium text-foreground">
-          {loading ? "Preparando pizarra" : error ? "No se pudo abrir la pizarra" : "No hay pizarra activa"}
+          {loading ? "Preparando resolución guiada" : error ? "No se pudo abrir la resolución guiada" : "No hay resolución guiada activa"}
         </p>
         <p className="max-w-xs text-xs text-muted-foreground">
-          {error ?? "Abrí una desde la conversación o desde un ejercicio del PDF."}
+          {error ?? "Aparecerá automáticamente cuando el tutor la necesite."}
         </p>
         <button
           type="button"
@@ -240,7 +247,7 @@ export function WhiteboardPanel({
   }
 
   return (
-    <section className="flex h-full min-h-[260px] min-w-0 flex-col bg-background" aria-label="Pizarra inteligente">
+    <section className="flex h-full min-h-[260px] min-w-0 flex-col bg-background" aria-label="Resolución guiada">
       <header className="flex min-w-0 items-center gap-2 bg-background/95 px-4 py-3 shadow-[0_1px_0_rgba(15,23,42,0.08)]">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">{boardTitle}</p>
@@ -259,20 +266,11 @@ export function WhiteboardPanel({
             {focusMode ? "Salir foco" : "Foco"}
           </button>
         )}
-        {!focusMode && (
-          <button
-            type="button"
-            onClick={() => setToolsOpen((value) => !value)}
-            className="inline-flex h-8 shrink-0 items-center rounded-full bg-muted px-3 text-xs font-semibold text-muted-foreground transition hover:bg-muted/80 hover:text-foreground"
-          >
-            {showTools && teachingActive ? "Ocultar herramientas" : "Herramientas"}
-          </button>
-        )}
         <button
           type="button"
           onClick={handleAskWhiteboard}
           disabled={askStatus !== "idle"}
-          aria-label="Preguntar a la IA sobre la pizarra actual"
+          aria-label="Preguntar a la IA sobre la resolución guiada actual"
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {askStatus === "idle" ? (
@@ -284,57 +282,12 @@ export function WhiteboardPanel({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Ocultar pizarra"
+          aria-label="Ocultar resolución guiada"
           className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </header>
-
-
-      {showTools && (
-        <WhiteboardToolbar
-          tool={tool}
-          selectedElement={selectedElement}
-          showGrid={showGrid}
-          onToggleGrid={() => setShowGrid((g) => !g)}
-          onToolChange={(nextTool) => {
-            if (nextTool === "erase" && selectedId) {
-              onChangeData((data) => ({
-                ...data,
-                elements: data.elements.filter((element) => element.id !== selectedId),
-              }));
-              setSelectedId(null);
-              setTool("select");
-              return;
-            }
-            setTool(nextTool);
-          }}
-          onSelectedTextChange={(text) => {
-            if (!selectedId) return;
-            onChangeData((data) => ({
-              ...data,
-              elements: data.elements.map((element) =>
-                element.id === selectedId ? { ...element, text } : element
-              ),
-            }));
-          }}
-          onInsertSymbol={(symbol) => {
-            const id = crypto.randomUUID();
-            const count = whiteboard?.data.elements.filter((e) => e.type === "equation").length ?? 0;
-            const offset = count * 36;
-            onChangeData((data) => ({
-              ...data,
-              elements: [
-                ...data.elements,
-                { id, type: "equation" as const, x: 40 + offset, y: 80 + offset, text: symbol, stroke: STROKE_COLOR },
-              ],
-            }));
-            setSelectedId(id);
-            setTool("select");
-          }}
-        />
-      )}
 
 
       <div className="relative min-h-0 flex-1 flex flex-col">

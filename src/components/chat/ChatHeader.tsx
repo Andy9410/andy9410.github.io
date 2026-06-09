@@ -197,11 +197,11 @@ const ChatHeader = ({
                 <button
                     type="button"
                     onClick={onOpenWhiteboard}
-                    aria-label="Abrir pizarra inteligente"
+                    aria-label="Abrir resolución guiada"
                     className="flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <Presentation className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Pizarra</span>
+                  <span className="hidden sm:inline">Resolución guiada</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">

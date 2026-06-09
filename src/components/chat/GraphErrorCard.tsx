@@ -42,7 +42,7 @@ const GraphErrorCard = ({ expression, onRetry, onOpenWhiteboard, onRequestSimpli
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
           >
             <PenLine className="h-3 w-3" />
-            Abrir en pizarra
+            Abrir en resolución guiada
           </button>
         )}
         <button
