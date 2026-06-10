@@ -14,7 +14,7 @@
     "demo": "playwright test e2e/demo-workflow.spec.ts",
     "demo:headed": "playwright test e2e/demo-workflow.spec.ts --headed",
     "demo:video": "playwright test e2e/demo-testreel.spec.ts --config playwright.testreel.config.ts && bash scripts/add-music.sh",
-    "video": "playwright test e2e/whiteboard-video.spec.ts --config playwright.testreel.config.ts"
+    "video": "playwright test e2e/whiteboard-video.spec.ts --config playwright.video.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
