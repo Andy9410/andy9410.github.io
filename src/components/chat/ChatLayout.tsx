@@ -139,6 +139,28 @@ function normalizeWhiteboardEntries(
     }));
 }
 
+function isGuidedResolutionRequest(message?: Message): boolean {
+  if (!message || message.role !== "user") return false;
+  const content = String(message.content ?? "").toLowerCase();
+  if (!content.trim()) return false;
+
+  const wantsWorkspace =
+    content.includes("pizarra") ||
+    content.includes("whiteboard") ||
+    content.includes("resolución guiada") ||
+    content.includes("resolucion guiada");
+  const wantsResolution =
+    content.includes("resolv") ||
+    content.includes("paso a paso") ||
+    content.includes("desarroll") ||
+    content.includes("explicame") ||
+    content.includes("explícame") ||
+    content.includes("mostrame");
+  const hasEquation = /\d[^=]*=.*/.test(content) || /=.*\d/.test(content);
+
+  return wantsWorkspace || wantsResolution || hasEquation;
+}
+
 const PDF_LAYOUT_STORAGE_KEY = "learnsoft.pdfLayout";
 const EXERCISE_PANEL_STORAGE_KEY = "learnsoft.exerciseStepsPanel";
 const NARROW_LAYOUT_QUERY = "(max-width: 900px)";
@@ -218,6 +240,7 @@ const ChatLayout = () => {
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
   const [whiteboardAskActive, setWhiteboardAskActive] = useState(false);
+  const [whiteboardInjecting, setWhiteboardInjecting] = useState(false);
   const [whiteboardInterpretMode, setWhiteboardInterpretMode] = useState<InterpretMode>("auto");
   const teachingRef = useRef(teaching);
   teachingRef.current = teaching;
@@ -230,6 +253,7 @@ const ChatLayout = () => {
   whiteboardElementsRef.current = whiteboardElements;
   const teachingCanvasBaselineRef = useRef<Map<string, string>>(new Map());
   const previousTeachingPhaseRef = useRef(teachingPhase);
+  const whiteboardInjectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [, setTeachingCanvasBaselineVersion] = useState(0);
 
   const [preferredPdfLayout, setPreferredPdfLayout] =
@@ -359,6 +383,12 @@ const ChatLayout = () => {
   const whiteboardAskStatus = whiteboardAskActive
     ? status === "loading" ? "generating" : "sending"
     : "idle";
+  const latestMessage = activeConversation?.messages?.[activeConversation.messages.length - 1];
+  const pendingWhiteboardInjection =
+    status === "loading" &&
+    Boolean(whiteboard.panelOpen || whiteboard.activeWhiteboard) &&
+    isGuidedResolutionRequest(latestMessage);
+  const showWhiteboardInjection = whiteboardInjecting || pendingWhiteboardInjection;
   const teachingSessionActive = teachingPhase !== "IDLE" && teachingPhase !== "COMPLETED";
   const teachingWaitingForAnswer = teachingPhase === "WAITING_USER_INPUT" || teachingPhase === "USER_WRITING";
 
@@ -377,6 +407,23 @@ const ChatLayout = () => {
     const t = setTimeout(() => teachingOnAnimationComplete(), 1200);
     return () => clearTimeout(t);
   }, [teachingPhase, teaching.stepIndex, teachingOnAnimationComplete]);
+
+  const flashWhiteboardInjection = useCallback(() => {
+    setWhiteboardInjecting(true);
+    if (whiteboardInjectionTimerRef.current) {
+      clearTimeout(whiteboardInjectionTimerRef.current);
+    }
+    whiteboardInjectionTimerRef.current = setTimeout(() => {
+      setWhiteboardInjecting(false);
+      whiteboardInjectionTimerRef.current = null;
+    }, 1400);
+  }, []);
+
+  useEffect(() => () => {
+    if (whiteboardInjectionTimerRef.current) {
+      clearTimeout(whiteboardInjectionTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     const wasWaiting =
@@ -576,6 +623,7 @@ const ChatLayout = () => {
       whiteboard.setPanelOpen(true);
       const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
       const incoming = action.payload.blocks ?? action.payload.entries ?? [];
+      if (incoming.length > 0) flashWhiteboardInjection();
       console.info("[WS] Frontend recibió OPEN_WHITEBOARD", {
         whiteboardId: action.payload.whiteboardId, conversationId, bloques: incoming.length,
       });
@@ -626,6 +674,7 @@ const ChatLayout = () => {
       const incoming = action.payload.blocks ?? action.payload.entries ?? [];
       const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
       const targetWhiteboardId = action.payload.whiteboardId ?? whiteboard.activeWhiteboard?.id;
+      if (incoming.length > 0) flashWhiteboardInjection();
       console.info("[WS] Frontend recibió UPDATE_WHITEBOARD", {
         whiteboardId: targetWhiteboardId, conversationId, bloques: incoming.length,
       });
@@ -653,6 +702,7 @@ const ChatLayout = () => {
         const incoming = action.payload.blocks ?? action.payload.entries ?? [];
         const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
         const targetWhiteboardId = action.payload.whiteboardId ?? whiteboard.activeWhiteboard?.id;
+        if (incoming.length > 0) flashWhiteboardInjection();
         console.info("[WS] Frontend recibió INJECT_WHITEBOARD_CONTENT", {
           whiteboardId: targetWhiteboardId, conversationId, bloques: incoming.length,
         });
@@ -940,6 +990,7 @@ const ChatLayout = () => {
                         onLessonPrev={lesson.prevStep}
                         onLessonClose={lesson.close}
                         teachingEntries={teachingEntries}
+                        injectionLoading={showWhiteboardInjection}
                         conversationId={activeConversation?.backendId ?? null}
                         animState={wbAnimation.state}
                         onClearTeachingEntries={() => {

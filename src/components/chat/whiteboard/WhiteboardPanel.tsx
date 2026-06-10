@@ -16,6 +16,7 @@ import { WhiteboardAnimatedOverlay } from "./WhiteboardAnimatedOverlay";
 import { WhiteboardLessonBar } from "./WhiteboardLessonBar";
 import { WhiteboardSuggestionCard } from "./WhiteboardSuggestionCard";
 import { WhiteboardTeachingBar } from "./WhiteboardTeachingBar";
+import { WhiteboardInjectionShimmer } from "./WhiteboardInjectionShimmer";
 
 const overlayMd = new MarkdownIt({ html: false, breaks: true, linkify: false })
   .use(texmath, { engine: katex, delimiters: "dollars", katexOptions: { throwOnError: false, output: "html" } });
@@ -54,6 +55,7 @@ interface Props {
   onLessonPrev?: () => void;
   onLessonClose?: () => void;
   teachingEntries?: WhiteboardEntry[];
+  injectionLoading?: boolean;
   conversationId?: number | null;
   onClearTeachingEntries?: () => void;
   animState?: WhiteboardAnimState;
@@ -100,6 +102,7 @@ export function WhiteboardPanel({
   onLessonPrev,
   onLessonClose,
   teachingEntries = [],
+  injectionLoading = false,
   conversationId = null,
   onClearTeachingEntries,
   onEraseTeachingEntry,
@@ -312,6 +315,7 @@ export function WhiteboardPanel({
           onSelect={setSelectedId}
           onChange={(data) => onChangeData(() => data)}
         />
+        {!focusMode && injectionLoading && <WhiteboardInjectionShimmer />}
         {/* Animated overlay — shown during animation phases */}
         {!focusMode && animState && animState.phase !== "IDLE" && (
           <WhiteboardAnimatedOverlay
