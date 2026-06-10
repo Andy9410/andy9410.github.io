@@ -11,14 +11,14 @@ export function WhiteboardInjectionShimmer() {
       } as CSSProperties}
       role="status"
       aria-live="polite"
-      aria-label="Inyectando resolución en la pizarra"
+      aria-label="Planificando la resolución antes de mostrarla en la pizarra"
     >
       <div className="flex items-center gap-3">
         <span className="relative h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-200 shadow-[0_0_18px_rgba(187,247,208,0.9)]">
           <span className="absolute inset-0 rounded-full bg-emerald-200/70 animate-ping" />
         </span>
         <Shimmer as="span" duration={1.35} spread={92} className="font-['Caveat'] text-xl font-semibold tracking-wide">
-          Inyectando resolución en la pizarra...
+          Planificando el paso a paso...
         </Shimmer>
       </div>
       <div className="mt-2 grid gap-1.5 pl-5">

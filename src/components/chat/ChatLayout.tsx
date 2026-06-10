@@ -164,6 +164,8 @@ function isGuidedResolutionRequest(message?: Message): boolean {
 const PDF_LAYOUT_STORAGE_KEY = "learnsoft.pdfLayout";
 const EXERCISE_PANEL_STORAGE_KEY = "learnsoft.exerciseStepsPanel";
 const NARROW_LAYOUT_QUERY = "(max-width: 900px)";
+const WHITEBOARD_INJECTION_PLANNING_MS = 1350;
+const WHITEBOARD_INJECTION_SETTLE_MS = 420;
 
 const ChatLayout = () => {
   const {
@@ -254,6 +256,7 @@ const ChatLayout = () => {
   const teachingCanvasBaselineRef = useRef<Map<string, string>>(new Map());
   const previousTeachingPhaseRef = useRef(teachingPhase);
   const whiteboardInjectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const whiteboardInjectionCommitTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const [, setTeachingCanvasBaselineVersion] = useState(0);
 
   const [preferredPdfLayout, setPreferredPdfLayout] =
@@ -408,22 +411,43 @@ const ChatLayout = () => {
     return () => clearTimeout(t);
   }, [teachingPhase, teaching.stepIndex, teachingOnAnimationComplete]);
 
-  const flashWhiteboardInjection = useCallback(() => {
+  const clearWhiteboardInjectionTimers = useCallback((updateState = true) => {
+    if (whiteboardInjectionTimerRef.current) {
+      clearTimeout(whiteboardInjectionTimerRef.current);
+      whiteboardInjectionTimerRef.current = null;
+    }
+    whiteboardInjectionCommitTimersRef.current.forEach((timer) => clearTimeout(timer));
+    whiteboardInjectionCommitTimersRef.current.clear();
+    if (updateState) setWhiteboardInjecting(false);
+  }, []);
+
+  const scheduleWhiteboardInjection = useCallback((commit: () => void) => {
     setWhiteboardInjecting(true);
     if (whiteboardInjectionTimerRef.current) {
       clearTimeout(whiteboardInjectionTimerRef.current);
-    }
-    whiteboardInjectionTimerRef.current = setTimeout(() => {
-      setWhiteboardInjecting(false);
       whiteboardInjectionTimerRef.current = null;
-    }, 1400);
+    }
+
+    const timer = setTimeout(() => {
+      whiteboardInjectionCommitTimersRef.current.delete(timer);
+      try {
+        commit();
+      } finally {
+        if (whiteboardInjectionCommitTimersRef.current.size === 0) {
+          whiteboardInjectionTimerRef.current = setTimeout(() => {
+            setWhiteboardInjecting(false);
+            whiteboardInjectionTimerRef.current = null;
+          }, WHITEBOARD_INJECTION_SETTLE_MS);
+        }
+      }
+    }, WHITEBOARD_INJECTION_PLANNING_MS);
+
+    whiteboardInjectionCommitTimersRef.current.add(timer);
   }, []);
 
   useEffect(() => () => {
-    if (whiteboardInjectionTimerRef.current) {
-      clearTimeout(whiteboardInjectionTimerRef.current);
-    }
-  }, []);
+    clearWhiteboardInjectionTimers(false);
+  }, [clearWhiteboardInjectionTimers]);
 
   useEffect(() => {
     const wasWaiting =
@@ -564,12 +588,13 @@ const ChatLayout = () => {
   // conversation never bleeds in. The persisted blocks are reloaded below.
   const loadedEntriesConvRef = useRef<number | null>(null);
   useEffect(() => {
+    clearWhiteboardInjectionTimers();
     setTeachingEntries([]);
     resetQuestionPairs();
     teachingRef.current.reset();
     wbAnimationRef.current.clearAnimation();
     loadedEntriesConvRef.current = null;
-  }, [activeConversation?.backendId, resetQuestionPairs]);
+  }, [activeConversation?.backendId, clearWhiteboardInjectionTimers, resetQuestionPairs]);
 
   // Restore the guided-resolution workspace blocks for the active conversation from the
   // backend, so content persists across conversation switches and page reloads.
@@ -623,7 +648,6 @@ const ChatLayout = () => {
       whiteboard.setPanelOpen(true);
       const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
       const incoming = action.payload.blocks ?? action.payload.entries ?? [];
-      if (incoming.length > 0) flashWhiteboardInjection();
       console.info("[WS] Frontend recibió OPEN_WHITEBOARD", {
         whiteboardId: action.payload.whiteboardId, conversationId, bloques: incoming.length,
       });
@@ -634,15 +658,17 @@ const ChatLayout = () => {
 
           const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
           if (incomingEntries.length > 0) {
-            setTeachingEntries((prev) => {
-              const existingIds = new Set(prev.map((e) => e.id));
-              const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-              if (fresh.length === 0) return prev;
-              const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-              console.info("[WS] Workspace actualizado/renderizado", {
-                whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
+            scheduleWhiteboardInjection(() => {
+              setTeachingEntries((prev) => {
+                const existingIds = new Set(prev.map((e) => e.id));
+                const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
+                if (fresh.length === 0) return prev;
+                const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+                console.info("[WS] Workspace actualizado/renderizado", {
+                  whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
+                });
+                return next;
               });
-              return next;
             });
             return;
           }
@@ -674,7 +700,6 @@ const ChatLayout = () => {
       const incoming = action.payload.blocks ?? action.payload.entries ?? [];
       const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
       const targetWhiteboardId = action.payload.whiteboardId ?? whiteboard.activeWhiteboard?.id;
-      if (incoming.length > 0) flashWhiteboardInjection();
       console.info("[WS] Frontend recibió UPDATE_WHITEBOARD", {
         whiteboardId: targetWhiteboardId, conversationId, bloques: incoming.length,
       });
@@ -684,15 +709,17 @@ const ChatLayout = () => {
       }
       if (incoming.length > 0 && conversationId && targetWhiteboardId) {
         const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
-        setTeachingEntries((prev) => {
-          const existingIds = new Set(prev.map((e) => e.id));
-          const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-          if (fresh.length === 0) return prev;
-          const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-          console.info("[WS] Workspace renderizado desde UPDATE_WHITEBOARD", {
-            whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
+        scheduleWhiteboardInjection(() => {
+          setTeachingEntries((prev) => {
+            const existingIds = new Set(prev.map((e) => e.id));
+            const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
+            if (fresh.length === 0) return prev;
+            const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+            console.info("[WS] Workspace renderizado desde UPDATE_WHITEBOARD", {
+              whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
+            });
+            return next;
           });
-          return next;
         });
       }
     } else if (action.type === "INJECT_WHITEBOARD_CONTENT") {
@@ -702,7 +729,6 @@ const ChatLayout = () => {
         const incoming = action.payload.blocks ?? action.payload.entries ?? [];
         const conversationId = action.payload.conversationId ?? activeConversation?.backendId;
         const targetWhiteboardId = action.payload.whiteboardId ?? whiteboard.activeWhiteboard?.id;
-        if (incoming.length > 0) flashWhiteboardInjection();
         console.info("[WS] Frontend recibió INJECT_WHITEBOARD_CONTENT", {
           whiteboardId: targetWhiteboardId, conversationId, bloques: incoming.length,
         });
@@ -712,15 +738,17 @@ const ChatLayout = () => {
         }
         if (incoming.length > 0 && conversationId && targetWhiteboardId) {
           const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
-          setTeachingEntries((prev) => {
-            const existingIds = new Set(prev.map((e) => e.id));
-            const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-            if (fresh.length === 0) return prev;
-            const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-            console.info("[WS] Workspace renderizado desde INJECT_WHITEBOARD_CONTENT", {
-              whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
+          scheduleWhiteboardInjection(() => {
+            setTeachingEntries((prev) => {
+              const existingIds = new Set(prev.map((e) => e.id));
+              const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
+              if (fresh.length === 0) return prev;
+              const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
+              console.info("[WS] Workspace renderizado desde INJECT_WHITEBOARD_CONTENT", {
+                whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
+              });
+              return next;
             });
-            return next;
           });
         }
       }
