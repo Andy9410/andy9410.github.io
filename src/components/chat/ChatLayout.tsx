@@ -177,12 +177,22 @@ function buildWritingFrames(text: string): string[] {
   const tokens = trimmed.match(/\S+\s*/g) ?? [trimmed];
   const baseFrames =
     tokens.length > 1
-      ? tokens.reduce<string[]>((frames, token) => {
-          const previous = frames[frames.length - 1] ?? "";
-          frames.push(`${previous}${token}`.trimEnd());
-          return frames;
-        }, [])
+      ? tokens.reduce<{ frames: string[]; value: string }>((acc, token) => {
+          const value = `${acc.value}${token}`;
+          acc.frames.push(value);
+          acc.value = value;
+          return acc;
+        }, { frames: [], value: "" }).frames.map((frame, index, frames) => {
+          // Keep inter-word spaces while typing. Only the final frame is trimmed so the
+          // persisted visual value matches the original content exactly.
+          if (index === frames.length - 1) return frame.trimEnd();
+          return frame;
+        })
       : Array.from(trimmed).map((_, index, chars) => chars.slice(0, index + 1).join(""));
+
+  if (baseFrames[baseFrames.length - 1] !== trimmed) {
+    baseFrames[baseFrames.length - 1] = trimmed;
+  }
 
   if (baseFrames.length <= WHITEBOARD_INJECTION_MAX_FRAMES) return baseFrames;
 
@@ -191,6 +201,16 @@ function buildWritingFrames(text: string): string[] {
   const lastFrame = baseFrames[baseFrames.length - 1];
   if (compactFrames[compactFrames.length - 1] !== lastFrame) compactFrames.push(lastFrame);
   return compactFrames;
+}
+
+function normalizeVisibleWhiteboardText(entry: WhiteboardEntry, content: string): string {
+  if (entry.type === "FORMULA") return content.trim();
+  return content
+    .replace(/([a-záéíóúñü])([A-ZÁÉÍÓÚÑÜ])/g, "$1 $2")
+    .replace(/([a-záéíóúñü])(\d)/gi, "$1 $2")
+    .replace(/(\d)([a-wy-záéíóúñü]{2,})/gi, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const ChatLayout = () => {
@@ -499,7 +519,7 @@ const ChatLayout = () => {
       frames.forEach((frame, frameIndex) => {
         registerTimer(() => {
           setTeachingEntries((prev) => {
-            const nextEntry = { ...entry, content: frame };
+            const nextEntry = { ...entry, content: normalizeVisibleWhiteboardText(entry, frame) };
             const exists = prev.some((current) => current.id === entry.id);
             const next = exists
               ? prev.map((current) => current.id === entry.id ? nextEntry : current)
