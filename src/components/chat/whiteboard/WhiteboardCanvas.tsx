@@ -19,6 +19,7 @@ interface Props {
   onEraseOverlay?: () => void;
   onEraseEntry?: (entryId: number) => void; // erase a specific teaching entry
   teachingEntryLayout?: Array<{ id: number; y: number; height: number }>;
+  autoScrollToTeachingEnd?: boolean;
   questionPairs?: WhiteboardQuestionResponsePair[];
   activeQuestionId?: string | null;
   collapsedQuestionIds?: string[];
@@ -100,6 +101,7 @@ export function WhiteboardCanvas({
   onEraseOverlay,
   onEraseEntry,
   teachingEntryLayout,
+  autoScrollToTeachingEnd = false,
   questionPairs = [],
   activeQuestionId = null,
   collapsedQuestionIds = [],
@@ -204,6 +206,7 @@ export function WhiteboardCanvas({
     0,
     ...(teachingEntryLayout ?? []).map((entry) => entry.y + entry.height)
   );
+  const lastTeachingEntryId = teachingEntryLayout?.[teachingEntryLayout.length - 1]?.id ?? null;
   const pairData = visibleQuestionPairs.map((pair) => {
     const collapsed = !focusMode && collapsedQuestionIdSet.has(pair.questionId);
     const questionLines = wrapCanvasText(pair.question, pairMaxChars);
@@ -254,6 +257,15 @@ export function WhiteboardCanvas({
       width: layout.width,
       height: layout.answerHeight,
     }));
+
+  useEffect(() => {
+    if (!autoScrollToTeachingEnd || focusMode || lastTeachingBlockBottom <= 0) return;
+    const node = containerRef.current;
+    if (!node) return;
+
+    const targetTop = Math.max(0, lastTeachingBlockBottom - node.clientHeight + 96);
+    node.scrollTo({ top: targetTop, behavior: "smooth" });
+  }, [autoScrollToTeachingEnd, focusMode, lastTeachingBlockBottom, lastTeachingEntryId]);
   const getElementBounds = (element: WhiteboardElement): ElementBounds => {
     if (element.type === "text" || element.type === "equation") {
       const lines = (element.text ?? "").split("\n");

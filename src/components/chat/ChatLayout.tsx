@@ -139,9 +139,79 @@ function normalizeWhiteboardEntries(
     }));
 }
 
+function isGuidedResolutionRequest(message?: Message): boolean {
+  if (!message || message.role !== "user") return false;
+  const content = String(message.content ?? "").toLowerCase();
+  if (!content.trim()) return false;
+
+  const wantsWorkspace =
+    content.includes("pizarra") ||
+    content.includes("whiteboard") ||
+    content.includes("resolución guiada") ||
+    content.includes("resolucion guiada");
+  const wantsResolution =
+    content.includes("resolv") ||
+    content.includes("paso a paso") ||
+    content.includes("desarroll") ||
+    content.includes("explicame") ||
+    content.includes("explícame") ||
+    content.includes("mostrame");
+  const hasEquation = /\d[^=]*=.*/.test(content) || /=.*\d/.test(content);
+
+  return wantsWorkspace || wantsResolution || hasEquation;
+}
+
 const PDF_LAYOUT_STORAGE_KEY = "learnsoft.pdfLayout";
 const EXERCISE_PANEL_STORAGE_KEY = "learnsoft.exerciseStepsPanel";
 const NARROW_LAYOUT_QUERY = "(max-width: 900px)";
+const WHITEBOARD_INJECTION_PLANNING_MS = 1350;
+const WHITEBOARD_INJECTION_SETTLE_MS = 420;
+const WHITEBOARD_INJECTION_BLOCK_PAUSE_MS = 220;
+const WHITEBOARD_INJECTION_FRAME_MS = 64;
+const WHITEBOARD_INJECTION_MAX_FRAMES = 24;
+
+function buildWritingFrames(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  const tokens = trimmed.match(/\S+\s*/g) ?? [trimmed];
+  const baseFrames =
+    tokens.length > 1
+      ? tokens.reduce<{ frames: string[]; value: string }>((acc, token) => {
+          const value = `${acc.value}${token}`;
+          acc.frames.push(value);
+          acc.value = value;
+          return acc;
+        }, { frames: [], value: "" }).frames.map((frame, index, frames) => {
+          // Keep inter-word spaces while typing. Only the final frame is trimmed so the
+          // persisted visual value matches the original content exactly.
+          if (index === frames.length - 1) return frame.trimEnd();
+          return frame;
+        })
+      : Array.from(trimmed).map((_, index, chars) => chars.slice(0, index + 1).join(""));
+
+  if (baseFrames[baseFrames.length - 1] !== trimmed) {
+    baseFrames[baseFrames.length - 1] = trimmed;
+  }
+
+  if (baseFrames.length <= WHITEBOARD_INJECTION_MAX_FRAMES) return baseFrames;
+
+  const stride = Math.ceil(baseFrames.length / WHITEBOARD_INJECTION_MAX_FRAMES);
+  const compactFrames = baseFrames.filter((_, index) => index % stride === stride - 1);
+  const lastFrame = baseFrames[baseFrames.length - 1];
+  if (compactFrames[compactFrames.length - 1] !== lastFrame) compactFrames.push(lastFrame);
+  return compactFrames;
+}
+
+function normalizeVisibleWhiteboardText(entry: WhiteboardEntry, content: string): string {
+  if (entry.type === "FORMULA") return content.trim();
+  return content
+    .replace(/([a-záéíóúñü])([A-ZÁÉÍÓÚÑÜ])/g, "$1 $2")
+    .replace(/([a-záéíóúñü])(\d)/gi, "$1 $2")
+    .replace(/(\d)([a-wy-záéíóúñü]{2,})/gi, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 const ChatLayout = () => {
   const {
@@ -218,6 +288,7 @@ const ChatLayout = () => {
   const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
   const [whiteboardAskActive, setWhiteboardAskActive] = useState(false);
+  const [whiteboardInjecting, setWhiteboardInjecting] = useState(false);
   const [whiteboardInterpretMode, setWhiteboardInterpretMode] = useState<InterpretMode>("auto");
   const teachingRef = useRef(teaching);
   teachingRef.current = teaching;
@@ -230,6 +301,10 @@ const ChatLayout = () => {
   whiteboardElementsRef.current = whiteboardElements;
   const teachingCanvasBaselineRef = useRef<Map<string, string>>(new Map());
   const previousTeachingPhaseRef = useRef(teachingPhase);
+  const whiteboardInjectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const whiteboardInjectionCommitTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const queuedWhiteboardEntryIdsRef = useRef<Set<number>>(new Set());
+  const whiteboardInjectionAvailableAtRef = useRef(0);
   const [, setTeachingCanvasBaselineVersion] = useState(0);
 
   const [preferredPdfLayout, setPreferredPdfLayout] =
@@ -359,6 +434,12 @@ const ChatLayout = () => {
   const whiteboardAskStatus = whiteboardAskActive
     ? status === "loading" ? "generating" : "sending"
     : "idle";
+  const latestMessage = activeConversation?.messages?.[activeConversation.messages.length - 1];
+  const pendingWhiteboardInjection =
+    status === "loading" &&
+    Boolean(whiteboard.panelOpen || whiteboard.activeWhiteboard) &&
+    isGuidedResolutionRequest(latestMessage);
+  const showWhiteboardInjection = whiteboardInjecting || pendingWhiteboardInjection;
   const teachingSessionActive = teachingPhase !== "IDLE" && teachingPhase !== "COMPLETED";
   const teachingWaitingForAnswer = teachingPhase === "WAITING_USER_INPUT" || teachingPhase === "USER_WRITING";
 
@@ -377,6 +458,105 @@ const ChatLayout = () => {
     const t = setTimeout(() => teachingOnAnimationComplete(), 1200);
     return () => clearTimeout(t);
   }, [teachingPhase, teaching.stepIndex, teachingOnAnimationComplete]);
+
+  const clearWhiteboardInjectionTimers = useCallback((updateState = true) => {
+    if (whiteboardInjectionTimerRef.current) {
+      clearTimeout(whiteboardInjectionTimerRef.current);
+      whiteboardInjectionTimerRef.current = null;
+    }
+    whiteboardInjectionCommitTimersRef.current.forEach((timer) => clearTimeout(timer));
+    whiteboardInjectionCommitTimersRef.current.clear();
+    queuedWhiteboardEntryIdsRef.current.clear();
+    whiteboardInjectionAvailableAtRef.current = 0;
+    if (updateState) setWhiteboardInjecting(false);
+  }, []);
+
+  const scheduleWhiteboardInjection = useCallback((
+    entries: WhiteboardEntry[],
+    targetWhiteboardId: string,
+    source: string
+  ) => {
+    const existingIds = new Set(teachingEntriesRef.current.map((entry) => entry.id));
+    const queuedIds = queuedWhiteboardEntryIdsRef.current;
+    const freshEntries = entries
+      .filter((entry) => hasText(entry.content))
+      .filter((entry) => !existingIds.has(entry.id) && !queuedIds.has(entry.id));
+
+    if (freshEntries.length === 0) return;
+
+    freshEntries.forEach((entry) => queuedIds.add(entry.id));
+    setWhiteboardInjecting(true);
+    if (whiteboardInjectionTimerRef.current) {
+      clearTimeout(whiteboardInjectionTimerRef.current);
+      whiteboardInjectionTimerRef.current = null;
+    }
+
+    const now = Date.now();
+    let cursorDelay = Math.max(
+      WHITEBOARD_INJECTION_PLANNING_MS,
+      whiteboardInjectionAvailableAtRef.current > now
+        ? whiteboardInjectionAvailableAtRef.current - now + WHITEBOARD_INJECTION_BLOCK_PAUSE_MS
+        : WHITEBOARD_INJECTION_PLANNING_MS
+    );
+
+    const registerTimer = (callback: () => void, delay: number) => {
+      const timer = setTimeout(() => {
+        whiteboardInjectionCommitTimersRef.current.delete(timer);
+        callback();
+      }, delay);
+      whiteboardInjectionCommitTimersRef.current.add(timer);
+    };
+
+    let writtenCount = 0;
+    freshEntries.forEach((entry) => {
+      const fullContent = entry.content.trim();
+      const frames = buildWritingFrames(fullContent);
+      if (frames.length === 0) {
+        queuedIds.delete(entry.id);
+        return;
+      }
+
+      frames.forEach((frame, frameIndex) => {
+        registerTimer(() => {
+          setTeachingEntries((prev) => {
+            const nextEntry = { ...entry, content: normalizeVisibleWhiteboardText(entry, frame) };
+            const exists = prev.some((current) => current.id === entry.id);
+            const next = exists
+              ? prev.map((current) => current.id === entry.id ? nextEntry : current)
+              : [...prev, nextEntry];
+
+            return next.sort((a, b) => a.orderIndex - b.orderIndex);
+          });
+
+          if (frameIndex === frames.length - 1) {
+            queuedIds.delete(entry.id);
+            writtenCount += 1;
+          }
+        }, cursorDelay);
+        cursorDelay += WHITEBOARD_INJECTION_FRAME_MS;
+      });
+
+      cursorDelay += WHITEBOARD_INJECTION_BLOCK_PAUSE_MS;
+    });
+
+    registerTimer(() => {
+      console.info("[WS] Workspace escrito progresivamente", {
+        whiteboardId: targetWhiteboardId,
+        source,
+        nuevos: writtenCount,
+      });
+      whiteboardInjectionTimerRef.current = setTimeout(() => {
+        setWhiteboardInjecting(false);
+        whiteboardInjectionTimerRef.current = null;
+      }, WHITEBOARD_INJECTION_SETTLE_MS);
+    }, cursorDelay);
+
+    whiteboardInjectionAvailableAtRef.current = now + cursorDelay + WHITEBOARD_INJECTION_SETTLE_MS;
+  }, []);
+
+  useEffect(() => () => {
+    clearWhiteboardInjectionTimers(false);
+  }, [clearWhiteboardInjectionTimers]);
 
   useEffect(() => {
     const wasWaiting =
@@ -517,12 +697,13 @@ const ChatLayout = () => {
   // conversation never bleeds in. The persisted blocks are reloaded below.
   const loadedEntriesConvRef = useRef<number | null>(null);
   useEffect(() => {
+    clearWhiteboardInjectionTimers();
     setTeachingEntries([]);
     resetQuestionPairs();
     teachingRef.current.reset();
     wbAnimationRef.current.clearAnimation();
     loadedEntriesConvRef.current = null;
-  }, [activeConversation?.backendId, resetQuestionPairs]);
+  }, [activeConversation?.backendId, clearWhiteboardInjectionTimers, resetQuestionPairs]);
 
   // Restore the guided-resolution workspace blocks for the active conversation from the
   // backend, so content persists across conversation switches and page reloads.
@@ -530,6 +711,7 @@ const ChatLayout = () => {
     const conversationId = activeConversation?.backendId;
     const board = whiteboard.activeWhiteboard;
     if (!conversationId || !board?.id || !accessToken) return;
+    if (whiteboardInjecting || whiteboardInjectionCommitTimersRef.current.size > 0) return;
     // Durante el cambio de conversación, useWhiteboard recarga la pizarra de forma asíncrona,
     // así que activeWhiteboard puede quedar momentáneamente desfasada (la de la conversación
     // anterior). Solo restauramos cuando la pizarra activa pertenece a ESTA conversación,
@@ -552,7 +734,7 @@ const ChatLayout = () => {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [activeConversation?.backendId, whiteboard.activeWhiteboard?.id, whiteboard.activeWhiteboard?.conversationId, accessToken]);
+  }, [activeConversation?.backendId, whiteboard.activeWhiteboard?.id, whiteboard.activeWhiteboard?.conversationId, accessToken, whiteboardInjecting]);
 
   // La "Resolución guiada" es de solo lectura: el estudiante no edita bloques manualmente.
 
@@ -586,16 +768,7 @@ const ChatLayout = () => {
 
           const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
           if (incomingEntries.length > 0) {
-            setTeachingEntries((prev) => {
-              const existingIds = new Set(prev.map((e) => e.id));
-              const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-              if (fresh.length === 0) return prev;
-              const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-              console.info("[WS] Workspace actualizado/renderizado", {
-                whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
-              });
-              return next;
-            });
+            scheduleWhiteboardInjection(incomingEntries, targetWhiteboardId, "OPEN_WHITEBOARD");
             return;
           }
 
@@ -635,16 +808,7 @@ const ChatLayout = () => {
       }
       if (incoming.length > 0 && conversationId && targetWhiteboardId) {
         const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
-        setTeachingEntries((prev) => {
-          const existingIds = new Set(prev.map((e) => e.id));
-          const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-          if (fresh.length === 0) return prev;
-          const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-          console.info("[WS] Workspace renderizado desde UPDATE_WHITEBOARD", {
-            whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
-          });
-          return next;
-        });
+        scheduleWhiteboardInjection(incomingEntries, targetWhiteboardId, "UPDATE_WHITEBOARD");
       }
     } else if (action.type === "INJECT_WHITEBOARD_CONTENT") {
       // Teaching session is active — ignore SSE injection (teaching hook manages content)
@@ -662,16 +826,7 @@ const ChatLayout = () => {
         }
         if (incoming.length > 0 && conversationId && targetWhiteboardId) {
           const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
-          setTeachingEntries((prev) => {
-            const existingIds = new Set(prev.map((e) => e.id));
-            const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-            if (fresh.length === 0) return prev;
-            const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-            console.info("[WS] Workspace renderizado desde INJECT_WHITEBOARD_CONTENT", {
-              whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
-            });
-            return next;
-          });
+          scheduleWhiteboardInjection(incomingEntries, targetWhiteboardId, "INJECT_WHITEBOARD_CONTENT");
         }
       }
     }
@@ -940,6 +1095,7 @@ const ChatLayout = () => {
                         onLessonPrev={lesson.prevStep}
                         onLessonClose={lesson.close}
                         teachingEntries={teachingEntries}
+                        injectionLoading={showWhiteboardInjection}
                         conversationId={activeConversation?.backendId ?? null}
                         animState={wbAnimation.state}
                         onClearTeachingEntries={() => {
