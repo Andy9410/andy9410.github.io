@@ -166,6 +166,32 @@ const EXERCISE_PANEL_STORAGE_KEY = "learnsoft.exerciseStepsPanel";
 const NARROW_LAYOUT_QUERY = "(max-width: 900px)";
 const WHITEBOARD_INJECTION_PLANNING_MS = 1350;
 const WHITEBOARD_INJECTION_SETTLE_MS = 420;
+const WHITEBOARD_INJECTION_BLOCK_PAUSE_MS = 220;
+const WHITEBOARD_INJECTION_FRAME_MS = 64;
+const WHITEBOARD_INJECTION_MAX_FRAMES = 24;
+
+function buildWritingFrames(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  const tokens = trimmed.match(/\S+\s*/g) ?? [trimmed];
+  const baseFrames =
+    tokens.length > 1
+      ? tokens.reduce<string[]>((frames, token) => {
+          const previous = frames[frames.length - 1] ?? "";
+          frames.push(`${previous}${token}`.trimEnd());
+          return frames;
+        }, [])
+      : Array.from(trimmed).map((_, index, chars) => chars.slice(0, index + 1).join(""));
+
+  if (baseFrames.length <= WHITEBOARD_INJECTION_MAX_FRAMES) return baseFrames;
+
+  const stride = Math.ceil(baseFrames.length / WHITEBOARD_INJECTION_MAX_FRAMES);
+  const compactFrames = baseFrames.filter((_, index) => index % stride === stride - 1);
+  const lastFrame = baseFrames[baseFrames.length - 1];
+  if (compactFrames[compactFrames.length - 1] !== lastFrame) compactFrames.push(lastFrame);
+  return compactFrames;
+}
 
 const ChatLayout = () => {
   const {
@@ -257,6 +283,8 @@ const ChatLayout = () => {
   const previousTeachingPhaseRef = useRef(teachingPhase);
   const whiteboardInjectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const whiteboardInjectionCommitTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const queuedWhiteboardEntryIdsRef = useRef<Set<number>>(new Set());
+  const whiteboardInjectionAvailableAtRef = useRef(0);
   const [, setTeachingCanvasBaselineVersion] = useState(0);
 
   const [preferredPdfLayout, setPreferredPdfLayout] =
@@ -418,31 +446,92 @@ const ChatLayout = () => {
     }
     whiteboardInjectionCommitTimersRef.current.forEach((timer) => clearTimeout(timer));
     whiteboardInjectionCommitTimersRef.current.clear();
+    queuedWhiteboardEntryIdsRef.current.clear();
+    whiteboardInjectionAvailableAtRef.current = 0;
     if (updateState) setWhiteboardInjecting(false);
   }, []);
 
-  const scheduleWhiteboardInjection = useCallback((commit: () => void) => {
+  const scheduleWhiteboardInjection = useCallback((
+    entries: WhiteboardEntry[],
+    targetWhiteboardId: string,
+    source: string
+  ) => {
+    const existingIds = new Set(teachingEntriesRef.current.map((entry) => entry.id));
+    const queuedIds = queuedWhiteboardEntryIdsRef.current;
+    const freshEntries = entries
+      .filter((entry) => hasText(entry.content))
+      .filter((entry) => !existingIds.has(entry.id) && !queuedIds.has(entry.id));
+
+    if (freshEntries.length === 0) return;
+
+    freshEntries.forEach((entry) => queuedIds.add(entry.id));
     setWhiteboardInjecting(true);
     if (whiteboardInjectionTimerRef.current) {
       clearTimeout(whiteboardInjectionTimerRef.current);
       whiteboardInjectionTimerRef.current = null;
     }
 
-    const timer = setTimeout(() => {
-      whiteboardInjectionCommitTimersRef.current.delete(timer);
-      try {
-        commit();
-      } finally {
-        if (whiteboardInjectionCommitTimersRef.current.size === 0) {
-          whiteboardInjectionTimerRef.current = setTimeout(() => {
-            setWhiteboardInjecting(false);
-            whiteboardInjectionTimerRef.current = null;
-          }, WHITEBOARD_INJECTION_SETTLE_MS);
-        }
-      }
-    }, WHITEBOARD_INJECTION_PLANNING_MS);
+    const now = Date.now();
+    let cursorDelay = Math.max(
+      WHITEBOARD_INJECTION_PLANNING_MS,
+      whiteboardInjectionAvailableAtRef.current > now
+        ? whiteboardInjectionAvailableAtRef.current - now + WHITEBOARD_INJECTION_BLOCK_PAUSE_MS
+        : WHITEBOARD_INJECTION_PLANNING_MS
+    );
 
-    whiteboardInjectionCommitTimersRef.current.add(timer);
+    const registerTimer = (callback: () => void, delay: number) => {
+      const timer = setTimeout(() => {
+        whiteboardInjectionCommitTimersRef.current.delete(timer);
+        callback();
+      }, delay);
+      whiteboardInjectionCommitTimersRef.current.add(timer);
+    };
+
+    let writtenCount = 0;
+    freshEntries.forEach((entry) => {
+      const fullContent = entry.content.trim();
+      const frames = buildWritingFrames(fullContent);
+      if (frames.length === 0) {
+        queuedIds.delete(entry.id);
+        return;
+      }
+
+      frames.forEach((frame, frameIndex) => {
+        registerTimer(() => {
+          setTeachingEntries((prev) => {
+            const nextEntry = { ...entry, content: frame };
+            const exists = prev.some((current) => current.id === entry.id);
+            const next = exists
+              ? prev.map((current) => current.id === entry.id ? nextEntry : current)
+              : [...prev, nextEntry];
+
+            return next.sort((a, b) => a.orderIndex - b.orderIndex);
+          });
+
+          if (frameIndex === frames.length - 1) {
+            queuedIds.delete(entry.id);
+            writtenCount += 1;
+          }
+        }, cursorDelay);
+        cursorDelay += WHITEBOARD_INJECTION_FRAME_MS;
+      });
+
+      cursorDelay += WHITEBOARD_INJECTION_BLOCK_PAUSE_MS;
+    });
+
+    registerTimer(() => {
+      console.info("[WS] Workspace escrito progresivamente", {
+        whiteboardId: targetWhiteboardId,
+        source,
+        nuevos: writtenCount,
+      });
+      whiteboardInjectionTimerRef.current = setTimeout(() => {
+        setWhiteboardInjecting(false);
+        whiteboardInjectionTimerRef.current = null;
+      }, WHITEBOARD_INJECTION_SETTLE_MS);
+    }, cursorDelay);
+
+    whiteboardInjectionAvailableAtRef.current = now + cursorDelay + WHITEBOARD_INJECTION_SETTLE_MS;
   }, []);
 
   useEffect(() => () => {
@@ -602,6 +691,7 @@ const ChatLayout = () => {
     const conversationId = activeConversation?.backendId;
     const board = whiteboard.activeWhiteboard;
     if (!conversationId || !board?.id || !accessToken) return;
+    if (whiteboardInjecting || whiteboardInjectionCommitTimersRef.current.size > 0) return;
     // Durante el cambio de conversación, useWhiteboard recarga la pizarra de forma asíncrona,
     // así que activeWhiteboard puede quedar momentáneamente desfasada (la de la conversación
     // anterior). Solo restauramos cuando la pizarra activa pertenece a ESTA conversación,
@@ -624,7 +714,7 @@ const ChatLayout = () => {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [activeConversation?.backendId, whiteboard.activeWhiteboard?.id, whiteboard.activeWhiteboard?.conversationId, accessToken]);
+  }, [activeConversation?.backendId, whiteboard.activeWhiteboard?.id, whiteboard.activeWhiteboard?.conversationId, accessToken, whiteboardInjecting]);
 
   // La "Resolución guiada" es de solo lectura: el estudiante no edita bloques manualmente.
 
@@ -658,18 +748,7 @@ const ChatLayout = () => {
 
           const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
           if (incomingEntries.length > 0) {
-            scheduleWhiteboardInjection(() => {
-              setTeachingEntries((prev) => {
-                const existingIds = new Set(prev.map((e) => e.id));
-                const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-                if (fresh.length === 0) return prev;
-                const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-                console.info("[WS] Workspace actualizado/renderizado", {
-                  whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
-                });
-                return next;
-              });
-            });
+            scheduleWhiteboardInjection(incomingEntries, targetWhiteboardId, "OPEN_WHITEBOARD");
             return;
           }
 
@@ -709,18 +788,7 @@ const ChatLayout = () => {
       }
       if (incoming.length > 0 && conversationId && targetWhiteboardId) {
         const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
-        scheduleWhiteboardInjection(() => {
-          setTeachingEntries((prev) => {
-            const existingIds = new Set(prev.map((e) => e.id));
-            const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-            if (fresh.length === 0) return prev;
-            const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-            console.info("[WS] Workspace renderizado desde UPDATE_WHITEBOARD", {
-              whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
-            });
-            return next;
-          });
-        });
+        scheduleWhiteboardInjection(incomingEntries, targetWhiteboardId, "UPDATE_WHITEBOARD");
       }
     } else if (action.type === "INJECT_WHITEBOARD_CONTENT") {
       // Teaching session is active — ignore SSE injection (teaching hook manages content)
@@ -738,18 +806,7 @@ const ChatLayout = () => {
         }
         if (incoming.length > 0 && conversationId && targetWhiteboardId) {
           const incomingEntries = normalizeWhiteboardEntries(incoming, conversationId, targetWhiteboardId);
-          scheduleWhiteboardInjection(() => {
-            setTeachingEntries((prev) => {
-              const existingIds = new Set(prev.map((e) => e.id));
-              const fresh = incomingEntries.filter((e) => hasText(e.content) && !existingIds.has(e.id));
-              if (fresh.length === 0) return prev;
-              const next = [...prev, ...fresh].sort((a, b) => a.orderIndex - b.orderIndex);
-              console.info("[WS] Workspace renderizado desde INJECT_WHITEBOARD_CONTENT", {
-                whiteboardId: targetWhiteboardId, nuevos: fresh.length, total: next.length,
-              });
-              return next;
-            });
-          });
+          scheduleWhiteboardInjection(incomingEntries, targetWhiteboardId, "INJECT_WHITEBOARD_CONTENT");
         }
       }
     }

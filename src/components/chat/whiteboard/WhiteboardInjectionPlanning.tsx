@@ -1,4 +1,4 @@
-export function WhiteboardInjectionShimmer() {
+export function WhiteboardInjectionPlanning() {
   return (
     <div
       className="pointer-events-none absolute left-4 right-4 top-4 z-20 max-w-xl rounded-2xl border border-white/12 bg-slate-950/40 px-4 py-3 shadow-[0_18px_55px_rgba(2,6,23,0.26)] backdrop-blur-md"
