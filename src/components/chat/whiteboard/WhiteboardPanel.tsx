@@ -304,6 +304,7 @@ export function WhiteboardPanel({
           onEraseOverlay={onClearTeachingEntries}
           onEraseEntry={onEraseTeachingEntry}
           teachingEntryLayout={entryLayout}
+          autoScrollToTeachingEnd={injectionLoading}
           questionPairs={questionPairs}
           activeQuestionId={isTeachingWaiting ? activeQuestionId : null}
           collapsedQuestionIds={collapsedQuestionIds}
