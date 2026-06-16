@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/auth/useAuth'
 import AuthLayout from '@/components/auth/AuthLayout'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import type { User } from '@/auth/authTypes'
 
 const schema = z.object({
   email:    z.string().email('Email inválido'),
@@ -46,8 +47,9 @@ export default function LoginPage() {
   async function onSubmit(v: FormValues) {
     setServerErr(null)
     try {
-      await login({ email: v.email, password: v.password })
-      navigate(from, { replace: true })
+      const user = await login({ email: v.email, password: v.password })
+      const target = from === '/chat' && user.role === 'ROLE_ADMIN' ? '/admin/metrics' : from
+      navigate(target, { replace: true })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error inesperado'
       setServerErr(msg === 'Invalid email or password' ? 'Email o contraseña incorrectos' : msg)

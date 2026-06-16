@@ -18,7 +18,7 @@ import {
 import type { AuthState, LoginData, RegisterData, User } from './authTypes'
 
 interface AuthContextValue extends AuthState {
-  login: (data: LoginData) => Promise<void>
+  login: (data: LoginData) => Promise<User>
   register: (data: RegisterData) => Promise<void>
   logout: () => Promise<void>
   forceLogout: () => void
@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const resp = await apiLogin(data)
       tokenStorage.save(resp)
       applyTokens(resp.accessToken, resp.refreshToken, resp.user)
+      return resp.user
     },
     [applyTokens],
   )
