@@ -8,12 +8,14 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ScrollToTop from "./components/ScrollToTop";
 import { AuthProvider } from "./auth/AuthContext";
 import PrivateRoute from "./auth/PrivateRoute";
+import AdminRoute from "./auth/AdminRoute";
 
 const Index = lazy(() => import("./pages/Index"));
 const ApoyoPage = lazy(() => import("./pages/ApoyoPage"));
 const CarreraPage = lazy(() => import("./pages/CarreraPage"));
 const IAPage = lazy(() => import("./pages/IAPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
+const MetricsPage = lazy(() => import("./pages/admin/MetricsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -48,6 +50,9 @@ const App = () => (
                 {/* Protected routes */}
                 <Route element={<PrivateRoute />}>
                   <Route path="/chat" element={<ChatPage />} />
+                  <Route element={<AdminRoute />}>
+                    <Route path="/admin/metrics" element={<MetricsPage />} />
+                  </Route>
                 </Route>
 
                 {/* Fallback */}
