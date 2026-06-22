@@ -25,7 +25,7 @@ const inputClass = [
 ].join(' ')
 
 export default function LoginPage() {
-  const { login }    = useAuth()
+  const { login, user, isAuthenticated, isLoading } = useAuth()
   const navigate     = useNavigate()
   const location     = useLocation()
   const from           = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/chat'
@@ -38,6 +38,15 @@ export default function LoginPage() {
   useEffect(() => {
     tokenStorage.clear()
   }, [])
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !user) {
+      return
+    }
+
+    const target = from === '/chat' && user.role === 'ROLE_ADMIN' ? '/admin/metrics' : from
+    navigate(target, { replace: true })
+  }, [from, isAuthenticated, isLoading, navigate, user])
 
   const [show, setShow]         = useState(false)
   const [serverErr, setServerErr] = useState<string | null>(null)
