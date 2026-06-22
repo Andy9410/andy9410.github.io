@@ -14,6 +14,7 @@ const Index = lazy(() => import("./pages/Index"));
 const ApoyoPage = lazy(() => import("./pages/ApoyoPage"));
 const CarreraPage = lazy(() => import("./pages/CarreraPage"));
 const IAPage = lazy(() => import("./pages/IAPage"));
+const TutoriaMetricsDemoPage = lazy(() => import("./pages/demo/TutoriaMetricsDemoPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const MetricsPage = lazy(() => import("./pages/admin/MetricsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -44,6 +45,7 @@ const App = () => (
                 <Route path="/apoyo-universitario" element={<ApoyoPage />} />
                 <Route path="/carrera-it" element={<CarreraPage />} />
                 <Route path="/ia-para-adultos" element={<IAPage />} />
+                <Route path="/demo/tutoria-metrics" element={<TutoriaMetricsDemoPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
 

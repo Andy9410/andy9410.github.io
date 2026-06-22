@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/auth/useAuth'
+import { tokenStorage } from '@/auth/authService'
 import AuthLayout from '@/components/auth/AuthLayout'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 
@@ -34,6 +35,10 @@ export default function LoginPage() {
     if (sessionExpired) sessionStorage.removeItem('sessionExpired')
   }, [sessionExpired])
 
+  useEffect(() => {
+    tokenStorage.clear()
+  }, [])
+
   const [show, setShow]         = useState(false)
   const [serverErr, setServerErr] = useState<string | null>(null)
 
@@ -46,8 +51,12 @@ export default function LoginPage() {
   async function onSubmit(v: FormValues) {
     setServerErr(null)
     try {
-      await login({ email: v.email, password: v.password })
-      navigate(from, { replace: true })
+      const user = await login({
+        email: v.email.trim().toLowerCase(),
+        password: v.password,
+      })
+      const target = from === '/chat' && user.role === 'ROLE_ADMIN' ? '/admin/metrics' : from
+      navigate(target, { replace: true })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error inesperado'
       setServerErr(msg === 'Invalid email or password' ? 'Email o contraseña incorrectos' : msg)
@@ -81,7 +90,7 @@ export default function LoginPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" autoComplete="off">
 
           <FormField control={form.control} name="email" render={({ field }) => (
             <FormItem>
@@ -89,7 +98,8 @@ export default function LoginPage() {
                 Email
               </FormLabel>
               <FormControl>
-                <input type="email" placeholder="test@ejemplo.com" autoComplete="email"
+                <input type="email" placeholder="test@ejemplo.com" autoComplete="off"
+                  autoCapitalize="none" spellCheck={false}
                   className={inputClass} {...field} />
               </FormControl>
               <FormMessage className="text-xs text-red-400 mt-1" />
@@ -104,7 +114,7 @@ export default function LoginPage() {
               <FormControl>
                 <div className="relative">
                   <input type={show ? 'text' : 'password'} placeholder="••••••••"
-                    autoComplete="current-password" className={`${inputClass} pr-11`} {...field} />
+                    autoComplete="off" className={`${inputClass} pr-11`} {...field} />
                   <button type="button" tabIndex={-1} onClick={() => setShow(v => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
                     style={{ color: '#94A3B8' }}
