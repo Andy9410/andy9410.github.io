@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquarePlus, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft } from "lucide-react";
+import { MessageSquarePlus, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -93,6 +93,15 @@ function UserFooter() {
           <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.name ?? "User"}</p>
           <p className="truncate text-[10px] text-muted-foreground/60">{user?.email}</p>
         </div>
+        {user?.role === "ROLE_ADMIN" && (
+          <Link
+            to="/admin/metrics"
+            aria-label="Ir a métricas"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-cyan-700 transition-colors hover:bg-cyan-100 hover:text-cyan-900"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+          </Link>
+        )}
         <button
           onClick={handleLogout}
           disabled={loggingOut}
@@ -119,6 +128,15 @@ function UserFooter() {
               <p className="truncate text-xs font-medium text-foreground">{user?.name ?? "User"}</p>
               <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
             </div>
+            {user?.role === "ROLE_ADMIN" && (
+              <Link
+                to="/admin/metrics"
+                className="mb-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-cyan-700 transition-colors hover:bg-cyan-50"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Métricas
+              </Link>
+            )}
             <button
               onClick={handleLogout}
               disabled={loggingOut}
