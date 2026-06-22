@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-FFMPEG="./node_modules/ffmpeg-static/ffmpeg"
-VIDEO="testreel-output/learnsoft-demo.mp4"
+FFMPEG="/home/andy/desarrollo/learnsoft/node_modules/ffmpeg-static/ffmpeg"
+VIDEO="/home/andy/desarrollo/learnsoft/testreel-output/learnsoft-metrics-demo.mp4"
 MUSIC="/home/andy/Descargas/kontraa-water-afro-pop-music-445661.mp3"
-OUTPUT="testreel-output/learnsoft-demo-final.mp4"
+OUTPUT="/home/andy/desarrollo/learnsoft/testreel-output/learnsoft-metrics-demo.mp4"
+TMP_OUTPUT="/home/andy/desarrollo/learnsoft/testreel-output/learnsoft-metrics-demo.with-audio.mp4"
 
 if [ ! -f "$VIDEO" ]; then
   echo "Error: no se encontró $VIDEO" >&2
@@ -24,6 +25,8 @@ echo "Duración del video: ${DURATION}s — fade out desde ${FADE_START}s"
   -map "[music]" \
   -c:v copy \
   -shortest \
-  "$OUTPUT"
+  "$TMP_OUTPUT"
+
+mv "$TMP_OUTPUT" "$OUTPUT"
 
 echo "✓ Video final: $OUTPUT"
