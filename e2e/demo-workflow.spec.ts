@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // ─── Credenciales de demo ────────────────────────────────────────────────────
-const DEMO_EMAIL    = "learnsoftuy@edu.uy";
+const DEMO_EMAIL    = "learnsoft@edu.uy";
 const DEMO_PASSWORD = "learnsoftuy1234";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
