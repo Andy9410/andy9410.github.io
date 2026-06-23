@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
-import { Loader2, RefreshCw, Search, ShieldCheck, Users } from "lucide-react";
+import { Eye, Loader2, RefreshCw, Search, ShieldCheck, Users } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
+import { Link } from "react-router-dom";
 import AdminConsoleNav from "@/components/admin/AdminConsoleNav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -140,7 +141,7 @@ export default function UsersPage() {
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <CardTitle className="text-lg text-slate-50">Cuentas</CardTitle>
-                <CardDescription className="text-slate-400">Ordenadas por último login y fecha de alta.</CardDescription>
+                <CardDescription className="text-slate-400">Ordenadas por último login y fecha de alta. Desde acá también podés abrir el perfil de aprendizaje de cada usuario.</CardDescription>
               </div>
               <Badge variant="outline" className="border-slate-700 text-slate-300">
                 {formatNumber(query.data?.totalElements ?? 0)} resultados
@@ -170,6 +171,7 @@ export default function UsersPage() {
                         <TableHead className="text-slate-400">Fecha alta</TableHead>
                         <TableHead className="text-slate-400">Último login</TableHead>
                         <TableHead className="text-slate-400">Estado</TableHead>
+                        <TableHead className="text-right text-slate-400">Perfil</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -186,6 +188,18 @@ export default function UsersPage() {
                             ) : (
                               <Badge variant="outline" className="border-slate-700 text-slate-300">Inactivo</Badge>
                             )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              asChild
+                              variant="outline"
+                              className="border-slate-700 bg-transparent text-slate-200 hover:bg-slate-900 hover:text-slate-50"
+                            >
+                              <Link to={`/admin/users/${encodeURIComponent(user.email)}/profile`}>
+                                <Eye className="h-4 w-4" />
+                                Ver perfil
+                              </Link>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -251,6 +265,7 @@ export default function UsersPage() {
             )}
           </CardContent>
         </Card>
+
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquarePlus, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft, BarChart3 } from "lucide-react";
+import { MessageSquarePlus, MessageSquare, Code2, X, LogOut, User, Loader2, PanelLeft, BarChart3, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -70,6 +70,8 @@ function UserFooter() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const profileTarget = user?.role === "ROLE_ADMIN" ? "/admin/users" : "/learning-profile";
+  const profileLabel = user?.role === "ROLE_ADMIN" ? "Ir a perfiles de usuarios" : "Ir al perfil de aprendizaje";
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -102,6 +104,13 @@ function UserFooter() {
             <BarChart3 className="h-3.5 w-3.5" />
           </Link>
         )}
+        <Link
+          to={profileTarget}
+          aria-label={profileLabel}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-cyan-700 transition-colors hover:bg-cyan-100 hover:text-cyan-900"
+        >
+          <GraduationCap className="h-3.5 w-3.5" />
+        </Link>
         <button
           onClick={handleLogout}
           disabled={loggingOut}
@@ -137,6 +146,13 @@ function UserFooter() {
                 Métricas
               </Link>
             )}
+            <Link
+              to={profileTarget}
+              className="mb-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-cyan-700 transition-colors hover:bg-cyan-50"
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
+              {user?.role === "ROLE_ADMIN" ? "Perfiles de usuarios" : "Perfil de aprendizaje"}
+            </Link>
             <button
               onClick={handleLogout}
               disabled={loggingOut}
