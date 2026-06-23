@@ -45,7 +45,6 @@ interface Props {
   isLastAssistant?: boolean;
   isStreaming?: boolean;
   onRegenerate?: () => void;
-  onOpenExerciseBreakdown?: () => void;
 }
 
 const MessageBubble = ({
@@ -54,7 +53,6 @@ const MessageBubble = ({
                          isLastAssistant = false,
                          isStreaming = false,
                          onRegenerate,
-                         onOpenExerciseBreakdown,
                        }: Props) => {
   const [copied, setCopied] = useState(false);
 
@@ -206,24 +204,7 @@ const MessageBubble = ({
                 </div>
             )}
 
-            {message.exerciseBreakdown ? (
-                <button
-                    type="button"
-                    onClick={onOpenExerciseBreakdown}
-                    aria-label={`Abrir guía paso a paso: ${message.exerciseBreakdown.exerciseTitle}`}
-                    className="flex w-full items-center gap-3 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-left transition-colors hover:bg-teal-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-teal-500/30 dark:bg-teal-500/10 dark:hover:bg-teal-500/15"
-                >
-                  <BookOpenCheck className="h-5 w-5 shrink-0 text-teal-600 dark:text-teal-300" />
-                  <span className="min-w-0">
-                <span className="block text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  {message.exerciseBreakdown.exerciseTitle}
-                </span>
-                <span className="block text-xs text-slate-600 dark:text-slate-300">
-                  Guía interactiva de {message.exerciseBreakdown.steps.length} pasos
-                </span>
-              </span>
-                </button>
-            ) : isStreaming && !message.content ? (
+            {isStreaming && !message.content ? (
                 <TypingDots />
             ) : (
                 <Suspense fallback={<span className="text-sm opacity-60">{message.content}</span>}>

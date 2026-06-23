@@ -1,37 +1,11 @@
 import { useEffect, useRef } from "react";
 import type { AnimatedBlock, WBPhase } from "@/hooks/useWhiteboardAnimation";
 import { cn } from "@/lib/utils";
-
-// ─── Icons per type ────────────────────────────────────────────────────────
-
-const TYPE_ICON: Record<string, string> = {
-  TITLE:             "📌",
-  STEP:              "▶",
-  FORMULA:           "∫",
-  EXAMPLE:           "💡",
-  WARNING:           "⚠",
-  QUESTION:          "?",
-  AI_NOTE:           "✦",   // AI observation
-  AI_QUESTION:       "🎓",  // Socratic/teacher question
-  AI_CORRECTION:     "⚑",  // Error hint
-  TEXT:              "",
-  SYSTEM_NOTE:       "•",
-};
-
-// ─── Styles per author + type ──────────────────────────────────────────────
+import { hasText } from "@/utils/whiteboardRenderGuards";
 
 function blockStyle(author: string, type: string): string {
-  if (author === "user") {
-    // Student content — white chalk
-    return "wb-block-user";
-  }
-  // AI content styles by type
-  switch (type) {
-    case "AI_NOTE":       return "wb-block-ai-note";
-    case "AI_QUESTION":   return "wb-block-ai-question";
-    case "AI_CORRECTION": return "wb-block-ai-correction";
-    default:              return "wb-block-ai";
-  }
+  if (author === "user") return "wb-block-user";
+  return type === "AI_CORRECTION" ? "wb-block-ai-correction" : "wb-block-ai";
 }
 
 // ─── Single block ──────────────────────────────────────────────────────────
@@ -39,13 +13,11 @@ function blockStyle(author: string, type: string): string {
 interface BlockProps {
   block: AnimatedBlock;
   isActive: boolean;
-  index: number;
 }
 
-function AnimatedBlockView({ block, isActive, index }: BlockProps) {
+function AnimatedBlockView({ block, isActive }: BlockProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { entry, phase, visibleText } = block;
-  const icon = TYPE_ICON[entry.type] ?? "";
   const author = entry.author ?? "assistant";
 
   useEffect(() => {
@@ -54,13 +26,8 @@ function AnimatedBlockView({ block, isActive, index }: BlockProps) {
     }
   }, [isActive, visibleText]);
 
-  if (phase === "skeleton") {
-    return (
-      <div ref={ref} className="wb-skeleton-block" style={{ animationDelay: `${index * 0.08}s` }}>
-        <div className="wb-shimmer" />
-      </div>
-    );
-  }
+  if (!hasText(entry.content) && !hasText(visibleText)) return null;
+  if (phase === "skeleton" || !hasText(visibleText)) return null;
 
   const isBold  = entry.type === "TITLE" || entry.type === "STEP";
   const style   = blockStyle(author, entry.type);
@@ -75,14 +42,10 @@ function AnimatedBlockView({ block, isActive, index }: BlockProps) {
         phase === "complete" && "wb-block-complete"
       )}
     >
-      {icon && <span className="wb-block-icon">{icon}</span>}
       <span className={cn("wb-block-text", isBold && "wb-block-bold")}>
         {visibleText}
         {phase === "typing" && <span className="wb-cursor">|</span>}
       </span>
-      {phase === "complete" && author === "assistant" && (
-        <span className="wb-check" aria-hidden>✓</span>
-      )}
     </div>
   );
 }
@@ -98,6 +61,7 @@ interface Props {
 
 export function WhiteboardAnimatedOverlay({ phase, thinkingMessage, blocks, activeBlockIndex }: Props) {
   if (phase === "IDLE") return null;
+  const visibleBlocks = blocks.filter((block) => hasText(block.entry.content) || hasText(block.visibleText));
 
   return (
     <div className="wb-overlay-root">
@@ -108,21 +72,16 @@ export function WhiteboardAnimatedOverlay({ phase, thinkingMessage, blocks, acti
         </div>
       )}
 
-      {blocks.length > 0 && (
+      {visibleBlocks.length > 0 && (
         <div className="wb-blocks-container">
-          {blocks.map((block, i) => (
+          {visibleBlocks.map((block, i) => (
             <AnimatedBlockView
               key={block.entry.id}
               block={block}
               isActive={i === activeBlockIndex}
-              index={i}
             />
           ))}
         </div>
-      )}
-
-      {phase === "COMPLETED" && blocks.length > 0 && (
-        <div className="wb-completion-bar">✓ Listo</div>
       )}
     </div>
   );

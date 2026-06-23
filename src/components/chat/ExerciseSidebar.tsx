@@ -89,7 +89,7 @@ export function ExerciseSidebar({
                       onClick={() => onOpenWhiteboard(ex)}
                       className="mt-1 text-[10px] font-semibold text-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      Trabajar en Pizarra
+                      Trabajar en resolución guiada
                     </button>
                   )}
                 </div>

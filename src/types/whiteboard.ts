@@ -18,6 +18,7 @@ export interface WhiteboardElement {
   points?: WhiteboardPoint[];
   stroke?: string;
   fill?: string;
+  questionId?: string;
 }
 
 export interface WhiteboardData {
@@ -31,6 +32,7 @@ export interface Whiteboard {
   documentId?: number | null;
   exerciseLabel?: string | null;
   title: string;
+  intent?: string | null;
   data: WhiteboardData;
   mode?: string;
   status?: string;
@@ -40,7 +42,7 @@ export interface Whiteboard {
 
 export type WhiteboardEntryType =
   | "TEXT" | "STEP" | "FORMULA" | "DRAWING" | "HIGHLIGHT" | "SYSTEM_NOTE"
-  | "TITLE" | "EXAMPLE" | "WARNING" | "QUESTION" | "DRAWING_INSTRUCTION"
+  | "TITLE" | "EXAMPLE" | "WARNING" | "QUESTION" | "NOTE" | "DRAWING_INSTRUCTION"
   | "AI_NOTE" | "AI_QUESTION" | "AI_CORRECTION";  // AI annotation types
 
 export type WhiteboardAuthor = "user" | "assistant";
@@ -54,6 +56,15 @@ export interface WhiteboardEntry {
   content: string;
   orderIndex: number;
   metadata?: string | null;
+}
+
+export type WhiteboardAnswerStatus = "waiting" | "writing" | "answered";
+
+export interface WhiteboardQuestionResponsePair {
+  questionId: string;
+  question: string;
+  answer: string;
+  status: WhiteboardAnswerStatus;
 }
 
 export interface WhiteboardActionPayload {

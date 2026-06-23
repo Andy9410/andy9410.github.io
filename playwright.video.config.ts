@@ -5,12 +5,10 @@ export default defineConfig({
   timeout: 300_000,
   retries: 0,
   reporter: [["list"]],
-  globalSetup: "./e2e/global-setup.ts",
 
   use: {
-    baseURL: "https://learnsoft.uy",
     headless: true,
-    viewport: { width: 1440, height: 900 },
+    viewport: { width: 1920, height: 1080 },
     locale: "es-AR",
   },
 

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
-import type { WhiteboardData, WhiteboardElement, WhiteboardTool } from "@/types/whiteboard";
+import type { WhiteboardData, WhiteboardElement, WhiteboardQuestionResponsePair, WhiteboardTool } from "@/types/whiteboard";
 import { cn } from "@/lib/utils";
+import { hasText } from "@/utils/whiteboardRenderGuards";
+import { QuestionResponsePair } from "./QuestionResponsePair";
+import { COLLAPSED_QUESTION_RESPONSE_HEIGHT, getQuestionResponsePairHeight, QUESTION_RESPONSE_CARD_GAP } from "./questionResponseLayout";
 
 interface Props {
   data: WhiteboardData;
@@ -16,6 +19,14 @@ interface Props {
   onEraseOverlay?: () => void;
   onEraseEntry?: (entryId: number) => void; // erase a specific teaching entry
   teachingEntryLayout?: Array<{ id: number; y: number; height: number }>;
+  autoScrollToTeachingEnd?: boolean;
+  questionPairs?: WhiteboardQuestionResponsePair[];
+  activeQuestionId?: string | null;
+  collapsedQuestionIds?: string[];
+  focusMode?: boolean;
+  onAnswerSubmit?: () => void;
+  onAnswerContinue?: () => void;
+  onToggleQuestionCollapsed?: (questionId: string) => void;
 }
 
 type DragState =
@@ -31,6 +42,16 @@ type TextEditState = {
   isNew: boolean;
 };
 
+type CanvasRect = {
+  questionId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type ElementBounds = Omit<CanvasRect, "questionId">;
+
 const BOARD_BG     = "#2a5e1e";
 const stroke       = "#ffffff";
 const accent       = "#f9c74f";
@@ -38,29 +59,74 @@ const lessonStroke = "#ffffff";
 const lessonFill   = "rgba(255,255,255,0.08)";
 const CHALK_FONT   = "'Caveat', cursive";
 
-export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, overlayElements, overlayHtml, onToolChange, onSelect, onChange, onEraseOverlay, onEraseEntry, teachingEntryLayout }: Props) {
+function wrapCanvasText(text: string, maxChars: number, maxLines = Number.POSITIVE_INFINITY): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+
+  for (const word of words) {
+    if (lines.length === 0) {
+      lines.push(word);
+      continue;
+    }
+
+    const current = lines[lines.length - 1] ?? "";
+    const next = current ? `${current} ${word}` : word;
+
+    if (!current || next.length <= maxChars) {
+      lines[lines.length - 1] = next;
+      continue;
+    }
+
+    if (lines.length >= maxLines) {
+      lines[maxLines - 1] = `${lines[maxLines - 1].replace(/\s+$/, "")}...`;
+      return lines;
+    }
+
+    lines.push(word);
+  }
+
+  return lines.slice(0, Number.isFinite(maxLines) ? maxLines : lines.length);
+}
+
+export function WhiteboardCanvas({
+  data,
+  tool,
+  selectedId,
+  showGrid = true,
+  overlayElements,
+  overlayHtml,
+  onToolChange,
+  onSelect,
+  onChange,
+  onEraseOverlay,
+  onEraseEntry,
+  teachingEntryLayout,
+  autoScrollToTeachingEnd = false,
+  questionPairs = [],
+  activeQuestionId = null,
+  collapsedQuestionIds = [],
+  focusMode = false,
+  onAnswerSubmit,
+  onAnswerContinue,
+  onToggleQuestionCollapsed,
+}: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const ignoreNextBlurRef = useRef(false);
+  const textInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [editingText, setEditingText] = useState<TextEditState | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 640, height: 420 });
+  const editingTextId = editingText?.id;
 
   const selected = useMemo(
       () => data.elements.find((element) => element.id === selectedId),
       [data.elements, selectedId]
   );
 
-  const editingElement = useMemo(
-      () => data.elements.find((element) => element.id === editingText?.id),
-      [data.elements, editingText?.id]
-  );
-
-  const editingPosition = editingElement ?? editingText;
-
   // Global keyboard delete: works even if SVG element doesn't have DOM focus
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key !== "Delete" && e.key !== "Backspace") return;
       if (editingText) return;                         // don't interfere with text editing
       const active = document.activeElement;
@@ -74,13 +140,210 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
   }, [selected, editingText, data.elements]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!editingText) return;
+    requestAnimationFrame(() => {
+      if (editingTextId) {
+        const input = textInputRef.current;
+        input?.focus({ preventScroll: true });
+        input?.setSelectionRange(input.value.length, input.value.length);
+        return;
+      }
+
+      if (tool === "text" || tool === "equation") {
+        svgRef.current?.focus({ preventScroll: true });
+      }
+    });
+  }, [editingTextId, tool]);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const updateSize = () => {
+      const rect = node.getBoundingClientRect();
+      setCanvasSize({
+        width: Math.max(1, rect.width),
+        height: Math.max(1, rect.height),
+      });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateSize);
+      return () => window.removeEventListener("resize", updateSize);
+    }
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const boardWidth = Math.max(320, canvasSize.width);
+  const boardHeight = Math.max(280, canvasSize.height);
+  const pairCardWidth = Math.min(760, Math.max(300, boardWidth - 32));
+  const pairCardX = 16;
+  const pairMaxChars = Math.max(26, Math.floor((pairCardWidth - 52) / 12));
+  const collapsedQuestionIdSet = useMemo(
+    () => new Set(collapsedQuestionIds),
+    [collapsedQuestionIds]
+  );
+  const validQuestionPairs = useMemo(
+    () =>
+      questionPairs.filter((pair) => {
+        if (!hasText(pair.question)) return false;
+        if (pair.questionId === activeQuestionId) return true;
+        return pair.status === "answered" && hasText(pair.answer);
+      }),
+    [activeQuestionId, questionPairs]
+  );
+  const latestQuestionId = validQuestionPairs.length > 0 ? validQuestionPairs[validQuestionPairs.length - 1]?.questionId ?? null : null;
+  const focusQuestionId = activeQuestionId ?? latestQuestionId;
+  const visibleQuestionPairs =
+    focusMode && focusQuestionId
+      ? validQuestionPairs.filter((pair) => pair.questionId === focusQuestionId)
+      : validQuestionPairs;
+  const lastTeachingBlockBottom = Math.max(
+    0,
+    ...(teachingEntryLayout ?? []).map((entry) => entry.y + entry.height)
+  );
+  const lastTeachingEntryId = teachingEntryLayout?.[teachingEntryLayout.length - 1]?.id ?? null;
+  const pairData = visibleQuestionPairs.map((pair) => {
+    const collapsed = !focusMode && collapsedQuestionIdSet.has(pair.questionId);
+    const questionLines = wrapCanvasText(pair.question, pairMaxChars);
+    const questionHeight = collapsed ? 0 : Math.max(132, 82 + questionLines.length * 36);
+    const showAnswer = pair.questionId === activeQuestionId || (pair.status === "answered" && hasText(pair.answer));
+    const answerHeight = collapsed || !showAnswer ? 0 : pair.questionId === activeQuestionId ? 188 : 138;
+    const height = collapsed
+      ? COLLAPSED_QUESTION_RESPONSE_HEIGHT + 14
+      : !showAnswer
+        ? questionHeight + 18
+      : getQuestionResponsePairHeight(questionHeight, answerHeight);
+
+    return { pair, questionLines, questionHeight, answerHeight, collapsed, showAnswer, height };
+  });
+  const desiredPairY = focusMode ? 32 : lastTeachingBlockBottom > 0 ? lastTeachingBlockBottom + 36 : 118;
+  const pairStartY = focusMode ? Math.max(32, desiredPairY) : Math.max(96, desiredPairY);
+  let pairCursorY = pairStartY;
+  const pairLayouts = pairData.map((item) => {
+    const y = pairCursorY;
+    pairCursorY += item.height;
+    return {
+      ...item,
+      x: pairCardX,
+      y,
+      width: pairCardWidth,
+      answerY: y + item.questionHeight + QUESTION_RESPONSE_CARD_GAP,
+    };
+  });
+  const activePair = visibleQuestionPairs.find((pair) => pair.questionId === activeQuestionId) ?? null;
+  const activePairLayout = pairLayouts.find((layout) => layout.pair.questionId === activeQuestionId);
+  const canvasContentHeight = Math.max(boardHeight, pairCursorY + 24);
+  const activePairTop = activePairLayout?.y;
+  const questionCardRects: CanvasRect[] = pairLayouts
+    .filter((layout) => !layout.collapsed && layout.questionHeight > 0)
+    .map((layout) => ({
+      questionId: layout.pair.questionId,
+      x: layout.x,
+      y: layout.y,
+      width: layout.width,
+      height: layout.questionHeight,
+    }));
+  const answerCardRects: CanvasRect[] = pairLayouts
+    .filter((layout) => !layout.collapsed && layout.showAnswer && layout.answerHeight > 0)
+    .map((layout) => ({
+      questionId: layout.pair.questionId,
+      x: layout.x,
+      y: layout.answerY,
+      width: layout.width,
+      height: layout.answerHeight,
+    }));
+
+  useEffect(() => {
+    if (!autoScrollToTeachingEnd || focusMode || lastTeachingBlockBottom <= 0) return;
+    const node = containerRef.current;
+    if (!node) return;
+
+    const targetTop = Math.max(0, lastTeachingBlockBottom - node.clientHeight + 96);
+    node.scrollTo({ top: targetTop, behavior: "smooth" });
+  }, [autoScrollToTeachingEnd, focusMode, lastTeachingBlockBottom, lastTeachingEntryId]);
+  const getElementBounds = (element: WhiteboardElement): ElementBounds => {
+    if (element.type === "text" || element.type === "equation") {
+      const lines = (element.text ?? "").split("\n");
+      const longestLine = Math.max(1, ...lines.map((line) => line.length));
+      const fontSize = element.type === "equation" ? 26 : 22;
+
+      return {
+        x: element.x,
+        y: element.y - fontSize,
+        width: Math.max(72, longestLine * 12),
+        height: Math.max(30, lines.length * fontSize * 1.45),
+      };
+    }
+
+    if (element.type === "path" && element.points && element.points.length > 0) {
+      const xs = element.points.map((point) => point.x);
+      const ys = element.points.map((point) => point.y);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+
+      return {
+        x: minX,
+        y: minY,
+        width: Math.max(1, Math.max(...xs) - minX),
+        height: Math.max(1, Math.max(...ys) - minY),
+      };
+    }
+
+    if (element.type === "arrow") {
+      const x2 = element.x + (element.width ?? 120);
+      const y2 = element.y + (element.height ?? 0);
+      const minX = Math.min(element.x, x2);
+      const minY = Math.min(element.y, y2);
+
+      return {
+        x: minX,
+        y: minY,
+        width: Math.max(1, Math.abs(x2 - element.x)),
+        height: Math.max(1, Math.abs(y2 - element.y)),
+      };
+    }
+
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width ?? 120,
+      height: element.height ?? 72,
+    };
+  };
+  const rectsOverlap = (first: ElementBounds, second: ElementBounds) =>
+    first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y;
+  const isElementInsideQuestionCard = (element: WhiteboardElement) =>
+    questionCardRects.some((rect) => rectsOverlap(getElementBounds(element), rect));
+  const isElementInsideAnswerCard = (element: WhiteboardElement) => {
+    if (!hasText(element.questionId)) return false;
+
+    const answerRect = answerCardRects.find((rect) => rect.questionId === element.questionId);
+    const elementBounds = getElementBounds(element);
+    return answerRect ? rectsOverlap(elementBounds, answerRect) && !isElementInsideQuestionCard(element) : false;
+  };
+  const drawableElements = data.elements.filter(
+    (element) => !hasText(element.questionId) && !isElementInsideQuestionCard(element)
+  );
+  const pedagogicalAnswerElements = data.elements.filter(isElementInsideAnswerCard);
+
+  useEffect(() => {
+    if (activePairTop === undefined) return;
 
     requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
+      containerRef.current?.scrollTo({
+        top: Math.max(0, activePairTop - 18),
+        behavior: "smooth",
+      });
     });
-  }, [editingText?.id]);
+  }, [activePairTop, activeQuestionId]);
 
   const pointFromEvent = (event: PointerEvent<SVGSVGElement>) => {
     const rect = svgRef.current!.getBoundingClientRect();
@@ -116,10 +379,6 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
     setDrag(null);
     onSelect(element.id);
 
-    if (isNew) {
-      ignoreNextBlurRef.current = true;
-    }
-
     setEditingText({
       id: element.id,
       draft: element.text ?? "",
@@ -128,6 +387,61 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
       y: element.y,
       isNew,
     });
+  };
+
+  const createTextElementAt = (
+    point: { x: number; y: number },
+    type: "text" | "equation",
+    initialText = "",
+    questionId?: string
+  ) => {
+    const element: WhiteboardElement = {
+      id: crypto.randomUUID(),
+      type,
+      x: point.x,
+      y: point.y,
+      text: initialText,
+      stroke,
+      questionId,
+    };
+
+    addElement(element);
+    startTextEditing(element, true);
+    onToolChange("select");
+  };
+
+  const answerPoint = () => {
+    return {
+      x: (activePairLayout?.x ?? 24) + 28,
+      y: (activePairLayout?.answerY ?? Math.max(118, lastTeachingBlockBottom + 40)) + 86,
+    };
+  };
+
+  const startAnswerText = (event: PointerEvent<SVGElement>, type: "text" | "equation") => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (editingText) commitTextEditing();
+    createTextElementAt(answerPoint(), type, "", activeQuestionId ?? undefined);
+  };
+
+  const handleAnswerSubmit = (event: PointerEvent<SVGElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (activePair?.answer.trim()) onAnswerSubmit?.();
+  };
+
+  const handleAnswerContinue = (event: PointerEvent<SVGElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onAnswerContinue?.();
+  };
+
+  const updateEditingDraft = (draft: string) => {
+    if (!editingText) return;
+
+    setEditingText({ ...editingText, draft, isNew: false });
+    replaceElement(editingText.id, { text: draft });
   };
 
   const commitTextEditing = () => {
@@ -157,27 +471,55 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
     setEditingText(null);
   };
 
-  const handleTextBlur = () => {
-    if (!editingText) return;
-
-    if (ignoreNextBlurRef.current && !editingText.draft.trim()) {
-      ignoreNextBlurRef.current = false;
-
-      requestAnimationFrame(() => {
-        inputRef.current?.focus();
-      });
-
-      return;
-    }
-
-    commitTextEditing();
-  };
-
   const onElementKeyDown = (event: KeyboardEvent<SVGElement>, element: WhiteboardElement) => {
     if (event.key !== "Delete" && event.key !== "Backspace") return;
     event.preventDefault();
     event.stopPropagation();
     deleteElement(element.id);
+  };
+
+  const onCanvasKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
+    if (!editingText) {
+      if (
+        (tool === "text" || tool === "equation") &&
+        event.key.length === 1 &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        createTextElementAt(
+          activePairLayout ? answerPoint() : { x: 80, y: 96 },
+          tool,
+          event.key,
+          activePairLayout ? activeQuestionId ?? undefined : undefined
+        );
+      }
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitTextEditing();
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelTextEditing();
+      return;
+    }
+
+    if (event.key === "Backspace" || event.key === "Delete") {
+      event.preventDefault();
+      updateEditingDraft(editingText.draft.slice(0, -1));
+      return;
+    }
+
+    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      updateEditingDraft(`${editingText.draft}${event.key}`);
+    }
   };
 
   const onCanvasPointerDown = (event: PointerEvent<SVGSVGElement>) => {
@@ -190,18 +532,7 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
     const id = crypto.randomUUID();
 
     if (tool === "text" || tool === "equation") {
-      const element: WhiteboardElement = {
-        id,
-        type: tool,
-        x: point.x,
-        y: point.y,
-        text: "",
-        stroke,
-      };
-
-      addElement(element);
-      startTextEditing(element, true);
-      onToolChange("select");
+      createTextElementAt(point, tool);
       return;
     }
 
@@ -310,6 +641,10 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
   const onPointerUp = () => setDrag(null);
 
   const renderElement = (element: WhiteboardElement) => {
+    if (element.questionId && collapsedQuestionIdSet.has(element.questionId)) return null;
+    if (focusMode && focusQuestionId && element.questionId && element.questionId !== focusQuestionId) return null;
+    if ((element.type === "text" || element.type === "equation") && editingText?.id !== element.id && !hasText(element.text)) return null;
+
     const isSelected = element.id === selected?.id;
 
     const common = {
@@ -324,25 +659,36 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
     };
 
     if (element.type === "text" || element.type === "equation") {
+      const isEditing = editingText?.id === element.id;
+      const displayText = isEditing
+        ? editingText.draft || "Escribí..."
+        : element.text ?? "";
+      const lines = displayText.split("\n");
+
       return (
           <g key={element.id} {...common}>
             <text
                 x={element.x}
                 y={element.y}
-                fill={stroke}
+                fill={isEditing && !editingText.draft ? "rgba(255,255,255,0.55)" : stroke}
                 fontSize={element.type === "equation" ? "26" : "22"}
                 fontWeight="600"
                 fontFamily={CHALK_FONT}
             >
-              {element.text}
+              {lines.map((line, index) => (
+                <tspan key={index} x={element.x} dy={index === 0 ? 0 : "1.35em"}>
+                  {line}
+                  {isEditing && index === lines.length - 1 ? " |" : ""}
+                </tspan>
+              ))}
             </text>
 
-            {isSelected && (
+            {(isSelected || isEditing) && (
                 <rect
                     x={element.x - 4}
                     y={element.y - 20}
-                    width={Math.max(56, (element.text?.length ?? 4) * 9)}
-                    height={28}
+                    width={Math.max(72, displayText.length * 9)}
+                    height={Math.max(28, lines.length * 30)}
                     fill="none"
                     stroke={accent}
                     strokeDasharray="4 3"
@@ -563,7 +909,8 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
 
   return (
       <div
-        className="relative min-h-0 flex-1 overflow-hidden"
+        ref={containerRef}
+        className="relative min-h-0 flex-1 overflow-auto"
         style={{
           backgroundColor: BOARD_BG,
           backgroundImage: showGrid
@@ -572,34 +919,71 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
           backgroundSize: showGrid ? "24px 24px" : "auto",
         }}
       >
-        {/* AI content rendered BEFORE the SVG — SVG is transparent so content
-            shows through, and all pointer events go to the SVG naturally */}
-        {overlayHtml && (
-          <div
-            className="absolute inset-0 overflow-hidden whiteboard-overlay-content"
-            style={{ padding: "20px 24px", zIndex: 0 }}
-            dangerouslySetInnerHTML={{ __html: overlayHtml }}
-          />
-        )}
+        <div className="relative min-h-full" style={{ height: canvasContentHeight }}>
+          {/* AI content rendered BEFORE the SVG — SVG is transparent so content
+              shows through, and all pointer events go to the SVG naturally */}
+          {overlayHtml && !focusMode && (
+            <div
+              className="absolute inset-0 overflow-hidden whiteboard-overlay-content"
+              style={{ padding: "20px 24px", zIndex: 0 }}
+              dangerouslySetInnerHTML={{ __html: overlayHtml }}
+            />
+          )}
 
-        <svg
-            ref={svgRef}
-            className={cn("absolute inset-0 h-full w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}
-            style={{ zIndex: 1 }}
-            onPointerDown={onCanvasPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerLeave={onPointerUp}
-            role="application"
-            aria-label="Pizarra inteligente"
-        >
+          <svg
+              ref={svgRef}
+              className={cn("absolute left-0 top-0 w-full touch-none", (tool === "text" || tool === "equation") && "cursor-text")}
+              style={{ zIndex: 1, height: canvasContentHeight }}
+              onPointerDown={onCanvasPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={onPointerUp}
+              onKeyDown={onCanvasKeyDown}
+              onBlur={(event) => {
+                const nextTarget = event.relatedTarget;
+                if (nextTarget === textInputRef.current) return;
+                if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+                commitTextEditing();
+              }}
+              tabIndex={0}
+              role="application"
+              aria-label="Pizarra inteligente"
+          >
           {/* SVG lesson step overlay (behind user elements) */}
-          {overlayElements && overlayElements.length > 0 && (
+          {!focusMode && overlayElements && overlayElements.length > 0 && (
             <g pointerEvents="none" opacity="0.85" aria-hidden="true">
               {overlayElements.map(renderOverlayElement)}
             </g>
           )}
-          {data.elements.map(renderElement)}
+
+          {drawableElements.map(renderElement)}
+
+          {pairLayouts.map((layout, index) => {
+            const active = layout.pair.questionId === activeQuestionId;
+            return (
+              <QuestionResponsePair
+                key={layout.pair.questionId}
+                pair={layout.pair}
+                index={index}
+                x={layout.x}
+                y={layout.y}
+                width={layout.width}
+                questionHeight={layout.questionHeight}
+                answerHeight={layout.answerHeight}
+                question={layout.pair.question}
+                active={active}
+                collapsed={layout.collapsed}
+                showAnswer={layout.showAnswer}
+                fontFamily={CHALK_FONT}
+                onStartAnswer={active && !editingText ? (event) => startAnswerText(event, "text") : undefined}
+                onSubmit={active ? handleAnswerSubmit : undefined}
+                onContinue={active ? handleAnswerContinue : undefined}
+                onToggleCollapsed={onToggleQuestionCollapsed}
+              />
+            );
+          })}
+
+          {pedagogicalAnswerElements.map(renderElement)}
 
           {/* Invisible hit rects for individual entry erasure */}
           {tool === "erase" && teachingEntryLayout && teachingEntryLayout.map((entry) => (
@@ -619,40 +1003,46 @@ export function WhiteboardCanvas({ data, tool, selectedId, showGrid = true, over
               }}
             />
           ))}
-        </svg>
+          </svg>
 
-        {editingText && editingPosition && (
-            <input
-                ref={inputRef}
-                value={editingText.draft}
-                onPointerDown={(event) => event.stopPropagation()}
-                onMouseDown={(event) => event.stopPropagation()}
-                onClick={(event) => event.stopPropagation()}
-                onChange={(event) =>
-                    setEditingText((current) =>
-                        current ? { ...current, draft: event.target.value, isNew: false } : current
-                    )
+          {editingText && (
+            <textarea
+              ref={textInputRef}
+              value={editingText.draft}
+              onChange={(event) => updateEditingDraft(event.target.value)}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  commitTextEditing();
+                  return;
                 }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    commitTextEditing();
-                  } else if (event.key === "Escape") {
-                    event.preventDefault();
-                    cancelTextEditing();
-                  }
-                }}
-                onBlur={handleTextBlur}
-                aria-label="Editar texto de la pizarra"
-                className="absolute z-20 h-8 min-w-24 rounded-md border border-white/40 bg-[#1a4d1a] px-2 text-sm text-white shadow-lg outline-none ring-2 ring-white/20"
-                style={{ fontFamily: CHALK_FONT }}
-                style={{
-                  left: editingPosition.x - 6,
-                  top: editingPosition.y - 24,
-                  width: Math.max(120, editingText.draft.length * 9 + 28),
-                }}
+
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  cancelTextEditing();
+                }
+              }}
+              onBlur={commitTextEditing}
+              aria-label="Texto en la pizarra"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              className="absolute resize-none overflow-hidden border-0 bg-transparent p-0 text-transparent caret-transparent outline-none"
+              style={{
+                left: editingText.x,
+                top: Math.max(0, editingText.y - 24),
+                width: 1,
+                height: 1,
+                opacity: 0.01,
+                zIndex: 2,
+                pointerEvents: "none",
+              }}
             />
-        )}
+          )}
+        </div>
+
       </div>
   );
 }

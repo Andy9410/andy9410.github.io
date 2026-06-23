@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Code2, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import CalendlyModal from "@/components/CalendlyModal";
+import { useAuth } from "@/auth/useAuth";
 
 const navLinks = [
   { label: "Apoyo Universitario", href: "/apoyo-universitario", isRoute: true },
@@ -17,6 +18,7 @@ const Navbar = () => {
   const [calendlyOpen, setCalendlyOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const scrollToSection = useCallback(
     (sectionId: string) => {
@@ -72,6 +74,14 @@ const Navbar = () => {
               </a>
             )
           )}
+          {user?.role === "ROLE_ADMIN" && (
+            <Link
+              to="/admin/metrics"
+              className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-900 transition-colors hover:bg-cyan-100"
+            >
+              Métricas
+            </Link>
+          )}
         </div>
 
         <button onClick={() => setCalendlyOpen(true)} className="hidden rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 md:inline-flex">
@@ -102,6 +112,15 @@ const Navbar = () => {
                 {l.label}
               </a>
             )
+          )}
+          {user?.role === "ROLE_ADMIN" && (
+            <Link
+              to="/admin/metrics"
+              onClick={() => setOpen(false)}
+              className="block py-3 text-sm font-semibold text-cyan-700"
+            >
+              Métricas
+            </Link>
           )}
           <button onClick={() => { setOpen(false); setCalendlyOpen(true); }} className="mt-2 block w-full rounded-lg bg-primary px-5 py-2.5 text-center text-sm font-semibold text-primary-foreground">
             Empezar ahora

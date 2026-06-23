@@ -17,7 +17,11 @@ interface TeachingState {
   pauseQuestion: string | null;
   stepIndex: number;
   userDraft: string;
+  isComplete: boolean;
 }
+
+// Tope de seguridad para el auto-avance (evita un bucle infinito si el LLM nunca marca isComplete).
+const MAX_TEACH_STEPS = 12;
 
 interface Options {
   conversationId: number | null;
@@ -31,6 +35,7 @@ const INITIAL: TeachingState = {
   pauseQuestion: null,
   stepIndex: 0,
   userDraft: "",
+  isComplete: false,
 };
 
 export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onEntries }: Options) {
@@ -38,9 +43,32 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
   const onEntriesRef = useRef(onEntries);
   onEntriesRef.current = onEntries;
 
+  const buildFallbackEntry = useCallback(
+    (
+      targetConversationId: number,
+      targetWhiteboardId: string,
+      stepIndex: number,
+      content: string
+    ): WhiteboardEntry => ({
+      id: -(Date.now() + stepIndex),
+      whiteboardId: targetWhiteboardId,
+      conversationId: targetConversationId,
+      type: "SYSTEM_NOTE",
+      author: "assistant",
+      content,
+      orderIndex: Math.max(1, stepIndex + 1),
+    }),
+    []
+  );
+
   const callTeach = useCallback(
-    async (userInput: string | undefined, stepIndex: number, topic?: string) => {
-      if (!conversationId || !whiteboardId || !token) return;
+    async (
+      userInput: string | undefined,
+      stepIndex: number,
+      topic?: string,
+      targetWhiteboardId = whiteboardId
+    ) => {
+      if (!conversationId || !targetWhiteboardId || !token) return;
 
       setState((s) => ({
         ...s,
@@ -49,55 +77,93 @@ export function useWhiteboardTeaching({ conversationId, whiteboardId, token, onE
       }));
 
       try {
-        const resp = await teachWhiteboard(conversationId, whiteboardId, token, {
+        const resp = await teachWhiteboard(conversationId, targetWhiteboardId, token, {
           userInput: userInput?.trim() || undefined,
           stepIndex,
           topic,
         });
 
-        onEntriesRef.current(resp.entries);
+        const entries = resp.entries.length > 0
+          ? resp.entries
+          : [
+              buildFallbackEntry(
+                conversationId,
+                targetWhiteboardId,
+                stepIndex,
+                "No recibí contenido para mostrar en la resolución guiada. Intentá pedir la explicación nuevamente."
+              ),
+            ];
+
+        onEntriesRef.current(entries);
 
         setState((s) => ({
           ...s,
           phase: "WRITING_FRAGMENT",
-          pauseQuestion: resp.pauseQuestion,
+          // Modo no interactivo: nunca preguntamos al alumno.
+          pauseQuestion: null,
           stepIndex: resp.nextStepIndex,
           userDraft: "",
+          isComplete: resp.isComplete,
         }));
 
-        // onAnimationComplete() is called externally when the animation finishes
-        // and transitions WRITING_FRAGMENT → WAITING_USER_INPUT | COMPLETED
-        // Store isComplete in a closure for the callback
+        // onAnimationComplete() (llamado al terminar la animación del fragmento) decide:
+        // si isComplete → COMPLETED; si no → auto-avanza al siguiente fragmento.
         return resp.isComplete;
       } catch {
-        setState(INITIAL);
+        onEntriesRef.current([
+          buildFallbackEntry(
+            conversationId,
+            targetWhiteboardId,
+            stepIndex,
+            "No pude cargar la explicación en la resolución guiada. Intentá de nuevo en unos segundos."
+          ),
+        ]);
+        setState((s) => ({
+          ...s,
+          phase: "WRITING_FRAGMENT",
+          pauseQuestion: null,
+          stepIndex,
+          userDraft: "",
+          isComplete: true,
+        }));
         return true;
       }
     },
-    [conversationId, whiteboardId, token]
+    [buildFallbackEntry, conversationId, token, whiteboardId]
   );
 
-  // Called by parent when the animation for the current fragment finishes
+  const callTeachRef = useRef(callTeach);
+  callTeachRef.current = callTeach;
+
+  // Called by parent when the animation for the current fragment finishes.
+  // Non-interactive: keep resolving the next fragment automatically (no questions),
+  // until the LLM marks isComplete or we hit the safety cap.
   const onAnimationComplete = useCallback(() => {
     setState((s) => {
       if (s.phase !== "WRITING_FRAGMENT") return s;
-      // If no question was set (isComplete was true), go to COMPLETED
-      return { ...s, phase: s.pauseQuestion ? "WAITING_USER_INPUT" : "COMPLETED" };
+      if (s.isComplete || s.stepIndex >= MAX_TEACH_STEPS) {
+        return { ...s, phase: "COMPLETED" };
+      }
+      const nextStep = s.stepIndex;
+      setTimeout(() => callTeachRef.current(undefined, nextStep), 0);
+      return { ...s, phase: "CONTINUING" };
     });
   }, []);
 
   const start = useCallback(
-    (topic?: string) => {
-      void callTeach(undefined, 0, topic);
+    (topic?: string, targetWhiteboardId?: string) => {
+      void callTeach(undefined, 0, topic, targetWhiteboardId);
     },
     [callTeach]
   );
 
-  const submitResponse = useCallback(() => {
+  const submitResponse = useCallback((canvasAnswer?: string) => {
     setState((s) => {
       if (s.phase !== "WAITING_USER_INPUT" && s.phase !== "USER_WRITING") return s;
-      void callTeach(s.userDraft || undefined, s.stepIndex);
-      return { ...s, phase: "ANALYZING_USER_INPUT" };
+      const answer = canvasAnswer?.trim() || s.userDraft.trim();
+      if (!answer) return s;
+      void callTeach(answer, s.stepIndex);
+      return { ...s, phase: "ANALYZING_USER_INPUT", userDraft: "" };
     });
   }, [callTeach]);
 

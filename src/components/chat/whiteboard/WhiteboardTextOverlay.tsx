@@ -4,6 +4,7 @@ import texmath from "markdown-it-texmath";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import type { WhiteboardEntry } from "@/types/whiteboard";
+import { hasText } from "@/utils/whiteboardRenderGuards";
 
 const md = new MarkdownIt({ html: false, breaks: true, linkify: false })
   .use(texmath, {
@@ -31,8 +32,9 @@ interface Props {
 
 export function WhiteboardTextOverlay({ entries }: Props) {
   const html = useMemo(() => {
-    if (entries.length === 0) return "";
-    const sorted = [...entries].sort((a, b) => a.orderIndex - b.orderIndex);
+    const visibleEntries = entries.filter((entry) => hasText(entry.content));
+    if (visibleEntries.length === 0) return "";
+    const sorted = visibleEntries.sort((a, b) => a.orderIndex - b.orderIndex);
     const combined = sorted.map(entryToMarkdown).join("");
     return md.render(combined);
   }, [entries]);
@@ -40,7 +42,6 @@ export function WhiteboardTextOverlay({ entries }: Props) {
   if (!html) return null;
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       className="absolute inset-0 overflow-y-auto overflow-x-hidden"
       style={{ zIndex: 5, pointerEvents: "none" }}

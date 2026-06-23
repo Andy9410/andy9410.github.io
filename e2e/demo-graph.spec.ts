@@ -4,14 +4,12 @@ import type { Locator, Page } from "@playwright/test";
 const DEMO_EMAIL = "learnsoft@edu.uy";
 const DEMO_PASSWORD = "learnsoftuy1234";
 
-const PASCAL_MESSAGE =
-  "Explícame qué es una variable en Pascal y dame un ejemplo simple.";
-const DOCUMENT_MESSAGE =
-  "Explícame el ejercicio 2 de este documento paso a paso.";
+const GRAPH_MESSAGE_1 = "Graficá la función f(x) = x² - 4 y explicame sus características principales.";
+const GRAPH_MESSAGE_2 = "Ahora graficá sen(x) en el intervalo [-2π, 2π].";
 
 test.use({
   testreelOptions: {
-    name: "learnsoft-demo",
+    name: "learnsoft-graphs",
     outputFormat: "mp4",
     outputDir: "./testreel-output",
     cursor: {
@@ -38,26 +36,6 @@ async function briefHold(page: Page, ms = 700) {
   await page.waitForTimeout(ms);
 }
 
-async function naturalLandingScroll(page: Page) {
-  const steps = 80;
-  const duration = 10_000;
-  const delay = duration / steps;
-
-  await page.mouse.move(1180, 520, { steps: 20 });
-
-  for (let i = 0; i < steps; i += 1) {
-    const easing = Math.sin((i / steps) * Math.PI);
-    const delta = 80 + Math.round(easing * 95);
-    await page.mouse.wheel(0, delta);
-    await page.waitForTimeout(delay);
-  }
-}
-
-async function quickBackToTop(page: Page) {
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
-  await page.waitForTimeout(850);
-}
-
 async function waitForChatReady(page: Page) {
   const input = page.getByLabel("Mensaje", { exact: true });
   await expect(input).toBeVisible({ timeout: 20_000 });
@@ -67,31 +45,14 @@ async function waitForChatReady(page: Page) {
 
 async function waitForAIResponse(page: Page, timeout = 120_000) {
   const input = page.getByLabel("Mensaje", { exact: true });
-
   await expect(input).toBeDisabled({ timeout: 12_000 });
   await expect(input).toBeEnabled({ timeout });
-
-  await expect(page.getByLabel("Regenerar respuesta").last()).toBeAttached({
-    timeout: 15_000,
-  });
-
+  await expect(page.getByLabel("Regenerar respuesta").last()).toBeAttached({ timeout: 15_000 });
   await page.evaluate(() => {
     const scrollers = Array.from(document.querySelectorAll("main .overflow-y-auto"));
     const chatScroller = scrollers.find((el) => el.scrollHeight > el.clientHeight);
     chatScroller?.scrollTo({ top: chatScroller.scrollHeight, behavior: "smooth" });
   });
-}
-
-async function firstOpenableDocument(page: Page) {
-  const openPdfButton = page.getByLabel("Ver en visor").first();
-
-  if (await openPdfButton.isVisible().catch(() => false)) {
-    return openPdfButton;
-  }
-
-  await page.waitForTimeout(2_000);
-
-  return null;
 }
 
 async function sendChatMessage(
@@ -107,35 +68,50 @@ async function sendChatMessage(
   await waitForChatReady(page);
   await testreelPage.click("[aria-label='Mensaje']");
   await testreelPage.type("[aria-label='Mensaje']", message, { delay: 38 });
-  await briefHold(page, 250);
+  await briefHold(page, 300);
   await testreelPage.click("[aria-label='Enviar mensaje']");
   await waitForAIResponse(page, timeout);
-  await testreelPage.wait(3_500);
+  await testreelPage.wait(3_000);
 }
 
-test("LearnSoft - Demo Video", async ({ page, testreelPage }) => {
+async function hoverAndDownloadGraph(page: Page, testreelPage: {
+  click: (target: string | Locator, options?: Record<string, unknown>) => Promise<void>;
+  wait: (ms: number) => Promise<void>;
+}) {
+  const graph = page.locator("figure").last();
+  if (!(await graph.isVisible().catch(() => false))) return;
+
+  await graph.scrollIntoViewIfNeeded();
+  await briefHold(page, 500);
+
+  // Hover sobre el gráfico para mostrar el botón de descarga
+  await graph.hover();
+  await briefHold(page, 800);
+
+  const downloadBtn = graph.getByLabel("Descargar gráfico");
+  if (await downloadBtn.isVisible().catch(() => false)) {
+    const downloadPromise = page.waitForEvent("download");
+    await testreelPage.click(downloadBtn);
+    const download = await downloadPromise;
+    await download.cancel(); // cancelar para no guardar en disco en el demo
+    await briefHold(page, 1_200);
+  }
+}
+
+test("LearnSoft - Gráficas interactivas", async ({ page, testreelPage }) => {
   await testreelPage.navigate("https://learnsoft.uy");
   await expect(page).toHaveTitle(/LearnSoft/i);
   await briefHold(page, 900);
-
-  await naturalLandingScroll(page);
-  await quickBackToTop(page);
 
   await testreelPage.click("role=link[name='TutorIA']");
   await briefHold(page, 500);
 
   if (page.url().includes("/login")) {
-    await expect(page.getByPlaceholder("test@ejemplo.com")).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByPlaceholder("test@ejemplo.com")).toBeVisible({ timeout: 10_000 });
     await testreelPage.click("[placeholder='test@ejemplo.com']");
-    await testreelPage.type("[placeholder='test@ejemplo.com']", DEMO_EMAIL, {
-      delay: 42,
-    });
+    await testreelPage.type("[placeholder='test@ejemplo.com']", DEMO_EMAIL, { delay: 42 });
     await testreelPage.click("input[type='password']");
-    await testreelPage.type("input[type='password']", DEMO_PASSWORD, {
-      delay: 42,
-    });
+    await testreelPage.type("input[type='password']", DEMO_PASSWORD, { delay: 42 });
     await briefHold(page, 250);
     await testreelPage.click("role=button[name='Ingresar']");
   }
@@ -144,30 +120,19 @@ test("LearnSoft - Demo Video", async ({ page, testreelPage }) => {
   await waitForChatReady(page);
   await briefHold(page, 900);
 
+  // Nueva conversación
   await testreelPage.click("role=button[name='Nuevo chat']");
-  await briefHold(page, 450);
-  await sendChatMessage(page, testreelPage, PASCAL_MESSAGE, 120_000);
+  await briefHold(page, 500);
 
-  await testreelPage.click("[aria-label='Mis documentos']");
-  const firstDocumentButton = await firstOpenableDocument(page);
+  // Primer gráfico: parábola
+  await sendChatMessage(page, testreelPage, GRAPH_MESSAGE_1, 120_000);
+  await hoverAndDownloadGraph(page, testreelPage);
 
-  if (firstDocumentButton) {
-    await testreelPage.click(firstDocumentButton);
+  await briefHold(page, 1_500);
 
-    await expect(page.getByLabel("Cerrar visor")).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator(".react-pdf__Document canvas").first()).toBeVisible({
-      timeout: 30_000,
-    });
-    await briefHold(page, 1_400);
+  // Segundo gráfico: seno
+  await sendChatMessage(page, testreelPage, GRAPH_MESSAGE_2, 120_000);
+  await hoverAndDownloadGraph(page, testreelPage);
 
-    await page.mouse.wheel(0, 500);
-    await page.waitForTimeout(650);
-    await page.mouse.wheel(0, -360);
-    await page.waitForTimeout(650);
-  } else {
-    await testreelPage.click("role=button[name='Close']");
-    await briefHold(page, 700);
-  }
-
-  await sendChatMessage(page, testreelPage, DOCUMENT_MESSAGE, 150_000);
+  await briefHold(page, 2_000);
 });

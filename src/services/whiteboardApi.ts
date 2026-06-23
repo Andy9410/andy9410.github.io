@@ -73,7 +73,7 @@ export async function openWhiteboardForTeaching(
 ): Promise<Whiteboard> {
   const res = await whiteboardFetch(`/api/conversations/${conversationId}/whiteboards/open`, token, {
     method: "POST",
-    body: JSON.stringify({ title: title ?? "Pizarra de enseñanza" }),
+    body: JSON.stringify({ title: title ?? "Resolución guiada" }),
   });
   return normalizeWhiteboard(await res.json() as Whiteboard);
 }
@@ -81,7 +81,7 @@ export async function openWhiteboardForTeaching(
 export async function addWhiteboardEntries(
   conversationId: number,
   whiteboardId: string,
-  entries: Array<{ type: string; content: string; orderIndex: number }>,
+  entries: Array<{ type: string; author?: string; content: string; orderIndex: number }>,
   token: string
 ): Promise<WhiteboardEntry[]> {
   const res = await whiteboardFetch(
