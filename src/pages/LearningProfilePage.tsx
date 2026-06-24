@@ -76,7 +76,7 @@ export default function LearningProfilePage() {
         <Separator className="mb-6" />
 
         {profileQuery.isLoading ? (
-          <ProfileLoading />
+          <LearningProfileLoading />
         ) : profileQuery.isError ? (
           <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-100">
             <ShieldAlert className="h-4 w-4" />
