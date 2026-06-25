@@ -1160,9 +1160,14 @@ const ChatLayout = () => {
                   isOpen={docPanelOpen}
                   onClose={() => setDocPanelOpen(false)}
                   token={accessToken}
+                  onUploadSuccess={(id) => {
+                    const uploaded = pdfViewer.documents.find((doc) => doc.id === id);
+                    pdfViewer.openDocument(id, uploaded?.filename ?? "Documento");
+                    void setActiveDocument(id);
+                  }}
                   onDocumentOpen={(id, name) => {
                     pdfViewer.openDocument(id, name);
-                    setActiveDocument(id);
+                    void setActiveDocument(id);
                     setDocPanelOpen(false);
                   }}
               />
