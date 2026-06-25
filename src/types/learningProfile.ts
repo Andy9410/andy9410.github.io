@@ -11,7 +11,8 @@ export interface LearningRecommendation {
 }
 
 export interface WeeklyStudyPlanItem {
-  day: string;
+  dayLabel: string;
+  date: string;
   title: string;
   focus: string;
   activity: string;
