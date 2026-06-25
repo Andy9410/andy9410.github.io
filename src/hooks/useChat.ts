@@ -26,6 +26,7 @@ import {
   fetchConversationMessages,
   deleteConversationApi,
   generateConversationTitle,
+  setConversationActiveDocument,
   checkHealth,
 } from "@/services/chatApi";
 import { uploadDocuments } from "@/services/documentApi";
@@ -193,7 +194,7 @@ export const useChat = () => {
     return summary.id;
   }, [accessToken]);
 
-  const setActiveDocument = useCallback((documentId: number) => {
+  const setActiveDocument = useCallback(async (documentId: number) => {
     const targetId = activeIdRef.current;
     if (!targetId) return;
     setConversations((prev) =>
@@ -204,8 +205,15 @@ export const useChat = () => {
     const backendId = conversationsRef.current.find((c) => c.id === targetId)?.backendId;
     if (backendId) {
       savePrefDoc(backendId, documentId);
+      if (accessToken) {
+        try {
+          await setConversationActiveDocument(backendId, documentId, accessToken);
+        } catch {
+          // Keep local state; the next chat request will re-send the preferred document.
+        }
+      }
     }
-  }, []);
+  }, [accessToken]);
 
   const selectConversation = useCallback(
     async (id: string) => {

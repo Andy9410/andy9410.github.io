@@ -144,6 +144,17 @@ export async function generateConversationTitle(id: number, token: string): Prom
   return data.title;
 }
 
+export async function setConversationActiveDocument(
+  conversationId: number,
+  documentId: number | null,
+  token: string
+): Promise<void> {
+  await chatFetch(`/api/conversations/${conversationId}/active-document`, token, {
+    method: "POST",
+    body: JSON.stringify({ documentId }),
+  });
+}
+
 export async function checkHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/health`);
