@@ -1,7 +1,7 @@
 import { test, expect } from "testreel/playwright";
 import type { Locator, Page } from "@playwright/test";
 
-const DEMO_EMAIL = "learnsoftuy@edu.uy";
+const DEMO_EMAIL = "learnsoft@edu.uy";
 const DEMO_PASSWORD = "learnsoftuy1234";
 
 const PASCAL_MESSAGE =

@@ -16,7 +16,12 @@ const CarreraPage = lazy(() => import("./pages/CarreraPage"));
 const IAPage = lazy(() => import("./pages/IAPage"));
 const TutoriaMetricsDemoPage = lazy(() => import("./pages/demo/TutoriaMetricsDemoPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
+const LearningProfilePage = lazy(() => import("./pages/LearningProfilePage"));
+const AdminLearningProfilePage = lazy(() => import("./pages/admin/AdminLearningProfilePage"));
 const MetricsPage = lazy(() => import("./pages/admin/MetricsPage"));
+const ConversationsPage = lazy(() => import("./pages/admin/ConversationsPage"));
+const UsersPage = lazy(() => import("./pages/admin/UsersPage"));
+const DocumentsPage = lazy(() => import("./pages/admin/DocumentsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -52,8 +57,13 @@ const App = () => (
                 {/* Protected routes */}
                 <Route element={<PrivateRoute />}>
                   <Route path="/chat" element={<ChatPage />} />
+                  <Route path="/learning-profile" element={<LearningProfilePage />} />
                   <Route element={<AdminRoute />}>
                     <Route path="/admin/metrics" element={<MetricsPage />} />
+                    <Route path="/admin/users" element={<UsersPage />} />
+                    <Route path="/admin/users/:email/profile" element={<AdminLearningProfilePage />} />
+                    <Route path="/admin/documents" element={<DocumentsPage />} />
+                    <Route path="/admin/conversations" element={<ConversationsPage />} />
                   </Route>
                 </Route>
 
