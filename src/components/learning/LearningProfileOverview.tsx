@@ -37,6 +37,45 @@ const RELIABLE_TARGETS = {
   interactions: 15,
 } as const;
 
+function parseIsoDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1));
+}
+
+function capitalize(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatFriendlyDate(dateIso: string, firstDateIso: string) {
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  const diff = Math.round(
+    (parseIsoDate(dateIso).getTime() - parseIsoDate(firstDateIso).getTime()) / millisecondsPerDay,
+  );
+
+  if (diff === 0) return "Hoy";
+  if (diff === 1) return "Mañana";
+
+  return capitalize(
+    new Intl.DateTimeFormat("es-UY", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(parseIsoDate(dateIso)),
+  );
+}
+
+function formatFullDate(dateIso: string) {
+  return capitalize(
+    new Intl.DateTimeFormat("es-UY", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(parseIsoDate(dateIso)),
+  );
+}
+
 const maturityMeta: Record<
   ProfileMaturity,
   {
@@ -166,6 +205,8 @@ function RecommendationsList({ items }: { items: LearningRecommendation[] }) {
 }
 
 function WeeklyPlan({ items }: { items: WeeklyStudyPlanItem[] }) {
+  const firstDateIso = items[0]?.date ?? "";
+
   return (
     <UniformInfoCard
       icon={CalendarDays}
@@ -176,15 +217,18 @@ function WeeklyPlan({ items }: { items: WeeklyStudyPlanItem[] }) {
       <div className="space-y-3">
         {items.map((item) => (
           <div
-            key={item.day}
+            key={`${item.dayLabel}-${item.date}-${item.title}`}
             className="rounded-2xl border border-border/60 bg-muted/20 p-4 transition-all duration-200 hover:border-border hover:bg-muted/30"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">{item.day}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {item.dayLabel} · {formatFriendlyDate(item.date, firstDateIso)}
+                  </p>
                   <span className="text-xs text-muted-foreground">{item.title}</span>
                 </div>
+                <p className="text-xs text-muted-foreground">{formatFullDate(item.date)}</p>
                 <p className="text-sm leading-6 text-muted-foreground">{item.activity}</p>
               </div>
               <StatusBadge className="border-border/70 bg-background/80 text-muted-foreground">
