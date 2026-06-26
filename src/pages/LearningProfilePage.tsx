@@ -35,17 +35,17 @@ export default function LearningProfilePage() {
     <div className={cn("min-h-screen bg-background text-foreground", pageGlowClassName)}>
       <div className="mx-auto max-w-7xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
         <LearningHeader
-          title="Plan de estudio automatico con umbral de evidencia"
-          description="LearnSoftUY habilita recomendaciones y planificacion cuando la senal del perfil ya es suficiente para sostener inferencias razonables, explicables y utiles para el estudiante."
+          title="Tu plan de estudio y progreso"
+          description="LearnSoftUY usa tu actividad real para mostrar recomendaciones, avances y un plan semanal claro, sin complicar la lectura."
           badges={
             <>
               <StatusBadge className="border-indigo-200/80 bg-indigo-500/10 text-indigo-700 dark:border-indigo-500/25 dark:bg-indigo-500/10 dark:text-indigo-100">
                 <BrainCircuit className="h-3.5 w-3.5" />
-                Perfil adaptativo
+                Tu progreso
               </StatusBadge>
               <StatusBadge className="border-emerald-200/80 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-100">
                 <WandSparkles className="h-3.5 w-3.5" />
-                Evidencia real del usuario
+                Datos reales
               </StatusBadge>
             </>
           }
