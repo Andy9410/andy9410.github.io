@@ -40,7 +40,7 @@ import type {
 
 const RELIABLE_TARGETS = {
   documents: 3,
-  exercises: 10,
+  exercises: 5,
   interactions: 15,
 } as const;
 
@@ -395,8 +395,8 @@ export function LearningProfileOverview({ profile }: { profile: LearningProfile 
               <CompactMetricPill
                 icon={CheckCircle2}
                 iconTone={iconTones.emerald}
-                label="Ejercicios"
-                value={formatTarget(profile.exercisesDetected, RELIABLE_TARGETS.exercises)}
+                label="Practica"
+                value={profile.exercisesDetected >= RELIABLE_TARGETS.exercises ? "Suficiente" : "En crecimiento"}
                 status={computeStatus(profile.exercisesDetected, RELIABLE_TARGETS.exercises)}
               />
               <CompactMetricPill
@@ -462,10 +462,10 @@ export function LearningProfileOverview({ profile }: { profile: LearningProfile 
             <EvidenceCard
               icon={CheckCircle2}
               iconTone={iconTones.emerald}
-              title="Ejercicios detectados"
-              description="Cuenta ejercicios unicos por documento a partir de exercise_ref y evita inflar la senal por chunk repetido."
-              badge={`${profile.exercisesDetected} relevantes`}
-              state="Senal estable"
+              title="Practica detectada"
+              description="Cuenta actividad practica real por documento y evita inflar la senal con repeticiones."
+              badge={profile.exercisesDetected >= RELIABLE_TARGETS.exercises ? "Suficiente" : `${profile.exercisesDetected} en curso`}
+              state={profile.exercisesDetected >= RELIABLE_TARGETS.exercises ? "Senal estable" : "Aun creciendo"}
             />
             <EvidenceCard
               icon={MessageSquareMore}
